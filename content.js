@@ -1,9 +1,15 @@
 // BigMan AntiVirus - Content Script
-// Scans for link mismatches between visible text and href
+// Single source of truth for link scanning - stores results and responds to popup requests
 
 class PhishingDetector {
     constructor() {
         this.detector = new LinkDetector();
+        this.scanResults = {
+            total: 0,
+            suspicious: 0,
+            details: [],
+            lastScanTime: null
+        };
         this.init();
     }
 
@@ -11,23 +17,37 @@ class PhishingDetector {
         console.log('BigMan AntiVirus: Initialized');
         this.scanPage();
         this.observeChanges();
+        this.setupMessageListener();
     }
 
     scanPage() {
         const links = document.querySelectorAll('a[href]');
         console.log(`BigMan AntiVirus: Scanning ${links.length} links`);
         
-        let suspiciousCount = 0;
+        // Reset results
+        this.scanResults = {
+            total: links.length,
+            suspicious: 0,
+            details: [],
+            lastScanTime: new Date()
+        };
+        
         links.forEach(link => {
             const result = this.detector.analyzeLink(link.textContent, link.href);
             if (result.isSuspicious) {
-                suspiciousCount++;
+                this.scanResults.suspicious++;
+                this.scanResults.details.push({
+                    text: link.textContent,
+                    url: link.href,
+                    reason: result.reason,
+                    details: result.details
+                });
                 this.markSuspiciousLink(link, result);
             }
         });
         
-        if (suspiciousCount > 0) {
-            console.warn(`BigMan AntiVirus: Found ${suspiciousCount} suspicious links`);
+        if (this.scanResults.suspicious > 0) {
+            console.warn(`BigMan AntiVirus: Found ${this.scanResults.suspicious} suspicious links`);
         } else {
             console.log('BigMan AntiVirus: No suspicious links detected');
         }
@@ -43,8 +63,8 @@ class PhishingDetector {
         // Tooltip with details
         link.title = `⚠️ SUSPICIOUS LINK DETECTED ⚠️\n` +
                     `Reason: ${result.reason}\n` +
-                    `Visible: ${result.details.visibleDomain}\n` +
-                    `Actual: ${result.details.actualDomain}`;
+                    `Visible: ${result.details.visibleDomain || result.details.visibleIdentifier}\n` +
+                    `Actual: ${result.details.actualDomain || result.details.actualIdentifier}`;
         
         // Click warning
         link.addEventListener('click', (e) => {
@@ -80,6 +100,25 @@ class PhishingDetector {
         observer.observe(document.body, { 
             childList: true, 
             subtree: true 
+        });
+    }
+
+    setupMessageListener() {
+        // Listen for messages from popup
+        chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+            if (request.action === 'getScanResults') {
+                sendResponse({
+                    success: true,
+                    results: this.scanResults
+                });
+            } else if (request.action === 'rescan') {
+                this.scanPage();
+                sendResponse({
+                    success: true,
+                    results: this.scanResults
+                });
+            }
+            return true; // Keep message channel open for async response
         });
     }
 }

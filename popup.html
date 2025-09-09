@@ -6,8 +6,29 @@
     <style>
         body { width: 300px; padding: 20px; font-family: Arial, sans-serif; }
         .header { text-align: center; margin-bottom: 20px; }
-        .scan-btn { width: 100%; padding: 10px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .scan-btn { width: 100%; padding: 10px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; margin-bottom: 15px; }
         .scan-btn:hover { background: #45a049; }
+        .console-container { margin-top: 15px; }
+        .console-label { font-weight: bold; margin-bottom: 5px; color: #333; }
+        .console-output { 
+            width: 100%; 
+            height: 200px; 
+            border: 1px solid #ccc; 
+            border-radius: 4px; 
+            padding: 10px; 
+            font-family: 'Courier New', monospace; 
+            font-size: 12px; 
+            background-color: #f8f8f8; 
+            resize: vertical; 
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .console-output:empty::before {
+            content: "Console output will appear here after scanning...";
+            color: #999;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
@@ -17,6 +38,10 @@
     </div>
     <button class="scan-btn" id="scanBtn">Scan Current Page</button>
     <div id="results"></div>
+    <div class="console-container">
+        <div class="console-label">Console Output:</div>
+        <textarea class="console-output" id="consoleOutput" readonly></textarea>
+    </div>
     <script src="popup.js"></script>
 </body>
 </html>

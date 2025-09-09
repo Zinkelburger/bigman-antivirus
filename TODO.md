@@ -22,6 +22,8 @@ Won't match paths (/page.html)
 micrasoft.com
 microsft.com
 
+- ADGuard has a list of suspicious urls it uses?
+
 - Detect mixing uppercase and lowercase letters, lowercase everything
 neccdi.org vs neccdl.org
 appie.com
