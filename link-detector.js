@@ -123,7 +123,7 @@ class LinkDetector {
     extractPhoneNumber(input) {
         if (!input) return null;
         // This regex finds common US-style phone number formats.
-        const phoneMatch = input.match(/\b(?:\+?1\s*?)?(?:\(\s*)?(\d{3})(?:\s*\))?[-\s.]?(\d{3})[-\s.]?(\d{4})\b/);
+        const phoneMatch = input.match(/((?:\+?1\s*?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4})/);
         return phoneMatch ? phoneMatch[0] : null;
     }
 
@@ -163,7 +163,9 @@ class LinkDetector {
         if (!input) return null;
         if (input.startsWith('http')) {
             try {
-                return new URL(input).hostname;
+                // need a dot, e.g. https://invalid shouldn't work
+                const hostname = new URL(input).hostname;
+                return hostname.includes('.') ? hostname : null;
             } catch (e) {
                 return null;
             }

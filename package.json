@@ -1,0 +1,25 @@
+{
+  "name": "bigman-antivirus",
+  "version": "1.0.0",
+  "description": "Browser extension for detecting suspicious links",
+  "main": "link-detector.js",
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "collectCoverageFrom": [
+      "link-detector.js"
+    ],
+    "coverageDirectory": "coverage",
+    "coverageReporters": ["text", "lcov", "html"]
+  },
+  "keywords": ["browser-extension", "security", "phishing-detection"],
+  "author": "",
+  "license": "AGPL-3.0"
+}
