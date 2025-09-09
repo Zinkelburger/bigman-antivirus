@@ -8,11 +8,6 @@ https://cisofy.com/lynis/
 Rewrite UI in Fyne?
 
 # Browser Extension:
-- Detect Punycode
-Punycode is suspicious
-
-- Unshorten URLs
-Make a request to the URL, see the final destination
 
 - Detect mismatch between <a> tag and its contents
 Some gTLDs can have digits, fix the regex, etc.

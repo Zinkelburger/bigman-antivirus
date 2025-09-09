@@ -13,6 +13,20 @@ class LinkDetector {
         this.config = {
             // Add more config options here as needed
         };
+        
+        // Brand name to canonical domain mapping
+        this.brandDomains = {
+            'npm': ['npmjs.com'],
+            'github': ['github.com'],
+            'google': ['google.com', 'google.co.uk', 'google.ca', 'google.com.au', 'google.de', 'google.fr', 'google.co.jp'],
+            'apple': ['apple.com', 'apple.co.uk', 'apple.ca', 'apple.com.au', 'apple.de', 'apple.fr', 'apple.co.jp'],
+            'paypal': ['paypal.com', 'paypal.co.uk', 'paypal.ca', 'paypal.com.au', 'paypal.de', 'paypal.fr'],
+            'microsoft': ['microsoft.com', 'microsoft.co.uk', 'microsoft.ca', 'microsoft.com.au', 'microsoft.de', 'microsoft.fr'],
+            'amazon': ['amazon.com', 'amazon.co.uk', 'amazon.ca', 'amazon.com.au', 'amazon.de', 'amazon.fr', 'amazon.co.jp']
+        };
+        
+        // Threshold for Levenshtein distance (typosquatting detection)
+        this.typosquattingThreshold = 2;
     }
 
     /**
@@ -48,6 +62,12 @@ class LinkDetector {
             if (unshortenResult.isSuspicious) {
                 return unshortenResult;
             }
+        }
+
+        // Check for brand name typosquatting
+        const brandResult = this.detectBrandTyposquatting(hrefUrl);
+        if (brandResult.isSuspicious) {
+            return brandResult;
         }
 
         const schemeMatch = hrefUrl.match(/^([a-z][a-z0-9+\-.]*):/i);
@@ -408,6 +428,222 @@ class LinkDetector {
         
         // Check if URL ends with a file extension
         return fileExtensions.some(ext => urlLower.endsWith(ext));
+    }
+
+    /**
+     * Calculate Levenshtein distance between two strings
+     * @param {string} str1 - First string
+     * @param {string} str2 - Second string
+     * @returns {number} Levenshtein distance
+     */
+    levenshteinDistance(str1, str2) {
+        const matrix = [];
+        
+        for (let i = 0; i <= str2.length; i++) {
+            matrix[i] = [i];
+        }
+        
+        for (let j = 0; j <= str1.length; j++) {
+            matrix[0][j] = j;
+        }
+        
+        for (let i = 1; i <= str2.length; i++) {
+            for (let j = 1; j <= str1.length; j++) {
+                if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+                    matrix[i][j] = matrix[i - 1][j - 1];
+                } else {
+                    matrix[i][j] = Math.min(
+                        matrix[i - 1][j - 1] + 1, // substitution
+                        matrix[i][j - 1] + 1,     // insertion
+                        matrix[i - 1][j] + 1      // deletion
+                    );
+                }
+            }
+        }
+        
+        return matrix[str2.length][str1.length];
+    }
+
+    /**
+     * Extract potential brand name from domain
+     * @param {string} domain - Domain to analyze
+     * @returns {string|null} Potential brand name or null
+     */
+    extractBrandFromDomain(domain) {
+        if (!domain) return null;
+        
+        // Remove www prefix and normalize
+        const cleanDomain = domain.toLowerCase().replace(/^www\./, '');
+        
+        // Split domain into parts
+        const domainParts = cleanDomain.split('.');
+        
+        // Check each part of the domain for brand names
+        for (const part of domainParts) {
+            for (const brandName of Object.keys(this.brandDomains)) {
+                // Check for exact match
+                if (part === brandName) {
+                    return brandName;
+                }
+                // Check if brand name is contained in the domain part
+                if (part.includes(brandName)) {
+                    return brandName;
+                }
+            }
+        }
+        
+        // Special case for npmjs.com -> npm
+        if (cleanDomain.includes('npmjs')) {
+            return 'npm';
+        }
+        
+        return null;
+    }
+
+    /**
+     * Check if domain is a valid canonical domain for a brand
+     * @param {string} domain - Domain to check
+     * @param {string} brandName - Brand name
+     * @returns {boolean} True if domain is canonical for brand
+     */
+    isCanonicalDomain(domain, brandName) {
+        if (!domain || !brandName || !this.brandDomains[brandName]) {
+            return false;
+        }
+        
+        const normalizedDomain = this.normalizeDomain(domain);
+        
+        // Check if it's an exact match with canonical domains
+        if (this.brandDomains[brandName].includes(normalizedDomain)) {
+            return true;
+        }
+        
+        // Check if it's a subdomain of a canonical domain
+        for (const canonicalDomain of this.brandDomains[brandName]) {
+            if (normalizedDomain.endsWith('.' + canonicalDomain)) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+
+    /**
+     * Detect brand name typosquatting in URLs
+     * @param {string} url - URL to check
+     * @returns {Object} Detection result
+     */
+    detectBrandTyposquatting(url) {
+        if (!url) {
+            return { 
+                isSuspicious: false, 
+                reason: 'No URL provided',
+                details: {}
+            };
+        }
+
+        // Only check HTTP/HTTPS URLs
+        if (!url.toLowerCase().startsWith('http://') && !url.toLowerCase().startsWith('https://')) {
+            return { 
+                isSuspicious: false, 
+                reason: 'Not an HTTP/HTTPS URL',
+                details: {}
+            };
+        }
+
+        const domain = this.extractDomain(url);
+        if (!domain) {
+            return { 
+                isSuspicious: false, 
+                reason: 'No valid domain found',
+                details: {}
+            };
+        }
+
+        const normalizedDomain = this.normalizeDomain(domain);
+        
+        // Extract brand from domain using improved logic
+        const detectedBrand = this.extractBrandFromDomain(domain);
+        
+        if (detectedBrand) {
+            // Found a brand name in the domain, check if it's canonical
+            if (this.isCanonicalDomain(domain, detectedBrand)) {
+                return { 
+                    isSuspicious: false, 
+                    reason: 'Valid canonical domain for brand',
+                    details: { brand: detectedBrand, domain: normalizedDomain }
+                };
+            } else {
+                // Brand name found but not canonical - suspicious!
+                return {
+                    isSuspicious: true,
+                    reason: 'Brand name found but domain is not canonical',
+                    details: {
+                        brand: detectedBrand,
+                        suspiciousDomain: normalizedDomain,
+                        canonicalDomains: this.brandDomains[detectedBrand],
+                        explanation: `Domain "${normalizedDomain}" contains brand "${detectedBrand}" but is not a known canonical domain. This could be typosquatting.`
+                    }
+                };
+            }
+        }
+
+        // Check for typosquatting using Levenshtein distance
+        // Get the main domain part (without TLD) for comparison
+        const domainParts = normalizedDomain.split('.');
+        const mainDomainPart = domainParts[domainParts.length - 2] || domainParts[0]; // Get second-to-last part (main domain)
+        
+        for (const brandName of Object.keys(this.brandDomains)) {
+            // Skip if we already detected this brand exactly
+            if (detectedBrand === brandName) {
+                continue;
+            }
+            
+            // Check against both the brand name and the canonical domain names
+            let minDistance = Infinity;
+            let closestMatch = brandName;
+            
+            // Check distance to brand name
+            const brandDistance = this.levenshteinDistance(mainDomainPart, brandName);
+            if (brandDistance < minDistance) {
+                minDistance = brandDistance;
+                closestMatch = brandName;
+            }
+            
+            // Check distance to canonical domain names (without TLD)
+            for (const canonicalDomain of this.brandDomains[brandName]) {
+                const canonicalMainPart = canonicalDomain.split('.')[0];
+                const canonicalDistance = this.levenshteinDistance(mainDomainPart, canonicalMainPart);
+                if (canonicalDistance < minDistance) {
+                    minDistance = canonicalDistance;
+                    closestMatch = canonicalMainPart;
+                }
+            }
+            
+            // If distance is small and domain is not canonical, it's suspicious
+            if (minDistance <= this.typosquattingThreshold && minDistance > 0) {
+                if (!this.isCanonicalDomain(domain, brandName)) {
+                    return {
+                        isSuspicious: true,
+                        reason: 'Potential typosquatting detected',
+                        details: {
+                            brand: brandName,
+                            suspiciousDomain: normalizedDomain,
+                            levenshteinDistance: minDistance,
+                            closestMatch: closestMatch,
+                            canonicalDomains: this.brandDomains[brandName],
+                            explanation: `Domain "${normalizedDomain}" is very similar to brand "${brandName}" (distance: ${minDistance} from "${closestMatch}") but is not a canonical domain. This could be typosquatting.`
+                        }
+                    };
+                }
+            }
+        }
+
+        return { 
+            isSuspicious: false, 
+            reason: 'No brand typosquatting detected',
+            details: {}
+        };
     }
 }
 

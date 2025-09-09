@@ -366,22 +366,273 @@ describe('LinkDetector', () => {
         // for these tests to avoid network dependencies.
     });
 
-    describe('Real-world phishing scenarios', () => {
-        test('should detect common phishing pattern', async () => {
-            const result = await detector.analyzeLink('Login to your PayPal.com account', 'https://paypal-security-alert.com');
+    describe('Brand detection and typosquatting', () => {
+        test('should detect brand name in non-canonical domain', () => {
+            const result = detector.detectBrandTyposquatting('https://npmjs.help');
             expect(result.isSuspicious).toBe(true);
-            expect(result.reason).toBe('Domain mismatch');
+            expect(result.reason).toBe('Brand name found but domain is not canonical');
+            expect(result.details.brand).toBe('npm');
+            expect(result.details.suspiciousDomain).toBe('npmjs.help');
+            expect(result.details.canonicalDomains).toContain('npmjs.com');
         });
 
-        test('should detect subdomain spoofing', async () => {
-            const result = await detector.analyzeLink('Go to google.com', 'https://google.com.evil-site.com');
-            expect(result.isSuspicious).toBe(true);
-            expect(result.reason).toBe('Domain mismatch');
-        });
-
-        test('should allow legitimate subdomains', async () => {
-            const result = await detector.analyzeLink('Go to mail.google.com', 'https://mail.google.com');
+        test('should allow canonical brand domains', () => {
+            const result = detector.detectBrandTyposquatting('https://npmjs.com');
             expect(result.isSuspicious).toBe(false);
+            expect(result.reason).toBe('Valid canonical domain for brand');
+        });
+
+        test('should detect typosquatting with Levenshtein distance', () => {
+            const result = detector.detectBrandTyposquatting('https://nompjs.com');
+            expect(result.isSuspicious).toBe(true);
+            expect(result.reason).toBe('Potential typosquatting detected');
+            expect(result.details.brand).toBe('npm');
+            expect(result.details.levenshteinDistance).toBe(2);
+            expect(result.details.suspiciousDomain).toBe('nompjs.com');
+        });
+
+        test('should detect microsoft typosquatting', () => {
+            const result = detector.detectBrandTyposquatting('https://micrasoft.com');
+            expect(result.isSuspicious).toBe(true);
+            expect(result.reason).toBe('Potential typosquatting detected');
+            expect(result.details.brand).toBe('microsoft');
+            expect(result.details.levenshteinDistance).toBe(1);
+        });
+
+        test('should detect google typosquatting', () => {
+            const result = detector.detectBrandTyposquatting('https://gooogle.com');
+            expect(result.isSuspicious).toBe(true);
+            expect(result.reason).toBe('Potential typosquatting detected');
+            expect(result.details.brand).toBe('google');
+            expect(result.details.levenshteinDistance).toBe(1);
+        });
+
+        test('should allow legitimate google domains', () => {
+            const result = detector.detectBrandTyposquatting('https://google.com');
+            expect(result.isSuspicious).toBe(false);
+        });
+
+        test('should allow legitimate google country domains', () => {
+            const result = detector.detectBrandTyposquatting('https://google.co.uk');
+            expect(result.isSuspicious).toBe(false);
+        });
+
+        test('should detect paypal typosquatting', () => {
+            const result = detector.detectBrandTyposquatting('https://paypall.com');
+            expect(result.isSuspicious).toBe(true);
+            expect(result.reason).toBe('Brand name found but domain is not canonical');
+            expect(result.details.brand).toBe('paypal');
+        });
+
+        test('should detect apple typosquatting', () => {
+            const result = detector.detectBrandTyposquatting('https://appie.com');
+            expect(result.isSuspicious).toBe(true);
+            expect(result.reason).toBe('Potential typosquatting detected');
+            expect(result.details.brand).toBe('apple');
+            expect(result.details.levenshteinDistance).toBe(1);
+        });
+
+        test('should detect amazon typosquatting', () => {
+            const result = detector.detectBrandTyposquatting('https://amazom.com');
+            expect(result.isSuspicious).toBe(true);
+            expect(result.reason).toBe('Potential typosquatting detected');
+            expect(result.details.brand).toBe('amazon');
+            expect(result.details.levenshteinDistance).toBe(1);
+        });
+
+        test('should detect github typosquatting', () => {
+            const result = detector.detectBrandTyposquatting('https://githab.com');
+            expect(result.isSuspicious).toBe(true);
+            expect(result.reason).toBe('Potential typosquatting detected');
+            expect(result.details.brand).toBe('github');
+            expect(result.details.levenshteinDistance).toBe(1);
+        });
+
+        test('should not flag domains with high Levenshtein distance', () => {
+            const result = detector.detectBrandTyposquatting('https://completely-different.com');
+            expect(result.isSuspicious).toBe(false);
+            expect(result.reason).toBe('No brand typosquatting detected');
+        });
+
+        test('should handle non-HTTP URLs in brand detection', () => {
+            const result = detector.detectBrandTyposquatting('mailto:test@npmjs.help');
+            expect(result.isSuspicious).toBe(false);
+            expect(result.reason).toBe('Not an HTTP/HTTPS URL');
+        });
+
+        test('should handle empty URL in brand detection', () => {
+            const result = detector.detectBrandTyposquatting('');
+            expect(result.isSuspicious).toBe(false);
+            expect(result.reason).toBe('No URL provided');
+        });
+
+        test('should handle null URL in brand detection', () => {
+            const result = detector.detectBrandTyposquatting(null);
+            expect(result.isSuspicious).toBe(false);
+            expect(result.reason).toBe('No URL provided');
+        });
+    });
+
+    describe('Levenshtein distance calculation', () => {
+        test('should calculate correct distance for identical strings', () => {
+            expect(detector.levenshteinDistance('google', 'google')).toBe(0);
+        });
+
+        test('should calculate correct distance for single character difference', () => {
+            expect(detector.levenshteinDistance('google', 'gooogle')).toBe(1);
+            expect(detector.levenshteinDistance('microsoft', 'micrasoft')).toBe(1);
+        });
+
+        test('should calculate correct distance for two character difference', () => {
+            expect(detector.levenshteinDistance('google', 'goooglee')).toBe(2);
+            expect(detector.levenshteinDistance('microsoft', 'micrasoftt')).toBe(2);
+        });
+
+        test('should calculate correct distance for completely different strings', () => {
+            expect(detector.levenshteinDistance('google', 'amazon')).toBe(6);
+            expect(detector.levenshteinDistance('microsoft', 'github')).toBe(8);
+        });
+
+        test('should handle empty strings', () => {
+            expect(detector.levenshteinDistance('', '')).toBe(0);
+            expect(detector.levenshteinDistance('google', '')).toBe(6);
+            expect(detector.levenshteinDistance('', 'google')).toBe(6);
+        });
+    });
+
+    describe('Brand domain validation', () => {
+        test('should identify canonical domains correctly', () => {
+            expect(detector.isCanonicalDomain('google.com', 'google')).toBe(true);
+            expect(detector.isCanonicalDomain('google.co.uk', 'google')).toBe(true);
+            expect(detector.isCanonicalDomain('npmjs.com', 'npm')).toBe(true);
+            expect(detector.isCanonicalDomain('github.com', 'github')).toBe(true);
+        });
+
+        test('should reject non-canonical domains', () => {
+            expect(detector.isCanonicalDomain('google.help', 'google')).toBe(false);
+            expect(detector.isCanonicalDomain('npmjs.help', 'npm')).toBe(false);
+            expect(detector.isCanonicalDomain('githab.com', 'github')).toBe(false);
+        });
+
+        test('should handle case insensitive domain comparison', () => {
+            expect(detector.isCanonicalDomain('GOOGLE.COM', 'google')).toBe(true);
+            expect(detector.isCanonicalDomain('Google.Co.UK', 'google')).toBe(true);
+        });
+
+        test('should handle invalid inputs', () => {
+            expect(detector.isCanonicalDomain('', 'google')).toBe(false);
+            expect(detector.isCanonicalDomain('google.com', '')).toBe(false);
+            expect(detector.isCanonicalDomain('google.com', 'nonexistent')).toBe(false);
+            expect(detector.isCanonicalDomain(null, 'google')).toBe(false);
+            expect(detector.isCanonicalDomain('google.com', null)).toBe(false);
+        });
+    });
+
+    describe('Brand extraction from domain', () => {
+        test('should extract brand names from domains', () => {
+            expect(detector.extractBrandFromDomain('google.com')).toBe('google');
+            expect(detector.extractBrandFromDomain('npmjs.com')).toBe('npm');
+            expect(detector.extractBrandFromDomain('github.com')).toBe('github');
+            expect(detector.extractBrandFromDomain('microsoft.com')).toBe('microsoft');
+        });
+
+        test('should extract brand names from domains with www', () => {
+            expect(detector.extractBrandFromDomain('www.google.com')).toBe('google');
+            expect(detector.extractBrandFromDomain('www.npmjs.com')).toBe('npm');
+        });
+
+        test('should extract brand names from country-specific domains', () => {
+            expect(detector.extractBrandFromDomain('google.co.uk')).toBe('google');
+            expect(detector.extractBrandFromDomain('microsoft.de')).toBe('microsoft');
+        });
+
+        test('should extract brand names from subdomains (STLD detection)', () => {
+            expect(detector.extractBrandFromDomain('mail.google.com')).toBe('google');
+            expect(detector.extractBrandFromDomain('poop.google.com')).toBe('google');
+            expect(detector.extractBrandFromDomain('sub1.sub2.google.com')).toBe('google');
+            expect(detector.extractBrandFromDomain('www.mail.google.com')).toBe('google');
+        });
+
+        test('should extract brand names from subdomains with country TLDs', () => {
+            expect(detector.extractBrandFromDomain('mail.google.co.uk')).toBe('google');
+            expect(detector.extractBrandFromDomain('poop.microsoft.de')).toBe('microsoft');
+        });
+
+        test('should return null for domains without known brands', () => {
+            expect(detector.extractBrandFromDomain('example.com')).toBe(null);
+            expect(detector.extractBrandFromDomain('unknown-site.org')).toBe(null);
+            expect(detector.extractBrandFromDomain('sub.example.com')).toBe(null);
+        });
+
+        test('should handle empty or invalid inputs', () => {
+            expect(detector.extractBrandFromDomain('')).toBe(null);
+            expect(detector.extractBrandFromDomain(null)).toBe(null);
+        });
+    });
+
+    describe('Real-world phishing scenarios', () => {
+        test('should detect common phishing pattern', () => {
+            const result = detector.detectBrandTyposquatting('https://paypal-security-alert.com');
+            expect(result.isSuspicious).toBe(true);
+            expect(result.reason).toBe('Brand name found but domain is not canonical');
+            expect(result.details.brand).toBe('paypal');
+        });
+
+        test('should detect subdomain spoofing', () => {
+            const result = detector.detectBrandTyposquatting('https://google.com.evil-site.com');
+            expect(result.isSuspicious).toBe(true);
+            expect(result.reason).toBe('Brand name found but domain is not canonical');
+            expect(result.details.brand).toBe('google');
+        });
+
+        test('should allow legitimate subdomains', () => {
+            const result = detector.detectBrandTyposquatting('https://mail.google.com');
+            expect(result.isSuspicious).toBe(false);
+        });
+
+        test('should detect npmjs.help as suspicious (example from user)', () => {
+            const result = detector.detectBrandTyposquatting('https://npmjs.help');
+            expect(result.isSuspicious).toBe(true);
+            expect(result.reason).toBe('Brand name found but domain is not canonical');
+            expect(result.details.brand).toBe('npm');
+            expect(result.details.suspiciousDomain).toBe('npmjs.help');
+            expect(result.details.canonicalDomains).toEqual(['npmjs.com']);
+        });
+
+        test('should detect brand in subdomain (STLD detection)', () => {
+            const result = detector.detectBrandTyposquatting('https://poop.google.com');
+            expect(result.isSuspicious).toBe(false);
+            expect(result.reason).toBe('Valid canonical domain for brand');
+            expect(result.details.brand).toBe('google');
+        });
+
+        test('should detect brand in subdomain with non-canonical TLD', () => {
+            const result = detector.detectBrandTyposquatting('https://poop.google.help');
+            expect(result.isSuspicious).toBe(true);
+            expect(result.reason).toBe('Brand name found but domain is not canonical');
+            expect(result.details.brand).toBe('google');
+        });
+
+        test('should detect brand in subdomain with typosquatting', () => {
+            const result = detector.detectBrandTyposquatting('https://poop.gooogle.com');
+            expect(result.isSuspicious).toBe(true);
+            expect(result.reason).toBe('Potential typosquatting detected');
+            expect(result.details.brand).toBe('google');
+            expect(result.details.levenshteinDistance).toBe(1);
+        });
+
+        test('should handle complex subdomains correctly', () => {
+            const result = detector.detectBrandTyposquatting('https://mail.google.com');
+            expect(result.isSuspicious).toBe(false);
+            expect(result.reason).toBe('Valid canonical domain for brand');
+            expect(result.details.brand).toBe('google');
+        });
+
+        test('should handle multiple subdomains', () => {
+            const result = detector.detectBrandTyposquatting('https://sub1.sub2.google.com');
+            expect(result.isSuspicious).toBe(false);
+            expect(result.reason).toBe('Valid canonical domain for brand');
+            expect(result.details.brand).toBe('google');
         });
     });
 });
