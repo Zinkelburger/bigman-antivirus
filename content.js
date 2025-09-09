@@ -20,7 +20,7 @@ class PhishingDetector {
         this.setupMessageListener();
     }
 
-    scanPage() {
+    async scanPage() {
         const links = document.querySelectorAll('a[href]');
         console.log(`BigMan AntiVirus: Scanning ${links.length} links`);
         
@@ -32,19 +32,40 @@ class PhishingDetector {
             lastScanTime: new Date()
         };
         
-        links.forEach(link => {
-            const result = this.detector.analyzeLink(link.textContent, link.href);
-            if (result.isSuspicious) {
+        // Process links asynchronously
+        const linkPromises = Array.from(links).map(async (link) => {
+            try {
+                const result = await this.detector.analyzeLink(link.textContent, link.href);
+                if (result.isSuspicious) {
+                    this.scanResults.suspicious++;
+                    this.scanResults.details.push({
+                        text: link.textContent,
+                        url: link.href,
+                        reason: result.reason,
+                        details: result.details
+                    });
+                    this.markSuspiciousLink(link, result);
+                }
+            } catch (error) {
+                console.error('BigMan AntiVirus: Error analyzing link:', error);
+                // Mark as suspicious if we can't analyze it
                 this.scanResults.suspicious++;
                 this.scanResults.details.push({
                     text: link.textContent,
                     url: link.href,
-                    reason: result.reason,
-                    details: result.details
+                    reason: 'Error analyzing link',
+                    details: { error: error.message }
                 });
-                this.markSuspiciousLink(link, result);
+                this.markSuspiciousLink(link, {
+                    isSuspicious: true,
+                    reason: 'Error analyzing link',
+                    details: { error: error.message }
+                });
             }
         });
+        
+        // Wait for all link analyses to complete
+        await Promise.all(linkPromises);
         
         if (this.scanResults.suspicious > 0) {
             console.warn(`BigMan AntiVirus: Found ${this.scanResults.suspicious} suspicious links`);
@@ -61,17 +82,31 @@ class PhishingDetector {
         link.style.padding = '2px 4px';
         
         // Tooltip with details
-        link.title = `⚠️ SUSPICIOUS LINK DETECTED ⚠️\n` +
-                    `Reason: ${result.reason}\n` +
-                    `Visible: ${result.details.visibleDomain || result.details.visibleIdentifier}\n` +
-                    `Actual: ${result.details.actualDomain || result.details.actualIdentifier}`;
+        let tooltipText = `⚠️ SUSPICIOUS LINK DETECTED ⚠️\nReason: ${result.reason}\n`;
+        
+        if (result.details.unshortenedUrl) {
+            tooltipText += `Real destination: ${result.details.unshortenedUrl}`;
+        } else if (result.details.visibleDomain || result.details.visibleIdentifier) {
+            tooltipText += `Visible: ${result.details.visibleDomain || result.details.visibleIdentifier}\n`;
+            tooltipText += `Actual: ${result.details.actualDomain || result.details.actualIdentifier}`;
+        } else {
+            tooltipText += `URL: ${link.href}`;
+        }
+        
+        link.title = tooltipText;
         
         // Click warning
         link.addEventListener('click', (e) => {
-            if (!confirm(`⚠️ WARNING: This link appears suspicious!\n\n` +
-                        `You're about to visit: ${link.href}\n` +
-                        `Reason: ${result.reason}\n\n` +
-                        `Do you want to continue?`)) {
+            let warningText = `⚠️ WARNING: This link appears suspicious!\n\n`;
+            warningText += `You're about to visit: ${link.href}\n`;
+            
+            if (result.details.unshortenedUrl) {
+                warningText += `Real destination: ${result.details.unshortenedUrl}\n`;
+            }
+            
+            warningText += `Reason: ${result.reason}\n\nDo you want to continue?`;
+            
+            if (!confirm(warningText)) {
                 e.preventDefault();
                 e.stopPropagation();
                 return false;
@@ -93,7 +128,9 @@ class PhishingDetector {
             });
             
             if (shouldScan) {
-                this.scanPage();
+                this.scanPage().catch(error => {
+                    console.error('BigMan AntiVirus: Error during page scan:', error);
+                });
             }
         });
         
@@ -112,11 +149,19 @@ class PhishingDetector {
                     results: this.scanResults
                 });
             } else if (request.action === 'rescan') {
-                this.scanPage();
-                sendResponse({
-                    success: true,
-                    results: this.scanResults
+                this.scanPage().then(() => {
+                    sendResponse({
+                        success: true,
+                        results: this.scanResults
+                    });
+                }).catch(error => {
+                    console.error('BigMan AntiVirus: Error during rescan:', error);
+                    sendResponse({
+                        success: false,
+                        error: error.message
+                    });
                 });
+                return true; // Keep message channel open for async response
             }
             return true; // Keep message channel open for async response
         });
