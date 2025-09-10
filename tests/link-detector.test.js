@@ -371,7 +371,7 @@ describe('LinkDetector', () => {
             const result = detector.detectBrandTyposquatting('https://npmjs.help');
             expect(result.isSuspicious).toBe(true);
             expect(result.reason).toBe('Brand name found but domain is not canonical');
-            expect(result.details.brand).toBe('npm');
+            expect(result.details.brand).toBe('npmjs');
             expect(result.details.suspiciousDomain).toBe('npmjs.help');
             expect(result.details.canonicalDomains).toContain('npmjs.com');
         });
@@ -386,7 +386,7 @@ describe('LinkDetector', () => {
             const result = detector.detectBrandTyposquatting('https://nompjs.com');
             expect(result.isSuspicious).toBe(true);
             expect(result.reason).toBe('Potential typosquatting detected');
-            expect(result.details.brand).toBe('npm');
+            expect(result.details.brand).toBe('npmjs');
             expect(result.details.levenshteinDistance).toBe(2);
             expect(result.details.suspiciousDomain).toBe('nompjs.com');
         });
@@ -504,13 +504,13 @@ describe('LinkDetector', () => {
         test('should identify canonical domains correctly', () => {
             expect(detector.isCanonicalDomain('google.com', 'google')).toBe(true);
             expect(detector.isCanonicalDomain('google.co.uk', 'google')).toBe(true);
-            expect(detector.isCanonicalDomain('npmjs.com', 'npm')).toBe(true);
+            expect(detector.isCanonicalDomain('npmjs.com', 'npmjs')).toBe(true);
             expect(detector.isCanonicalDomain('github.com', 'github')).toBe(true);
         });
 
         test('should reject non-canonical domains', () => {
             expect(detector.isCanonicalDomain('google.help', 'google')).toBe(false);
-            expect(detector.isCanonicalDomain('npmjs.help', 'npm')).toBe(false);
+            expect(detector.isCanonicalDomain('npmjs.help', 'npmjs')).toBe(false);
             expect(detector.isCanonicalDomain('githab.com', 'github')).toBe(false);
         });
 
@@ -531,14 +531,14 @@ describe('LinkDetector', () => {
     describe('Brand extraction from domain', () => {
         test('should extract brand names from domains', () => {
             expect(detector.extractBrandFromDomain('google.com')).toBe('google');
-            expect(detector.extractBrandFromDomain('npmjs.com')).toBe('npm');
+            expect(detector.extractBrandFromDomain('npmjs.com')).toBe('npmjs');
             expect(detector.extractBrandFromDomain('github.com')).toBe('github');
             expect(detector.extractBrandFromDomain('microsoft.com')).toBe('microsoft');
         });
 
         test('should extract brand names from domains with www', () => {
             expect(detector.extractBrandFromDomain('www.google.com')).toBe('google');
-            expect(detector.extractBrandFromDomain('www.npmjs.com')).toBe('npm');
+            expect(detector.extractBrandFromDomain('www.npmjs.com')).toBe('npmjs');
         });
 
         test('should extract brand names from country-specific domains', () => {
@@ -594,7 +594,7 @@ describe('LinkDetector', () => {
             const result = detector.detectBrandTyposquatting('https://npmjs.help');
             expect(result.isSuspicious).toBe(true);
             expect(result.reason).toBe('Brand name found but domain is not canonical');
-            expect(result.details.brand).toBe('npm');
+            expect(result.details.brand).toBe('npmjs');
             expect(result.details.suspiciousDomain).toBe('npmjs.help');
             expect(result.details.canonicalDomains).toEqual(['npmjs.com']);
         });

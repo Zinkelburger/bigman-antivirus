@@ -8,8 +8,13 @@ document.getElementById('scanBtn').addEventListener('click', async () => {
         // Send message to content script to get current scan results
         const response = await chrome.tabs.sendMessage(tab.id, { action: 'getScanResults' });
         
-        if (response && response.success) {
+        if (response && response.success && response.results) {
             const result = response.results;
+            
+            // Ensure result has required properties
+            if (typeof result.total === 'undefined' || typeof result.suspicious === 'undefined') {
+                throw new Error('Invalid scan results format');
+            }
             
             // Update results section
             document.getElementById('results').innerHTML = `
@@ -101,6 +106,11 @@ document.getElementById('scanBtn').addEventListener('click', async () => {
             });
 
             const result = results[0].result;
+            
+            // Ensure result has required properties
+            if (!result || typeof result.total === 'undefined' || typeof result.suspicious === 'undefined') {
+                throw new Error('Invalid fallback scan results format');
+            }
             
             // Update results section
             document.getElementById('results').innerHTML = `

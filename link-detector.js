@@ -5,7 +5,6 @@
  * Includes URL unshortening and HTTP/HTTPS security checks.
  */
 
-const axios = require('axios');
 
 class LinkDetector {
     constructor() {
@@ -14,9 +13,28 @@ class LinkDetector {
             // Add more config options here as needed
         };
         
+        // Common multi-level TLDs (Public Suffix List subset)
+        this.multiLevelTlds = new Set([
+            // Country code TLDs with second level
+            'co.uk', 'co.jp', 'co.kr', 'co.nz', 'co.za', 'co.in', 'co.il', 'co.th',
+            'com.au', 'com.br', 'com.cn', 'com.hk', 'com.mx', 'com.my', 'com.sg', 'com.tr',
+            'org.uk', 'org.au', 'org.nz', 'org.za', 'org.in',
+            'net.au', 'net.uk', 'net.nz',
+            'gov.uk', 'gov.au', 'gov.in',
+            'edu.au', 'edu.cn', 'edu.hk', 'edu.sg', 'edu.tw',
+            'ac.uk', 'ac.jp', 'ac.kr', 'ac.za', 'ac.in',
+            // Generic multi-level domains
+            'github.io', 'gitlab.io', 'netlify.app', 'vercel.app', 'herokuapp.com',
+            'blogspot.com', 'wordpress.com', 'medium.com',
+            // Shortened URL services with multi-level structure
+            'app.link', 'page.link', 'firebase.app', 'web.app',
+            // Cloud providers
+            'amazonaws.com', 'cloudfront.net', 'azurewebsites.net', 'appspot.com'
+        ]);
+        
         // Brand name to canonical domain mapping
         this.brandDomains = {
-            'npm': ['npmjs.com'],
+            'npmjs': ['npmjs.com'],
             'github': ['github.com'],
             'google': ['google.com', 'google.co.uk', 'google.ca', 'google.com.au', 'google.de', 'google.fr', 'google.co.jp'],
             'apple': ['apple.com', 'apple.co.uk', 'apple.ca', 'apple.com.au', 'apple.de', 'apple.fr', 'apple.co.jp'],
@@ -383,28 +401,35 @@ class LinkDetector {
      * @returns {Promise<string|null>} Unshortened URL or null if error
      */
     async unshortenUrl(shortUrl) {
-        try {
-            // Make a HEAD request and stop it from following redirects automatically
-            const response = await axios.head(shortUrl, {
-                maxRedirects: 0, // This is the crucial part!
-                validateStatus: status => status >= 200 && status < 400, // Accept redirects as valid
-                timeout: 5000 // 5 second timeout
-            });
+        // DISABLED: HEAD requests were causing issues with Google and other services
+        // Commenting out to prevent potential IP banning
+        
+        // try {
+        //     // Make a HEAD request with no redirect following
+        //     const response = await fetch(shortUrl, {
+        //         method: 'HEAD',
+        //         redirect: 'manual', // Don't follow redirects automatically
+        //         signal: AbortSignal.timeout(5000) // 5 second timeout
+        //     });
 
-            // Check if the response has a 'location' header (the un-shortened URL)
-            if (response.headers.location) {
-                return response.headers.location;
-            } else {
-                // The URL was not a redirect, it's the final destination.
-                return shortUrl;
-            }
-        } catch (error) {
-            if (error.response && error.response.status >= 300 && error.response.status < 400) {
-                // This is a redirect response, get the location header
-                return error.response.headers.location || shortUrl;
-            }
-            throw error;
-        }
+        //     // Check if the response is a redirect (3xx status codes)
+        //     if (response.status >= 300 && response.status < 400) {
+        //         const location = response.headers.get('location');
+        //         if (location) {
+        //             return location;
+        //         }
+        //     }
+            
+        //     // The URL was not a redirect, it's the final destination.
+        //     return shortUrl;
+        // } catch (error) {
+        //     // Don't throw errors for network issues - just return original URL
+        //     console.warn('BigMan AntiVirus: Could not unshorten URL:', shortUrl, error.message);
+        //     throw error;
+        // }
+
+        // For now, just return the original URL without attempting to unshorten
+        return shortUrl;
     }
 
     /**
@@ -465,6 +490,38 @@ class LinkDetector {
     }
 
     /**
+     * Extract the registrable domain part (main brand part) from a domain
+     * Uses a lightweight Public Suffix List approach
+     * @param {string} domain - Domain to analyze
+     * @returns {string|null} Registrable domain or null
+     */
+    getRegistrableDomain(domain) {
+        if (!domain) return null;
+        
+        // Remove www prefix and normalize
+        const cleanDomain = domain.toLowerCase().replace(/^www\./, '');
+        const parts = cleanDomain.split('.');
+        
+        if (parts.length < 2) return null;
+        
+        // Check for multi-level TLDs
+        for (let i = parts.length - 2; i >= 0; i--) {
+            const possibleTld = parts.slice(i).join('.');
+            if (this.multiLevelTlds.has(possibleTld)) {
+                // Found a multi-level TLD, the registrable domain is the part before it
+                if (i > 0) {
+                    return parts[i - 1];
+                }
+                return null; // Edge case: domain is just the TLD
+            }
+        }
+        
+        // No multi-level TLD found, assume single-level TLD
+        // Return the second-to-last part as the registrable domain
+        return parts[parts.length - 2];
+    }
+
+    /**
      * Extract potential brand name from domain
      * @param {string} domain - Domain to analyze
      * @returns {string|null} Potential brand name or null
@@ -474,27 +531,29 @@ class LinkDetector {
         
         // Remove www prefix and normalize
         const cleanDomain = domain.toLowerCase().replace(/^www\./, '');
-        
-        // Split domain into parts
-        const domainParts = cleanDomain.split('.');
+        const parts = cleanDomain.split('.');
         
         // Check each part of the domain for brand names
-        for (const part of domainParts) {
+        for (const part of parts) {
             for (const brandName of Object.keys(this.brandDomains)) {
                 // Check for exact match
                 if (part === brandName) {
                     return brandName;
                 }
+                
                 // Check if brand name is contained in the domain part
                 if (part.includes(brandName)) {
                     return brandName;
                 }
+                
+                // Check if any canonical domain matches this part
+                for (const canonicalDomain of this.brandDomains[brandName]) {
+                    const canonicalPart = this.getRegistrableDomain(canonicalDomain);
+                    if (canonicalPart && part === canonicalPart) {
+                        return brandName;
+                    }
+                }
             }
-        }
-        
-        // Special case for npmjs.com -> npm
-        if (cleanDomain.includes('npmjs')) {
-            return 'npm';
         }
         
         return null;
@@ -589,9 +648,15 @@ class LinkDetector {
         }
 
         // Check for typosquatting using Levenshtein distance
-        // Get the main domain part (without TLD) for comparison
-        const domainParts = normalizedDomain.split('.');
-        const mainDomainPart = domainParts[domainParts.length - 2] || domainParts[0]; // Get second-to-last part (main domain)
+        // Get the main registrable domain part for comparison
+        const mainDomainPart = this.getRegistrableDomain(domain);
+        if (!mainDomainPart) {
+            return { 
+                isSuspicious: false, 
+                reason: 'Could not extract registrable domain',
+                details: {}
+            };
+        }
         
         for (const brandName of Object.keys(this.brandDomains)) {
             // Skip if we already detected this brand exactly
@@ -610,13 +675,15 @@ class LinkDetector {
                 closestMatch = brandName;
             }
             
-            // Check distance to canonical domain names (without TLD)
+            // Check distance to canonical domain names (registrable parts)
             for (const canonicalDomain of this.brandDomains[brandName]) {
-                const canonicalMainPart = canonicalDomain.split('.')[0];
-                const canonicalDistance = this.levenshteinDistance(mainDomainPart, canonicalMainPart);
-                if (canonicalDistance < minDistance) {
-                    minDistance = canonicalDistance;
-                    closestMatch = canonicalMainPart;
+                const canonicalMainPart = this.getRegistrableDomain(canonicalDomain);
+                if (canonicalMainPart) {
+                    const canonicalDistance = this.levenshteinDistance(mainDomainPart, canonicalMainPart);
+                    if (canonicalDistance < minDistance) {
+                        minDistance = canonicalDistance;
+                        closestMatch = canonicalMainPart;
+                    }
                 }
             }
             
@@ -629,10 +696,11 @@ class LinkDetector {
                         details: {
                             brand: brandName,
                             suspiciousDomain: normalizedDomain,
+                            registrablePart: mainDomainPart,
                             levenshteinDistance: minDistance,
                             closestMatch: closestMatch,
                             canonicalDomains: this.brandDomains[brandName],
-                            explanation: `Domain "${normalizedDomain}" is very similar to brand "${brandName}" (distance: ${minDistance} from "${closestMatch}") but is not a canonical domain. This could be typosquatting.`
+                            explanation: `Domain "${normalizedDomain}" has registrable part "${mainDomainPart}" which is very similar to brand "${brandName}" (distance: ${minDistance} from "${closestMatch}") but is not a canonical domain. This could be typosquatting.`
                         }
                     };
                 }
