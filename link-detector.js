@@ -8,43 +8,43 @@
 
 class LinkDetector {
     constructor() {
-        // Configuration for future extensions
-        this.config = {
-            // Add more config options here as needed
-        };
+        // Check if config is already cached globally
+        if (LinkDetector.cachedConfig) {
+            this.loadFromCache();
+            this.configLoaded = Promise.resolve();
+        } else {
+            // Load configuration from background script and cache it
+            this.configLoaded = this.loadConfiguration();
+        }
+    }
+
+    /**
+     * Load configuration from cached data
+     */
+    loadFromCache() {
+        const config = LinkDetector.cachedConfig;
+        this.brandDomains = config.brandDomains;
+        this.typosquattingThreshold = config.typosquattingThreshold;
+        this.multiLevelTlds = new Set(config.multiLevelTlds);
+        console.log('BigMan AntiVirus: Configuration loaded from cache');
+    }
+
+    /**
+     * Load configuration from background script and cache it
+     * @returns {Promise<void>} Promise that resolves when config is loaded
+     */
+    async loadConfiguration() {
+        const response = await chrome.runtime.sendMessage({ action: 'getConfig' });
+        const config = response.config;
         
-        // Common multi-level TLDs (Public Suffix List subset)
-        this.multiLevelTlds = new Set([
-            // Country code TLDs with second level
-            'co.uk', 'co.jp', 'co.kr', 'co.nz', 'co.za', 'co.in', 'co.il', 'co.th',
-            'com.au', 'com.br', 'com.cn', 'com.hk', 'com.mx', 'com.my', 'com.sg', 'com.tr',
-            'org.uk', 'org.au', 'org.nz', 'org.za', 'org.in',
-            'net.au', 'net.uk', 'net.nz',
-            'gov.uk', 'gov.au', 'gov.in',
-            'edu.au', 'edu.cn', 'edu.hk', 'edu.sg', 'edu.tw',
-            'ac.uk', 'ac.jp', 'ac.kr', 'ac.za', 'ac.in',
-            // Generic multi-level domains
-            'github.io', 'gitlab.io', 'netlify.app', 'vercel.app', 'herokuapp.com',
-            'blogspot.com', 'wordpress.com', 'medium.com',
-            // Shortened URL services with multi-level structure
-            'app.link', 'page.link', 'firebase.app', 'web.app',
-            // Cloud providers
-            'amazonaws.com', 'cloudfront.net', 'azurewebsites.net', 'appspot.com'
-        ]);
+        // Cache globally for future instances
+        LinkDetector.cachedConfig = config;
         
-        // Brand name to canonical domain mapping
-        this.brandDomains = {
-            'npmjs': ['npmjs.com'],
-            'github': ['github.com'],
-            'google': ['google.com', 'google.co.uk', 'google.ca', 'google.com.au', 'google.de', 'google.fr', 'google.co.jp'],
-            'apple': ['apple.com', 'apple.co.uk', 'apple.ca', 'apple.com.au', 'apple.de', 'apple.fr', 'apple.co.jp'],
-            'paypal': ['paypal.com', 'paypal.co.uk', 'paypal.ca', 'paypal.com.au', 'paypal.de', 'paypal.fr'],
-            'microsoft': ['microsoft.com', 'microsoft.co.uk', 'microsoft.ca', 'microsoft.com.au', 'microsoft.de', 'microsoft.fr'],
-            'amazon': ['amazon.com', 'amazon.co.uk', 'amazon.ca', 'amazon.com.au', 'amazon.de', 'amazon.fr', 'amazon.co.jp']
-        };
+        this.brandDomains = config.brandDomains;
+        this.typosquattingThreshold = config.typosquattingThreshold;
+        this.multiLevelTlds = new Set(config.multiLevelTlds);
         
-        // Threshold for Levenshtein distance (typosquatting detection)
-        this.typosquattingThreshold = 2;
+        console.log('BigMan AntiVirus: Configuration loaded from background and cached');
     }
 
     /**
@@ -54,6 +54,9 @@ class LinkDetector {
      * @returns {Promise<Object>} Detection result
      */
     async analyzeLink(visibleText, hrefUrl) {
+        // Ensure configuration is loaded before proceeding
+        await this.configLoaded;
+        
         if (!visibleText || !hrefUrl) {
             return { 
                 isSuspicious: false, 
