@@ -1,0 +1,18 @@
+[package]
+name = "bigman"
+version = "1.0.0"
+edition = "2021"
+authors = ["BigMan AntiVirus"]
+description = "A security tool for validating downloaded scripts and content"
+license = "AGPL3"
+
+[[bin]]
+name = "bigman"
+path = "src/main.rs"
+
+[dependencies]
+regex = "1.0"
+anyhow = "1.0"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2" 
