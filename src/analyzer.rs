@@ -1,5 +1,6 @@
 use regex::Regex;
 use anyhow::Result;
+use colored::*;
 
 pub struct AnalysisResult {
     pub is_safe: bool,
@@ -46,8 +47,30 @@ fn check_dangerous_patterns(content: &str) -> Result<Vec<String>> {
 
     for (pattern, description) in &patterns {
         if let Ok(regex) = Regex::new(pattern) {
-            for mat in regex.find_iter(content) {
-                threats.push(format!("{}: {}", mat.as_str(), description));
+            for line in content.lines() {
+                if let Some(mat) = regex.find(line) {
+                    // Create highlighted line with the match in red
+                    let start = mat.start();
+                    let end = mat.end();
+                    let before = &line[..start];
+                    let matched = &line[start..end];
+                    let after = &line[end..];
+
+                    let highlighted_line = format!("{}{}{}",
+                        before,
+                        matched.red().bold(),
+                        after
+                    );
+
+                    // Print the full line with highlighting
+                    println!("{}", highlighted_line);
+
+                    // Print the warning explanation below
+                    println!("  ⚠️  {}", description.yellow());
+                    println!();
+
+                    threats.push(format!("{}: {}", matched, description));
+                }
             }
         }
     }
