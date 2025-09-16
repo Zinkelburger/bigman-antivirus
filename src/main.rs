@@ -2,6 +2,7 @@ use std::io::{self, Read};
 use anyhow::{Result, Context};
 
 mod analyzer;
+mod gui;
 
 fn main() -> Result<()> {
     // Check if we're receiving piped input
@@ -10,7 +11,7 @@ fn main() -> Result<()> {
     if is_piped {
         analyze_stdin()
     } else {
-        Ok(())
+        gui::run_gui().map_err(|e| anyhow::anyhow!("GUI error: {}", e))
     }
 }
 

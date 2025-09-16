@@ -1,14 +1,42 @@
-# Go:
+# UI
+## ClamTK equivalent
 - ClamTK GUI no longer maintained
 https://github.com/Cisco-Talos/clamav
 https://github.com/dave-theunsub/clamtk
+- run clamscan, desktop notification on issues (?)
+So many options, have toggles, and tooltips to explain them
+https://linux.die.net/man/1/clamscan
+- ability to start/stop/configure clamd
+- set up scheduled scans
+- show scan history: times & results
+- quarantine management (view, restore, delete)
+- run freshclam, show date of last refresh
+- shows persistently in the taskbar? Like how Norton does on windows
+- real time protection with `clamonacc`
 
+- unit tests to confirm clamav update didn't break the program
+
+## GUI for other security tools
 https://github.com/ossec/ossec-hids
 https://cisofy.com/lynis/
-Rewrite UI in Fyne?
+ufw (firewall gui)
+- show the user ss -tulnp. Click to view the binary location
+Firejail (run things in a sandbox)
+
+## Upload to virus total
+- Use VirusTotal API, have to get a token
+
+- Submit to virustotal
+
+## Linpeas output
+- Parse linpeas output, provide recommendations to remediate them
+
+## Common CCDC attack things
+- Startup scripts systemd, etc. locations
+- Check against a list of standard/default ones, or a baseline (?)
 
 # Browser Extension:
-
+## Dumb phishing stuff
 - Detect mismatch between <a> tag and its contents
 Some gTLDs can have digits, fix the regex, etc.
 Won't match paths (/page.html)
