@@ -14,12 +14,28 @@ https://linux.die.net/man/1/clamscan
 - shows persistently in the taskbar? Like how Norton does on windows
 - real time protection with `clamonacc`
 
+https://en.wikipedia.org/wiki/ClamAV
+- freshclam needs to be run with `sudo` once to initialize itself
+- automatically updates with `sudo systemctl status clamav-freshclam`
+freshclam configuration file, which is typically located at /etc/clamav/freshclam.conf or /etc/freshclam.conf.
+- use polkit to ask for password
+- can query status without sudo. systemctl status clamav-daemon
+- 
+
+Inside this file, you'll find a line that looks like this:
+
+# Number of database checks per day.
+# Default: 12 (every two hours)
+# Checks 24
+
 - unit tests to confirm clamav update didn't break the program
 
 ## GUI for other security tools
 https://github.com/ossec/ossec-hids
 https://cisofy.com/lynis/
 ufw (firewall gui)
+- Gufw
+- KDE, etc. already provide this
 - show the user ss -tulnp. Click to view the binary location
 Firejail (run things in a sandbox)
 
