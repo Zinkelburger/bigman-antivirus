@@ -1,0 +1,10 @@
+{
+  "name": "com.bigman.pdf_scanner",
+  "description": "BigMan AntiVirus PDF Scanner",
+  "path": "/home/anbernal/Documents/bigman-antivirus/target/debug/bigman",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://*/",
+    "moz-extension://*/"
+  ]
+} 

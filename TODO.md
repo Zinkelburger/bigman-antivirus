@@ -76,6 +76,7 @@ Phishing via pdfs is very common. E.g. game tester gets a pdf for a game, but it
 - detect obfuscated code. Is it really that hard
 dictonary words to chars ratio
 not that simple, because you can shorten JS for valid reasons
+<https://ontheline.trincoll.edu/images/bookdown/sample-local-pdf.pdf>
 
 # Crypto:
 - Check to make sure addresses are correct
@@ -87,3 +88,21 @@ Can we trick crypto extensions, lol. Like "put a crypto address up, does it get 
 - All the time people have you install stuff like `wget website.com | bash`
 instead, can we do `wget website.com | bigman`
 tells you what will be executed
+
+# Filesystem:
+- Protect .git credentials
+
+# Firewall
+"You download a geolocation database, create an ipset in firewalld and automatically drop ANY traffic from 20 or so 'dodgy' countries you select. You can probably guess most of them. There's a blog I found somewhere with details. I used their country list and it worked great so I'm now doing on all servers that have a port open to the internet. It may seem a bit brute forcey but for me at least no legitimate traffic comes from those locations. May not be appropriate for everyone's needs."
+
+# OSSEC
+File Integrity Monitoring: OSSEC creates cryptographic checksums of important system files. It will alert you if any of these files are modified, which could indicate a compromise.
+Log Analysis: It collects, correlates, and analyzes logs from your operating system and applications to find patterns that suggest an attack, brute-force attempt, or other malicious activity.
+Rootkit Detection: It has a component (rootcheck) that specifically looks for the signs of rootkits, which are designed to hide their presence on a system.
+Active Response: It can be configured to take automatic actions when certain alerts are triggered, such as blocking an IP address that is repeatedly failing to log in.
+
+- Wazuh is good for collecting logs
+
+- Protect firefox/chrome local storage from being read, info stealers. Crypto wallets, etc.
+
+Test cases for each kind of attack!

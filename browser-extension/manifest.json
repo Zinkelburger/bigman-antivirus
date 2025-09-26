@@ -3,7 +3,7 @@
   "name": "BigMan AntiVirus - Link Detector",
   "version": "1.0.0",
   "description": "Detects mismatches between visible text and actual links",
-  "permissions": ["activeTab", "scripting"],
+  "permissions": ["activeTab", "scripting", "downloads", "notifications", "nativeMessaging"],
   "background": {
     "service_worker": "background.js"
   },

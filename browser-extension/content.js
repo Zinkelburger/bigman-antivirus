@@ -95,22 +95,9 @@ class PhishingDetector {
         
         link.title = tooltipText;
         
-        // Click warning
+        // Just log the warning, no annoying popups
         link.addEventListener('click', (e) => {
-            let warningText = `⚠️ WARNING: This link appears suspicious!\n\n`;
-            warningText += `You're about to visit: ${link.href}\n`;
-            
-            if (result.details.unshortenedUrl) {
-                warningText += `Real destination: ${result.details.unshortenedUrl}\n`;
-            }
-            
-            warningText += `Reason: ${result.reason}\n\nDo you want to continue?`;
-            
-            if (!confirm(warningText)) {
-                e.preventDefault();
-                e.stopPropagation();
-                return false;
-            }
+            console.log('BigMan AntiVirus: User clicked suspicious link:', link.href, 'Reason:', result.reason);
         });
     }
 
