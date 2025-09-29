@@ -44,6 +44,7 @@ pub struct BigmanApp {
     active_view: ActiveView,
     pdf_scan_results: Vec<PdfScanResult>,
     ipc_receiver: Option<mpsc::Receiver<PdfScanResult>>,
+    selected_scan_index: Option<usize>,
 }
 
 impl Default for BigmanApp {
@@ -60,6 +61,7 @@ impl Default for BigmanApp {
             active_view: ActiveView::ClamAV,
             pdf_scan_results: Vec::new(),
             ipc_receiver: None,
+            selected_scan_index: None,
         }
     }
 }
@@ -118,25 +120,106 @@ impl BigmanApp {
     fn draw_pdf_scanner_view(&mut self, ui: &mut egui::Ui) {
         ui.heading("Live PDF Download Scanner");
         ui.label("This view automatically displays results for PDFs downloaded while the app is running.");
-        
-        if ui.button("Clear Results").clicked() {
-            self.pdf_scan_results.clear();
-        }
+
+        ui.horizontal(|ui| {
+            if ui.button("Clear Results").clicked() {
+                self.pdf_scan_results.clear();
+                self.selected_scan_index = None;
+            }
+            if ui.button("Load Previous Scans").clicked() {
+                self.load_previous_scans();
+            }
+        });
 
         ui.separator();
 
-        egui::ScrollArea::vertical().show(ui, |ui| {
-            if self.pdf_scan_results.is_empty() {
-                ui.label("No PDFs scanned yet. Download a PDF to see results here.");
-            } else {
-                for result in &self.pdf_scan_results {
-                    let color = if result.is_suspicious { egui::Color32::RED } else { egui::Color32::GREEN };
-                    ui.colored_label(color, &result.reason);
-                    ui.monospace(&result.file_path);
-                    ui.separator();
+        // Split view: List on left, details on right
+        ui.columns(2, |columns| {
+            // Left column: List of scans
+            columns[0].label("Scan Results:");
+            egui::ScrollArea::vertical().id_source("pdf_scan_list").show(&mut columns[0], |ui| {
+                if self.pdf_scan_results.is_empty() {
+                    ui.label("No PDFs scanned yet. Download a PDF to see results here.");
+                } else {
+                    for (idx, result) in self.pdf_scan_results.iter().enumerate() {
+                        let color = if result.is_suspicious { egui::Color32::RED } else { egui::Color32::GREEN };
+
+                        let is_selected = self.selected_scan_index == Some(idx);
+                        let response = ui.selectable_label(is_selected, format!("{} - {}",
+                            result.scan_id.chars().take(20).collect::<String>(),
+                            result.reason
+                        ));
+
+                        if response.clicked() {
+                            self.selected_scan_index = Some(idx);
+                        }
+
+                        ui.colored_label(color, &result.file_path);
+                        ui.separator();
+                    }
                 }
-            }
+            });
+
+            // Right column: Scan details
+            columns[1].label("Scan Details:");
+            egui::ScrollArea::vertical().id_source("pdf_scan_details").show(&mut columns[1], |ui| {
+                if let Some(idx) = self.selected_scan_index {
+                    if let Some(result) = self.pdf_scan_results.get(idx) {
+                        ui.heading("Scan Information");
+                        ui.monospace(format!("Scan ID: {}", result.scan_id));
+                        ui.monospace(format!("File: {}", result.file_path));
+                        ui.monospace(format!("Timestamp: {}", result.timestamp));
+                        ui.colored_label(
+                            if result.is_suspicious { egui::Color32::RED } else { egui::Color32::GREEN },
+                            format!("Status: {}", result.reason)
+                        );
+
+                        ui.separator();
+
+                        if let Some(ref pdfid) = result.pdfid_output {
+                            ui.collapsing("PDFiD Output", |ui| {
+                                ui.monospace(pdfid);
+                            });
+                        }
+
+                        if let Some(ref metadata) = result.metadata {
+                            ui.collapsing("PDF Metadata", |ui| {
+                                ui.monospace(metadata);
+                            });
+                        }
+                    }
+                } else {
+                    ui.label("Click on a scan result to view details");
+                }
+            });
         });
+    }
+
+    fn load_previous_scans(&mut self) {
+        use std::fs;
+        use std::path::Path;
+
+        let scan_dir = Path::new("pdf_scans");
+        if scan_dir.exists() {
+            if let Ok(entries) = fs::read_dir(scan_dir) {
+                for entry in entries.flatten() {
+                    if let Some(ext) = entry.path().extension() {
+                        if ext == "json" {
+                            if let Ok(content) = fs::read_to_string(entry.path()) {
+                                if let Ok(result) = serde_json::from_str::<PdfScanResult>(&content) {
+                                    // Check if not already in list
+                                    if !self.pdf_scan_results.iter().any(|r| r.scan_id == result.scan_id) {
+                                        self.pdf_scan_results.push(result);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                // Sort by timestamp, newest first
+                self.pdf_scan_results.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+            }
+        }
     }
 
     /// Draws the main header and zoom controls.
@@ -176,7 +259,7 @@ impl BigmanApp {
         if let Task::Complete(result) = &self.update_task {
             ui.add_space(5.0);
             ui.label("Last Update Result:");
-            egui::ScrollArea::vertical().max_height(150.0).show(ui, |ui| {
+            egui::ScrollArea::vertical().max_height(150.0).id_source("database_update_result").show(ui, |ui| {
                 ui.monospace(result);
             });
             
@@ -234,7 +317,7 @@ impl BigmanApp {
             ui.add_space(5.0);
             ui.separator();
             ui.label("Scan Results:");
-            egui::ScrollArea::vertical().max_height(f32::INFINITY).show(ui, |ui| {
+            egui::ScrollArea::vertical().max_height(f32::INFINITY).id_source("scan_results").show(ui, |ui| {
                 ui.monospace(result);
             });
         }
