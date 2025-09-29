@@ -78,6 +78,11 @@ dictonary words to chars ratio
 not that simple, because you can shorten JS for valid reasons
 <https://ontheline.trincoll.edu/images/bookdown/sample-local-pdf.pdf>
 
+Chrome looks for manifests in these locations:
+- Linux: ~/.config/google-chrome/NativeMessagingHosts/
+- Windows: HKEY_CURRENT_USER\SOFTWARE\Google\Chrome\NativeMessagingHosts\
+- macOS: ~/Library/Application Support/Google/Chrome/NativeMessagingHosts/
+
 # Crypto:
 - Check to make sure addresses are correct
 - White list of addresses, prevent modification, idk

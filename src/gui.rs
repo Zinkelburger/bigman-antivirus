@@ -7,6 +7,7 @@ use std::mem;
 // Import our new modules
 use crate::pdf_scanner::PdfScanResult;
 use crate::ipc::start_ipc_server;
+use crate::honey_files::{HoneyFileMonitor, HoneyFileConfig, FileEvent, EventType};
 
 /// Represents the state of a long-running task (scan or update).
 enum Task {
@@ -32,6 +33,7 @@ struct ClamScanOptions {
 enum ActiveView {
     ClamAV,
     PdfScanner,
+    HoneyFiles,
 }
 
 /// The main application state.
@@ -45,6 +47,14 @@ pub struct BigmanApp {
     pdf_scan_results: Vec<PdfScanResult>,
     ipc_receiver: Option<mpsc::Receiver<PdfScanResult>>,
     selected_scan_index: Option<usize>,
+    // Honey file monitoring state
+    honey_file_monitor: HoneyFileMonitor,
+    honey_file_events: Vec<FileEvent>,
+    honey_file_receiver: Option<mpsc::Receiver<FileEvent>>,
+    selected_honey_file: Option<usize>,
+    show_add_file_dialog: bool,
+    new_file_path: String,
+    new_file_description: String,
 }
 
 impl Default for BigmanApp {
@@ -62,6 +72,14 @@ impl Default for BigmanApp {
             pdf_scan_results: Vec::new(),
             ipc_receiver: None,
             selected_scan_index: None,
+            // Honey file monitoring defaults
+            honey_file_monitor: HoneyFileMonitor::new(),
+            honey_file_events: Vec::new(),
+            honey_file_receiver: None,
+            selected_honey_file: None,
+            show_add_file_dialog: false,
+            new_file_path: String::new(),
+            new_file_description: String::new(),
         }
     }
 }
@@ -74,6 +92,14 @@ impl eframe::App for BigmanApp {
             while let Ok(result) = receiver.try_recv() {
                 // Prepend to keep the latest result at the top
                 self.pdf_scan_results.insert(0, result);
+            }
+        }
+
+        // Check for new honey file events
+        if let Some(ref receiver) = self.honey_file_receiver {
+            while let Ok(event) = receiver.try_recv() {
+                // Prepend to keep the latest event at the top
+                self.honey_file_events.insert(0, event);
             }
         }
 
@@ -97,6 +123,9 @@ impl eframe::App for BigmanApp {
                 ActiveView::PdfScanner => {
                     self.draw_pdf_scanner_view(ui);
                 }
+                ActiveView::HoneyFiles => {
+                    self.draw_honey_files_view(ui);
+                }
             }
         });
 
@@ -113,6 +142,7 @@ impl BigmanApp {
         ui.horizontal(|ui| {
             ui.selectable_value(&mut self.active_view, ActiveView::ClamAV, "🛡️ ClamAV Scanner");
             ui.selectable_value(&mut self.active_view, ActiveView::PdfScanner, "📄 Live PDF Scans");
+            ui.selectable_value(&mut self.active_view, ActiveView::HoneyFiles, "🍯 Honey Files");
         });
     }
 
@@ -367,6 +397,197 @@ impl BigmanApp {
             }
         } else {
             self.update_task = update_task;
+        }
+    }
+
+    /// NEW: Draws the UI for honey file monitoring.
+    fn draw_honey_files_view(&mut self, ui: &mut egui::Ui) {
+        ui.heading("Honey File Monitor");
+        ui.label("Monitor sensitive files for unauthorized access and modifications.");
+
+        ui.horizontal(|ui| {
+            if ui.button("Start Monitoring").clicked() && self.honey_file_receiver.is_none() {
+                self.honey_file_receiver = Some(self.honey_file_monitor.start_monitoring());
+            }
+
+            if ui.button("Stop Monitoring").clicked() {
+                self.honey_file_receiver = None;
+            }
+
+            if ui.button("Add File").clicked() {
+                self.show_add_file_dialog = true;
+                self.new_file_path.clear();
+                self.new_file_description.clear();
+            }
+
+            if ui.button("Load Common Files").clicked() {
+                let common_files = HoneyFileConfig::get_common_files();
+                for config in common_files {
+                    self.honey_file_monitor.add_file(config);
+                }
+            }
+
+            if ui.button("Clear Events").clicked() {
+                self.honey_file_events.clear();
+            }
+        });
+
+        ui.separator();
+
+        // Add file dialog
+        if self.show_add_file_dialog {
+            egui::Window::new("Add Honey File")
+                .collapsible(false)
+                .resizable(false)
+                .show(ui.ctx(), |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label("File Path:");
+                        ui.add(egui::TextEdit::singleline(&mut self.new_file_path));
+                        if ui.button("Browse").clicked() {
+                            if let Some(path) = rfd::FileDialog::new().pick_file() {
+                                self.new_file_path = path.to_string_lossy().to_string();
+                            }
+                        }
+                    });
+
+                    ui.horizontal(|ui| {
+                        ui.label("Description:");
+                        ui.add(egui::TextEdit::singleline(&mut self.new_file_description));
+                    });
+
+                    ui.horizontal(|ui| {
+                        if ui.button("Add").clicked() {
+                            if !self.new_file_path.is_empty() {
+                                let mut config = HoneyFileConfig::new(self.new_file_path.clone().into());
+                                if !self.new_file_description.is_empty() {
+                                    config.description = self.new_file_description.clone();
+                                }
+                                self.honey_file_monitor.add_file(config);
+                                self.show_add_file_dialog = false;
+                            }
+                        }
+                        if ui.button("Cancel").clicked() {
+                            self.show_add_file_dialog = false;
+                        }
+                    });
+                });
+        }
+
+        // Split view: File configs on left, events on right
+        ui.columns(2, |columns| {
+            // Left column: File configurations
+            columns[0].label("Monitored Files:");
+            egui::ScrollArea::vertical().id_source("honey_file_configs").max_height(300.0).show(&mut columns[0], |ui| {
+                let mut to_remove = Vec::new();
+                let configs = self.honey_file_monitor.get_configs_mut();
+
+                for (path, config) in configs.iter_mut() {
+                    ui.group(|ui| {
+                        ui.horizontal(|ui| {
+                            ui.checkbox(&mut config.enabled, "");
+                            ui.label(format!("{}", path.display()));
+                            if ui.small_button("🗑").clicked() {
+                                to_remove.push(path.clone());
+                            }
+                        });
+
+                        ui.label(&config.description);
+
+                        ui.horizontal(|ui| {
+                            ui.label("Events:");
+                            for event_type in EventType::all() {
+                                let mut is_monitored = config.monitored_events.contains(&event_type);
+                                if ui.checkbox(&mut is_monitored, event_type.as_str()).changed() {
+                                    if is_monitored {
+                                        if !config.monitored_events.contains(&event_type) {
+                                            config.monitored_events.push(event_type);
+                                        }
+                                    } else {
+                                        config.monitored_events.retain(|&e| e != event_type);
+                                    }
+                                }
+                            }
+                        });
+
+                        ui.horizontal(|ui| {
+                            ui.label("Script Handler:");
+                            if let Some(ref script_path) = config.script_handler {
+                                ui.label(format!("{}", script_path.display()));
+                                if ui.small_button("Remove").clicked() {
+                                    config.script_handler = None;
+                                }
+                            } else {
+                                if ui.button("Set Script").clicked() {
+                                    if let Some(path) = rfd::FileDialog::new()
+                                        .add_filter("Shell Script", &["sh"])
+                                        .pick_file()
+                                    {
+                                        config.script_handler = Some(path);
+                                    }
+                                }
+                            }
+                        });
+                    });
+                    ui.separator();
+                }
+
+                // Remove files marked for deletion
+                for path in to_remove {
+                    self.honey_file_monitor.remove_file(&path);
+                }
+            });
+
+            // Right column: Events
+            columns[1].label("Recent Events:");
+            egui::ScrollArea::vertical().id_source("honey_file_events").max_height(300.0).show(&mut columns[1], |ui| {
+                if self.honey_file_events.is_empty() {
+                    ui.label("No events recorded yet.");
+                } else {
+                    for (idx, event) in self.honey_file_events.iter().enumerate() {
+                        let is_selected = self.selected_honey_file == Some(idx);
+                        let response = ui.selectable_label(
+                            is_selected,
+                            format!("[{}] {} - {}",
+                                event.event_type.as_str(),
+                                event.file_path.display(),
+                                chrono::DateTime::from_timestamp(event.timestamp as i64, 0)
+                                    .map(|dt| dt.format("%H:%M:%S").to_string())
+                                    .unwrap_or_else(|| "Unknown".to_string())
+                            )
+                        );
+
+                        if response.clicked() {
+                            self.selected_honey_file = Some(idx);
+                        }
+
+                        // Color code by event type
+                        let color = match event.event_type {
+                            EventType::Write | EventType::Modify => egui::Color32::RED,
+                            EventType::Read | EventType::Access => egui::Color32::YELLOW,
+                            EventType::Execute => egui::Color32::LIGHT_RED,
+                            EventType::Create => egui::Color32::LIGHT_BLUE,
+                            EventType::Delete => egui::Color32::DARK_RED,
+                        };
+
+                        ui.colored_label(color, format!("  {}", event.event_type.as_str()));
+                        ui.separator();
+                    }
+                }
+            });
+        });
+
+        // Event details panel
+        if let Some(idx) = self.selected_honey_file {
+            if let Some(event) = self.honey_file_events.get(idx) {
+                ui.separator();
+                ui.heading("Event Details");
+                ui.monospace(format!("File: {}", event.file_path.display()));
+                ui.monospace(format!("Event: {}", event.event_type.as_str()));
+                ui.monospace(format!("Timestamp: {}", event.timestamp));
+                if let Some(ref process_info) = event.process_info {
+                    ui.monospace(format!("Process: {}", process_info));
+                }
+            }
         }
     }
 }

@@ -5,6 +5,7 @@ mod analyzer;
 mod gui;
 mod pdf_scanner;
 mod ipc;
+mod honey_files;
 
 use std::io::{self, Read};
 use anyhow::{Result, Context};
