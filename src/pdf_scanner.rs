@@ -1,128 +1,89 @@
-// src/pdf_scanner.rs
-
-use serde::{Deserialize, Serialize};
-use std::time::{SystemTime, UNIX_EPOCH};
-use std::process::Command;
-use std::fs;
+use crate::{
+    model::{Report, Severity},
+    runner::{self, Cancel},
+    store::{digest, read_file, Store, MAX_INPUT},
+};
+use anyhow::{bail, Result};
 use std::path::Path;
-
-/// The result of a single PDF scan.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PdfScanResult {
-    pub file_path: String,
-    pub timestamp: u64,
-    pub is_suspicious: bool,
-    pub reason: String,
-    pub scan_id: String,
-    pub pdfid_output: Option<String>,
-    pub metadata: Option<String>,
-}
-
-/// Runs pdfid.py on the file if available
-fn run_pdfid(file_path: &str) -> Option<String> {
-    Command::new("pdfid.py")
-        .arg(file_path)
-        .output()
-        .ok()
-        .and_then(|output| {
-            if output.status.success() {
-                Some(String::from_utf8_lossy(&output.stdout).to_string())
-            } else {
-                None
-            }
-        })
-}
-
-/// Extracts PDF metadata using pdfinfo if available
-fn get_pdf_metadata(file_path: &str) -> Option<String> {
-    Command::new("pdfinfo")
-        .arg(file_path)
-        .output()
-        .ok()
-        .and_then(|output| {
-            if output.status.success() {
-                Some(String::from_utf8_lossy(&output.stdout).to_string())
-            } else {
-                None
-            }
-        })
-}
-
-/// Saves scan result to a file in pdf_scans directory
-fn save_scan_result(result: &PdfScanResult) {
-    let scan_dir = Path::new("pdf_scans");
-    if !scan_dir.exists() {
-        let _ = fs::create_dir_all(scan_dir);
+fn scan_pdf_inner(store: &Store, path: &Path, stop: &Cancel) -> Result<Report> {
+    let bytes = read_file(path, 8 * MAX_INPUT)?;
+    if !bytes.starts_with(b"%PDF-") {
+        bail!("File does not start with a PDF header");
     }
-
-    let scan_file = scan_dir.join(format!("{}.json", result.scan_id));
-    let _ = fs::write(scan_file, serde_json::to_string_pretty(result).unwrap_or_default());
-}
-
-/// Scans a PDF file for suspicious auto-action tags.
-pub fn scan_pdf_for_actions(file_path: &str) -> PdfScanResult {
-    let timestamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs();
-
-    let scan_id = format!("scan_{}_{}",
-        timestamp,
-        Path::new(file_path)
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("unknown")
-            .replace(' ', "_")
-    );
-
-    let pdfid_output = run_pdfid(file_path);
-    let metadata = get_pdf_metadata(file_path);
-
-    let result = match std::fs::read(file_path) {
-        Ok(content) => {
-            if content.windows(b"/OpenAction".len()).any(|window| window == b"/OpenAction") {
-                PdfScanResult {
-                    file_path: file_path.to_string(),
-                    timestamp,
-                    is_suspicious: true,
-                    reason: "Found an /OpenAction tag.".to_string(),
-                    scan_id,
-                    pdfid_output,
-                    metadata,
-                }
-            } else if content.windows(b"/AA".len()).any(|window| window == b"/AA") {
-                PdfScanResult {
-                    file_path: file_path.to_string(),
-                    timestamp,
-                    is_suspicious: true,
-                    reason: "Found an /AA (Additional-Actions) tag.".to_string(),
-                    scan_id,
-                    pdfid_output,
-                    metadata,
-                }
-            } else {
-                PdfScanResult {
-                    file_path: file_path.to_string(),
-                    timestamp,
-                    is_suspicious: false,
-                    reason: "Clean.".to_string(),
-                    scan_id,
-                    pdfid_output,
-                    metadata,
-                }
+    let mut r = Report::new("PDF triage", path.display());
+    r.sha256 = Some(digest(&bytes));
+    r.coverage.push("Deterministic PDF triage, not an exploit/safety verdict. Encrypted/compressed content and deceptive links can require further inspection. Parsing never executes document actions.".into());
+    let mut normalized = vec![];
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'#' && i + 2 < bytes.len() {
+            if let Ok(v) = u8::from_str_radix(&String::from_utf8_lossy(&bytes[i + 1..i + 3]), 16) {
+                normalized.push(v);
+                i += 3;
+                continue;
             }
         }
-        Err(e) => PdfScanResult {
-            file_path: file_path.to_string(),
-            timestamp,
-            is_suspicious: true,
-            reason: format!("Could not read file: {}", e),
-            scan_id,
-            pdfid_output,
-            metadata,
-        },
-    };
+        normalized.push(bytes[i]);
+        i += 1;
+    }
+    let text = String::from_utf8_lossy(&normalized);
+    for (tag, description) in [
+        ("OpenAction", "Action on document open"),
+        ("AA", "Additional actions"),
+        ("JavaScript", "JavaScript content"),
+        ("JS", "JavaScript entry"),
+        ("Launch", "Launch action"),
+        ("EmbeddedFile", "Embedded file"),
+        ("URI", "External link"),
+        ("Encrypt", "Encrypted content"),
+    ] {
+        let pattern = regex::Regex::new(&format!(r"/{}(?:[\s/<>()\[\]{{}}%]|$)", tag))?;
+        let count = pattern.find_iter(&text).count();
+        if count > 0 {
+            r.add("pdf.structure",if ["Launch","JavaScript","JS"].contains(&tag){Severity::Review}else{Severity::Info},description,format!("/{tag}: {count} raw/escaped-name occurrences"),"Review parser output and extracted destinations; this tag alone is not proof of malware.");
+        }
+    }
+    let tmp = tempfile::NamedTempFile::new_in(&store.root)?;
+    std::fs::write(tmp.path(), &bytes)?;
+    for (tool, args) in [
+        ("pdfid.py", vec![]),
+        ("pdf-parser.py", vec!["--stats"]),
+        ("pdfinfo", vec!["-url"]),
+    ] {
+        if !runner::available(tool) {
+            r.errors.push(format!("{tool} unavailable"));
+            continue;
+        }
+        let mut cmd = match runner::parser_command(tool, &args, tmp.path()) {
+            Ok(c) => c,
+            Err(e) => {
+                r.errors.push(e.to_string());
+                continue;
+            }
+        };
+        let o = runner::run(&mut cmd, 30, stop)?;
+        if !o.ok() {
+            r.errors.push(format!(
+                "{tool} failed, timed out or exceeded output limit: {}",
+                o.stderr
+            ));
+        }
+        r.details
+            .push_str(&format!("\n{tool}\n{}\n{}", o.stdout, o.stderr));
+    }
+    r.coverage.push("External parsers run in an offline Bubblewrap filesystem exposing only system tools and the PDF snapshot. Missing sandbox support disables external parsing.".into());
+    store.save(&r)?;
+    Ok(r)
+}
 
-    save_scan_result(&result);
-    result
-} 
+pub fn scan_pdf(store: &Store, path: &Path, stop: &Cancel) -> Result<Report> {
+    match scan_pdf_inner(store, path, stop) {
+        Ok(r) => Ok(r),
+        Err(e) => {
+            let mut r = Report::new("PDF triage", path.display());
+            r.errors.push(e.to_string());
+            store.save(&r)?;
+            Ok(r)
+        }
+    }
+}

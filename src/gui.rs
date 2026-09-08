@@ -1,428 +1,604 @@
+use crate::{
+    model::{Report, Severity},
+    runner::{self, Cancel},
+    store::Store,
+};
 use eframe::egui;
-use std::process::{Command, Stdio};
-use std::sync::mpsc;
-use std::thread;
-use std::mem;
-
-// Import our new modules
-use crate::pdf_scanner::PdfScanResult;
-use crate::ipc::start_ipc_server;
-
-/// Represents the state of a long-running task (scan or update).
-enum Task {
-    /// The task has not been started or has been cleared.
-    Idle,
-    /// The task is running in a background thread.
-    InProgress(mpsc::Receiver<String>),
-    /// The task has completed, and this is the result.
-    Complete(String),
+use std::{
+    path::PathBuf,
+    process::{Child, Command},
+    sync::{atomic::Ordering, mpsc, Arc},
+    time::{Duration, Instant},
+};
+#[derive(Clone, PartialEq)]
+enum Page {
+    Overview,
+    Files,
+    Installers,
+    Changes,
+    Canaries,
+    Tools,
+    History,
+    Quarantine,
 }
-
-/// Options for the `clamscan` command.
-#[derive(Default)]
-struct ClamScanOptions {
-    recursive: bool,
-    verbose: bool,
-    infected_only: bool,
-    remove_infected: bool,
+#[derive(Clone)]
+enum Action {
+    Doctor,
+    Scan(String),
+    Pdf(String),
+    Update,
+    Inspect(String),
+    Packages(String),
+    Policy(String),
+    Changes,
+    AcceptBaseline(String),
+    CreateCanary(String, Option<String>),
+    TestCanary(String),
+    Disarm(String),
+    Install(String),
+    Services(bool),
+    Sandbox(String, String),
+    Quarantine(String, usize),
+    Restore(String),
+    Audit(String, String),
+    Yara(String, String),
 }
-
-/// Enum to manage which view is active
-#[derive(PartialEq)]
-enum ActiveView {
-    ClamAV,
-    PdfScanner,
+enum Outcome {
+    Report(Report),
+    Message(String),
 }
-
-/// The main application state.
-pub struct BigmanApp {
-    scan_path: String,
-    clamscan_options: ClamScanOptions,
-    scan_task: Task,
-    update_task: Task,
-    // NEW state for the PDF scanner view
-    active_view: ActiveView,
-    pdf_scan_results: Vec<PdfScanResult>,
-    ipc_receiver: Option<mpsc::Receiver<PdfScanResult>>,
-    selected_scan_index: Option<usize>,
+fn perform(store: &Store, a: Action, stop: &Cancel) -> anyhow::Result<Outcome> {
+    use Action::*;
+    let report=match a{
+ Doctor=>crate::system::doctor(store,stop)?,Scan(p)=>crate::scanner::scan(store,PathBuf::from(p).as_path(),stop)?,Pdf(p)=>crate::pdf_scanner::scan_pdf(store,PathBuf::from(p).as_path(),stop)?,Update=>crate::scanner::update(store,stop)?,Inspect(p)=>crate::inspect::inspect(store,&p,stop)?,Packages(p)=>crate::inspect::packages(store,PathBuf::from(p).as_path())?,Changes=>{let r=crate::system::changes(store)?;store.save(&r)?;r},
+ AcceptBaseline(id)=>crate::system::accept_reviewed_baseline(store,&id)?,
+ Sandbox(id,hash)=>crate::inspect::sandbox(store,&id,&hash,stop)?,Audit(tool,p)=>crate::system::integration(store,&tool,PathBuf::from(p).as_path(),stop)?,Yara(r,p)=>crate::system::yara(store,PathBuf::from(r).as_path(),PathBuf::from(p).as_path(),stop)?,
+ Policy(p)=>return Ok(Outcome::Message(crate::inspect::policy(PathBuf::from(p).as_path(),true)?)),
+ CreateCanary(p,url)=>return Ok(Outcome::Message(format!("Created decoy {}\nStart monitoring, then use Test and verify the resulting alert. Hosted URLs contact their provider only when activated by a reader.",crate::canary::create(store,PathBuf::from(p).as_path(),url.as_deref())?.path.display()))),
+ TestCanary(id)=>{crate::canary::self_test(store,&id)?;return Ok(Outcome::Message("Test read performed. Look for a new Canary triggered report in History. This does not prove monitoring worked until the event appears.".into()));},
+ Disarm(id)=>{crate::canary::disarm(store,&id)?;return Ok(Outcome::Message("Canary disarmed; its file was preserved.".into()));},
+ Install(tool)=>return Ok(Outcome::Message(crate::setup::install_tool(&tool,true,stop)?)),Services(remove)=>return Ok(Outcome::Message(crate::setup::services(store,true,remove,stop)?)),
+ Quarantine(id,index)=>return Ok(Outcome::Message(format!("Recovery copy saved; original quarantined. ID: {}",crate::scanner::quarantine(store,&id,index)?.id))),Restore(id)=>return Ok(Outcome::Message(format!("Restored without executable permissions: {}",crate::scanner::restore(store,&id)?.display()))),
+ };
+    Ok(Outcome::Report(report))
 }
-
-impl Default for BigmanApp {
-    fn default() -> Self {
+struct Job {
+    rx: mpsc::Receiver<Result<Outcome, String>>,
+    stop: Cancel,
+}
+struct App {
+    store: Store,
+    page: Page,
+    path: String,
+    installer: String,
+    project: String,
+    rules: String,
+    decoy: String,
+    hosted: String,
+    report: Option<Arc<Report>>,
+    history: Vec<Report>,
+    message: String,
+    job: Option<Job>,
+    pending: Option<(String, Action)>,
+    refresh: Instant,
+    monitor: Option<Child>,
+    tool: String,
+}
+impl App {
+    fn new(store: Store) -> Self {
         Self {
-            scan_path: "/home".to_string(),
-            clamscan_options: ClamScanOptions::default(),
-            scan_task: Task::Idle,
-            // Start with a helpful message for the user.
-            update_task: Task::Complete(
-                "Database status is unknown. Click 'Update Database' to check for new definitions.".to_string(),
-            ),
-            // NEW default state
-            active_view: ActiveView::ClamAV,
-            pdf_scan_results: Vec::new(),
-            ipc_receiver: None,
-            selected_scan_index: None,
+            decoy: store
+                .root
+                .join("canaries/backup-access.env")
+                .to_string_lossy()
+                .into(),
+            history: store.history().unwrap_or_default(),
+            store,
+            page: Page::Overview,
+            path: crate::setup::downloads().to_string_lossy().into(),
+            installer: String::new(),
+            project: String::new(),
+            rules: String::new(),
+            hosted: String::new(),
+            report: None,
+            message: String::new(),
+            job: None,
+            pending: None,
+            refresh: Instant::now(),
+            monitor: None,
+            tool: "clamav".into(),
+        }
+    }
+    fn start(&mut self, a: Action) {
+        if self.job.is_some() {
+            return;
+        }
+        let store = self.store.clone();
+        let stop = runner::cancel();
+        let cancel = stop.clone();
+        let (tx, rx) = mpsc::channel();
+        std::thread::spawn(move || {
+            let result = perform(&store, a, &cancel).map_err(|e| e.to_string());
+            let _ = tx.send(result);
+        });
+        self.job = Some(Job { rx, stop });
+        self.message = "Working…".into();
+    }
+    fn confirm(&mut self, text: String, a: Action) {
+        self.pending = Some((text, a));
+    }
+    fn results(&mut self, ui: &mut egui::Ui) {
+        if let Some(r) = self.report.clone() {
+            ui.separator();
+            ui.heading(&r.kind);
+            ui.label(crate::model::clean(&r.subject));
+            ui.strong(r.status());
+            for error in &r.errors {
+                ui.colored_label(
+                    egui::Color32::from_rgb(225, 150, 65),
+                    format!("Incomplete: {}", crate::model::clean(error)),
+                );
+            }
+            for finding in &r.findings {
+                egui::Frame::group(ui.style()).show(ui, |ui| {
+                    let color = match finding.severity {
+                        Severity::High => egui::Color32::from_rgb(245, 110, 100),
+                        Severity::Review => egui::Color32::from_rgb(230, 185, 90),
+                        Severity::Info => egui::Color32::from_rgb(125, 185, 220),
+                    };
+                    ui.colored_label(color, &finding.summary);
+                    ui.label(finding.evidence.chars().take(4096).collect::<String>());
+                    ui.label(format!("Next: {}", finding.action));
+                    ui.small(&finding.rule);
+                });
+            }
+            for c in &r.coverage {
+                ui.small(c);
+            }
+            if let Some(hash) = &r.sha256 {
+                ui.monospace(format!("SHA-256 {hash}"));
+            }
+            ui.collapsing("Technical details", |ui| {
+                ui.monospace(crate::model::clean(
+                    &r.details.chars().take(100_000).collect::<String>(),
+                ));
+                if r.details.chars().count() > 100_000 {
+                    ui.label("Display truncated. Export the report for complete details.");
+                }
+            });
+            ui.horizontal(|ui|{if ui.button("Export report…").clicked(){if let Some(p)=rfd::FileDialog::new().set_file_name(format!("bigman-{}.json",r.id)).save_file(){self.message=match serde_json::to_vec_pretty(r.as_ref()).map_err(anyhow::Error::from).and_then(|b|std::fs::write(p,b).map_err(Into::into)){Ok(_)=>"Report exported. It may contain local paths and script content.".into(),Err(e)=>e.to_string()};}}
+ if r.kind=="Installer inspection"{if let Some(hash)=&r.sha256{if ui.button("Rehearse in restricted environment…").clicked(){self.confirm(format!("Execute saved installer {}\nSHA-256 {}\nUses a disposable offline filesystem with no home directory or credentials. May fail due to restrictions. This runs code; it does not establish safety or install onto the host.",r.id,hash),Action::Sandbox(r.id.clone(),hash.clone()));}}}});
+            if r.kind == "File scan" {
+                if let Ok(items) = crate::scanner::inventory(&self.store, &r.id) {
+                    for (i, item) in items.iter().enumerate().filter(|(_, v)| v.detected) {
+                        if ui
+                            .button(format!(
+                                "Quarantine {}…",
+                                crate::model::clean(&item.path.to_string_lossy())
+                            ))
+                            .clicked()
+                        {
+                            self.confirm(format!("Save a private recovery copy and remove this unchanged file from its original location:\n{}\nSignature: {}\nHash: {}\nNo other files will be removed.",item.path.display(),item.signature,item.hash),Action::Quarantine(r.id.clone(),i));
+                        }
+                    }
+                }
+            }
         }
     }
 }
-
-impl eframe::App for BigmanApp {
-    /// Called each frame to update the GUI.
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        // Check for new PDF scan results from IPC
-        if let Some(ref receiver) = self.ipc_receiver {
-            while let Ok(result) = receiver.try_recv() {
-                // Prepend to keep the latest result at the top
-                self.pdf_scan_results.insert(0, result);
+impl eframe::App for App {
+    fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
+        if let Some(job) = &self.job {
+            match job.rx.try_recv() {
+                Ok(result) => {
+                    self.job = None;
+                    match result {
+                        Ok(Outcome::Report(r)) => {
+                            self.message =
+                                "Check completed. Review findings and coverage below.".into();
+                            self.report = Some(Arc::new(r));
+                        }
+                        Ok(Outcome::Message(m)) => self.message = m,
+                        Err(e) => self.message = format!("Could not complete: {e}"),
+                    };
+                    match self.store.history() {
+                        Ok(h) => self.history = h,
+                        Err(e) => self.message = format!("History unavailable: {e}"),
+                    }
+                }
+                Err(mpsc::TryRecvError::Disconnected) => {
+                    self.job = None;
+                    self.message = "Worker stopped unexpectedly; check incomplete.".into();
+                }
+                _ => {}
             }
         }
-
-        // Check for results from any background tasks.
-        self.check_for_task_completion();
-
+        if self.refresh.elapsed() > Duration::from_secs(3) {
+            if let Ok(h) = self.store.history() {
+                self.history = h;
+            }
+            self.refresh = Instant::now();
+        }
+        ctx.request_repaint_after(Duration::from_millis(500));
+        egui::SidePanel::left("navigation")
+            .resizable(false)
+            .default_width(185.)
+            .show(ctx, |ui| {
+                ui.add_space(12.);
+                ui.heading("Bigman");
+                ui.label("Security companion");
+                ui.separator();
+                for (page, label) in [
+                    (Page::Overview, "Check my system"),
+                    (Page::Files, "Scan files"),
+                    (Page::Installers, "Inspect installs"),
+                    (Page::Changes, "Startup changes"),
+                    (Page::Canaries, "Canary tripwires"),
+                    (Page::Tools, "Tools & setup"),
+                    (Page::History, "History"),
+                    (Page::Quarantine, "Quarantine"),
+                ] {
+                    ui.selectable_value(&mut self.page, page, label);
+                }
+                ui.separator();
+                ui.small("Deterministic local checks. No AI or automatic uploads.");
+            });
         egui::CentralPanel::default().show(ctx, |ui| {
-            self.draw_header_and_zoom(ui, ctx);
-            ui.separator();
-            
-            // NEW: Draw UI based on the active view
-            self.draw_view_switcher(ui);
-            ui.separator();
-
-            match self.active_view {
-                ActiveView::ClamAV => {
-                    self.draw_database_section(ui);
-                    ui.separator();
-                    self.draw_scan_section(ui);
-                }
-                ActiveView::PdfScanner => {
-                    self.draw_pdf_scanner_view(ui);
-                }
-            }
-        });
-
-        // If a task is running, request a repaint to update the spinner.
-        if matches!(self.scan_task, Task::InProgress(_)) || matches!(self.update_task, Task::InProgress(_)) {
-            ctx.request_repaint();
-        }
-    }
-}
-
-impl BigmanApp {
-    /// NEW: Draws the toggle buttons to switch between views.
-    fn draw_view_switcher(&mut self, ui: &mut egui::Ui) {
-        ui.horizontal(|ui| {
-            ui.selectable_value(&mut self.active_view, ActiveView::ClamAV, "🛡️ ClamAV Scanner");
-            ui.selectable_value(&mut self.active_view, ActiveView::PdfScanner, "📄 Live PDF Scans");
-        });
-    }
-
-    /// NEW: Draws the UI for displaying live PDF scan results.
-    fn draw_pdf_scanner_view(&mut self, ui: &mut egui::Ui) {
-        ui.heading("Live PDF Download Scanner");
-        ui.label("This view automatically displays results for PDFs downloaded while the app is running.");
-
-        ui.horizontal(|ui| {
-            if ui.button("Clear Results").clicked() {
-                self.pdf_scan_results.clear();
-                self.selected_scan_index = None;
-            }
-            if ui.button("Load Previous Scans").clicked() {
-                self.load_previous_scans();
-            }
-        });
-
-        ui.separator();
-
-        // Split view: List on left, details on right
-        ui.columns(2, |columns| {
-            // Left column: List of scans
-            columns[0].label("Scan Results:");
-            egui::ScrollArea::vertical().id_source("pdf_scan_list").show(&mut columns[0], |ui| {
-                if self.pdf_scan_results.is_empty() {
-                    ui.label("No PDFs scanned yet. Download a PDF to see results here.");
-                } else {
-                    for (idx, result) in self.pdf_scan_results.iter().enumerate() {
-                        let color = if result.is_suspicious { egui::Color32::RED } else { egui::Color32::GREEN };
-
-                        let is_selected = self.selected_scan_index == Some(idx);
-                        let response = ui.selectable_label(is_selected, format!("{} - {}",
-                            result.scan_id.chars().take(20).collect::<String>(),
-                            result.reason
-                        ));
-
-                        if response.clicked() {
-                            self.selected_scan_index = Some(idx);
-                        }
-
-                        ui.colored_label(color, &result.file_path);
-                        ui.separator();
-                    }
-                }
-            });
-
-            // Right column: Scan details
-            columns[1].label("Scan Details:");
-            egui::ScrollArea::vertical().id_source("pdf_scan_details").show(&mut columns[1], |ui| {
-                if let Some(idx) = self.selected_scan_index {
-                    if let Some(result) = self.pdf_scan_results.get(idx) {
-                        ui.heading("Scan Information");
-                        ui.monospace(format!("Scan ID: {}", result.scan_id));
-                        ui.monospace(format!("File: {}", result.file_path));
-                        ui.monospace(format!("Timestamp: {}", result.timestamp));
-                        ui.colored_label(
-                            if result.is_suspicious { egui::Color32::RED } else { egui::Color32::GREEN },
-                            format!("Status: {}", result.reason)
-                        );
-
-                        ui.separator();
-
-                        if let Some(ref pdfid) = result.pdfid_output {
-                            ui.collapsing("PDFiD Output", |ui| {
-                                ui.monospace(pdfid);
-                            });
-                        }
-
-                        if let Some(ref metadata) = result.metadata {
-                            ui.collapsing("PDF Metadata", |ui| {
-                                ui.monospace(metadata);
-                            });
-                        }
-                    }
-                } else {
-                    ui.label("Click on a scan result to view details");
-                }
-            });
-        });
-    }
-
-    fn load_previous_scans(&mut self) {
-        use std::fs;
-        use std::path::Path;
-
-        let scan_dir = Path::new("pdf_scans");
-        if scan_dir.exists() {
-            if let Ok(entries) = fs::read_dir(scan_dir) {
-                for entry in entries.flatten() {
-                    if let Some(ext) = entry.path().extension() {
-                        if ext == "json" {
-                            if let Ok(content) = fs::read_to_string(entry.path()) {
-                                if let Ok(result) = serde_json::from_str::<PdfScanResult>(&content) {
-                                    // Check if not already in list
-                                    if !self.pdf_scan_results.iter().any(|r| r.scan_id == result.scan_id) {
-                                        self.pdf_scan_results.push(result);
-                                    }
-                                }
+            egui::ScrollArea::vertical().show(ui, |ui| {
+                let busy = self.job.is_some();
+                if busy {
+                    ui.horizontal(|ui| {
+                        ui.spinner();
+                        ui.label("Check in progress");
+                        if ui.button("Cancel job").clicked() {
+                            if let Some(j) = &self.job {
+                                j.stop.store(true, Ordering::Relaxed);
                             }
                         }
+                    });
+                }
+                if !self.message.is_empty() {
+                    ui.label(crate::model::clean(&self.message));
+                    ui.separator();
+                }
+                ui.add_enabled_ui(!busy, |ui| self.draw_page(ui));
+                self.results(ui);
+            });
+        });
+        if let Some((description, action)) = self.pending.clone() {
+            egui::Window::new("Review this change")
+                .collapsible(false)
+                .resizable(true)
+                .show(ctx, |ui| {
+                    egui::ScrollArea::vertical()
+                        .max_height(400.)
+                        .show(ui, |ui| {
+                            ui.label(description);
+                        });
+                    ui.horizontal(|ui| {
+                        if ui.button("Apply").clicked() {
+                            self.pending = None;
+                            self.start(action);
+                        }
+                        if ui.button("Cancel").clicked() {
+                            self.pending = None;
+                        }
+                    });
+                });
+        }
+    }
+}
+impl App {
+    fn draw_page(&mut self, ui: &mut egui::Ui) {
+        match self.page {
+            Page::Overview => {
+                ui.heading("What needs attention?");
+                ui.label("Check protection health, available tools, credential-storage configuration and listening applications.");
+                if ui.button("Run read-only checkup").clicked() {
+                    self.start(Action::Doctor);
+                }
+                ui.add_space(12.);
+                ui.label("Getting started: check your system, install ClamAV if needed, update definitions, scan Downloads, then create and test a canary.");
+                if let Some(last) = self.history.first() {
+                    ui.label(format!(
+                        "Latest activity: {} — {}",
+                        last.kind,
+                        last.status()
+                    ));
+                }
+            }
+            Page::Files => {
+                ui.heading("Scan files");
+                ui.label("ClamAV checks file snapshots. Nothing is deleted automatically.");
+                ui.text_edit_singleline(&mut self.path);
+                ui.horizontal(|ui| {
+                    if ui.button("Choose file…").clicked() {
+                        if let Some(p) = rfd::FileDialog::new().pick_file() {
+                            self.path = p.to_string_lossy().into();
+                        }
+                    }
+                    if ui.button("Choose folder…").clicked() {
+                        if let Some(p) = rfd::FileDialog::new().pick_folder() {
+                            self.path = p.to_string_lossy().into();
+                        }
+                    }
+                });
+                ui.horizontal(|ui| {
+                    if ui.button("Scan with ClamAV").clicked() {
+                        self.start(Action::Scan(self.path.clone()));
+                    }
+                    if ui.button("Inspect PDF structure").clicked() {
+                        self.start(Action::Pdf(self.path.clone()));
+                    }
+                    if ui.button("Update definitions").clicked() {
+                        self.start(Action::Update);
+                    }
+                });
+            }
+            Page::Installers => {
+                ui.heading("Understand an install before running it");
+                ui.label("Enter an HTTPS installer URL or select a local script. Inspection never executes it.");
+                ui.text_edit_singleline(&mut self.installer);
+                ui.horizontal(|ui| {
+                    if ui.button("Choose script…").clicked() {
+                        if let Some(p) = rfd::FileDialog::new().pick_file() {
+                            self.installer = p.to_string_lossy().into();
+                        }
+                    }
+                    if ui.button("Inspect and save exact bytes").clicked() {
+                        self.start(Action::Inspect(self.installer.clone()));
+                    }
+                });
+                ui.separator();
+                ui.label("Package scripts: select a project, installed node_modules tree or npm .tgz archive.");
+                ui.text_edit_singleline(&mut self.project);
+                ui.horizontal(|ui| {
+                    if ui.button("Choose project…").clicked() {
+                        if let Some(p) = rfd::FileDialog::new().pick_folder() {
+                            self.project = p.to_string_lossy().into();
+                        }
+                    }
+                    if ui.button("List package scripts").clicked() {
+                        self.start(Action::Packages(self.project.clone()));
+                    }
+                    if ui.button("Disable automatic install scripts…").clicked() {
+                        match crate::inspect::policy(PathBuf::from(&self.project).as_path(), false)
+                        {
+                            Ok(p) => self.confirm(p, Action::Policy(self.project.clone())),
+                            Err(e) => self.message = e.to_string(),
+                        }
+                    }
+                });
+            }
+            Page::Changes => {
+                ui.heading("Startup and persistence changes");
+                ui.label("Review new and changed startup entries. A baseline records what was present; it does not certify that those entries are trustworthy.");
+                if ui.button("Compare current startup configuration").clicked() {
+                    self.start(Action::Changes);
+                }
+                let reviewed = self
+                    .report
+                    .as_ref()
+                    .filter(|r| r.kind == "Persistence changes" && r.errors.is_empty())
+                    .map(|r| r.id.clone());
+                if ui
+                    .add_enabled(
+                        reviewed.is_some(),
+                        egui::Button::new("Accept reviewed configuration as baseline…"),
+                    )
+                    .clicked()
+                {
+                    self.confirm("Save the exact startup inventory in the report below as the new baseline. Bigman will refuse if the inventory changed after review. A baseline records prior state, not trust.".into(),Action::AcceptBaseline(reviewed.unwrap()));
+                }
+            }
+            Page::Canaries => {
+                ui.heading("Canary tripwires");
+                ui.label("Synthetic decoy files alert when read, changed or removed while the monitor is running. They do not contain usable credentials. Backups, indexers and your tests can trigger them.");
+                let health = self
+                    .store
+                    .read::<crate::canary::Health>("monitor-health.json")
+                    .ok();
+                let active = health
+                    .as_ref()
+                    .is_some_and(|h| crate::model::now().saturating_sub(h.updated) < 10);
+                ui.strong(if active {
+                    "Monitor is reporting"
+                } else {
+                    "Monitor is stopped or heartbeat is stale"
+                });
+                if let Some(h) = health {
+                    ui.label(format!("{}/{} paths watched", h.watched, h.configured));
+                    for e in h.errors {
+                        ui.colored_label(egui::Color32::YELLOW, e);
                     }
                 }
-                // Sort by timestamp, newest first
-                self.pdf_scan_results.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
-            }
-        }
-    }
-
-    /// Draws the main header and zoom controls.
-    fn draw_header_and_zoom(&self, ui: &mut egui::Ui, ctx: &egui::Context) {
-        ui.heading("⚔ BigMan Antivirus Scanner");
-        ui.horizontal(|ui| {
-            ui.label("Zoom:");
-            if ui.button("-").clicked() {
-                ctx.set_pixels_per_point((ctx.pixels_per_point() - 0.1).max(0.75));
-            }
-            ui.label(format!("{:.0}%", ctx.pixels_per_point() * 100.0));
-            if ui.button("+").clicked() {
-                ctx.set_pixels_per_point((ctx.pixels_per_point() + 0.1).min(3.0));
-            }
-            ui.label("(Use Ctrl +/- or Ctrl+Scroll)");
-        });
-    }
-
-    /// Draws the UI for the virus database update section.
-    fn draw_database_section(&mut self, ui: &mut egui::Ui) {
-        ui.heading("Virus Database");
-
-        let is_task_running = !matches!(self.scan_task, Task::Idle | Task::Complete(_)) || !matches!(self.update_task, Task::Idle | Task::Complete(_));
-
-        ui.horizontal(|ui| {
-            let update_button = ui.add_enabled(!is_task_running, egui::Button::new("🔄 Update Database"));
-            if update_button.clicked() {
-                self.start_database_update();
-            }
-
-            if let Task::InProgress(_) = self.update_task {
-                ui.spinner();
-                ui.label("Updating...");
-            }
-        });
-
-        if let Task::Complete(result) = &self.update_task {
-            ui.add_space(5.0);
-            ui.label("Last Update Result:");
-            egui::ScrollArea::vertical().max_height(150.0).id_source("database_update_result").show(ui, |ui| {
-                ui.monospace(result);
-            });
-            
-            // Provide a helpful, non-intrusive tip for a very common configuration error.
-            if result.contains("Can't open/parse the config file /etc/freshclam.conf") {
-                ui.add_space(5.0);
-                ui.colored_label(egui::Color32::YELLOW, "! Tip: This error often requires running `sudo freshclam` once to fix permissions, or commenting out the 'Example' line in /etc/freshclam.conf.");
-            }
-        }
-    }
-    
-    /// Draws the UI for the main scanning configuration and results section.
-    fn draw_scan_section(&mut self, ui: &mut egui::Ui) {
-        ui.heading("File Scanner");
-        
-        let is_task_running = !matches!(self.scan_task, Task::Idle | Task::Complete(_)) || !matches!(self.update_task, Task::Idle | Task::Complete(_));
-
-        // --- Scan Path ---
-        ui.horizontal(|ui| {
-            ui.label("Path to scan:");
-            ui.add_enabled(!is_task_running, egui::TextEdit::singleline(&mut self.scan_path));
-            if ui.add_enabled(!is_task_running, egui::Button::new("📁 Browse")).clicked() {
-                if let Some(path) = rfd::FileDialog::new().pick_folder() {
-                    self.scan_path = path.to_string_lossy().to_string();
+                if !active && ui.button("Start background monitor").clicked() {
+                    match std::env::current_exe().and_then(|p| {
+                        Command::new(p)
+                            .arg("--state")
+                            .arg(&self.store.root)
+                            .arg("watch")
+                            .stdin(std::process::Stdio::null())
+                            .stdout(std::process::Stdio::null())
+                            .stderr(std::process::Stdio::null())
+                            .spawn()
+                    }) {
+                        Ok(c) => {
+                            self.monitor = Some(c);
+                            self.message="Monitor launched. Waiting for its heartbeat; it continues after this window closes.".into();
+                        }
+                        Err(e) => self.message = e.to_string(),
+                    }
+                }
+                if let Some(child) = &mut self.monitor {
+                    if ui.button("Stop monitor started here").clicked() {
+                        unsafe {
+                            libc::kill(child.id() as i32, libc::SIGINT);
+                        }
+                    }
+                    if let Ok(Some(_)) = child.try_wait() {
+                        self.monitor = None;
+                    }
+                }
+                ui.separator();
+                ui.label("New decoy file path (must not exist)");
+                ui.text_edit_singleline(&mut self.decoy);
+                ui.collapsing("Optional hosted Canarytokens URL",|ui|{ui.label("Paste a token URL you created with a provider. Bigman does not create an account or contact it. The saved shortcut triggers remotely only when followed; local reads still use this monitor.");ui.text_edit_singleline(&mut self.hosted);});
+                if ui.button("Create decoy…").clicked() {
+                    self.confirm(format!("Create a new synthetic decoy at {}. Existing files are never overwritten. Start monitoring and test afterward.",self.decoy),Action::CreateCanary(self.decoy.clone(),if self.hosted.trim().is_empty(){None}else{Some(self.hosted.trim().into())}));
+                }
+                match crate::canary::list(&self.store) {
+                    Ok(cs) => {
+                        for c in cs {
+                            ui.group(|ui| {
+                                ui.label(crate::model::clean(&c.path.to_string_lossy()));
+                                ui.small(&c.id);
+                                ui.horizontal(|ui| {
+                                    if ui
+                                        .add_enabled(active, egui::Button::new("Test read"))
+                                        .clicked()
+                                    {
+                                        self.start(Action::TestCanary(c.id.clone()));
+                                    }
+                                    if ui.button("Disarm…").clicked() {
+                                        self.confirm(
+                                            format!(
+                                                "Stop watching {}. The decoy file stays on disk.",
+                                                c.path.display()
+                                            ),
+                                            Action::Disarm(c.id.clone()),
+                                        );
+                                    }
+                                });
+                            });
+                        }
+                    }
+                    Err(e) => {
+                        ui.label(format!("Cannot load canaries: {e}"));
+                    }
                 }
             }
-        });
-        
-        // --- Scan Options ---
-        ui.label("Options:");
-        ui.checkbox(&mut self.clamscan_options.recursive, "Recursive scan (-r)");
-        ui.checkbox(&mut self.clamscan_options.infected_only, "Show infected files only (-i)");
-        ui.checkbox(&mut self.clamscan_options.verbose, "Verbose output (-v)");
-        ui.checkbox(&mut self.clamscan_options.remove_infected, "! Remove infected files (--remove)");
-
-        ui.add_space(10.0);
-
-        // --- Action Buttons ---
-        ui.horizontal(|ui| {
-            if ui.add_enabled(!is_task_running, egui::Button::new("🔍 Start Scan")).clicked() {
-                self.start_scan();
+            Page::Tools => {
+                ui.heading("Tools and setup");
+                ui.label("Install supported packages from your configured distribution repositories. Administrator actions use polkit authentication.");
+                egui::ComboBox::from_label("Tool group")
+                    .selected_text(&self.tool)
+                    .show_ui(ui, |ui| {
+                        for tool in [
+                            "clamav",
+                            "shellcheck",
+                            "sandbox",
+                            "lynis",
+                            "pdf",
+                            "firewall",
+                        ] {
+                            ui.selectable_value(&mut self.tool, tool.into(), tool);
+                        }
+                    });
+                if ui.button("Preview installation…").clicked() {
+                    match crate::setup::install_tool(&self.tool, false, &runner::cancel()) {
+                        Ok(p) => self.confirm(p, Action::Install(self.tool.clone())),
+                        Err(e) => self.message = e.to_string(),
+                    }
+                }
+                ui.separator();
+                if ui
+                    .button("Enable monitoring and daily Downloads scan…")
+                    .clicked()
+                {
+                    match crate::setup::services(&self.store, false, false, &runner::cancel()) {
+                        Ok(p) => self.confirm(p, Action::Services(false)),
+                        Err(e) => self.message = e.to_string(),
+                    }
+                }
+                if ui.button("Disable and remove user services…").clicked() {
+                    self.confirm("Stop and remove Bigman user monitoring and daily scan units. Existing report data and canary files remain.".into(),Action::Services(true));
+                }
+                ui.separator();
+                ui.label("Optional deterministic tools must already be installed. OSV advisory scans use network services; other actions below run locally.");
+                ui.text_edit_singleline(&mut self.project);
+                ui.horizontal(|ui|{if ui.button("Lynis system audit").clicked(){self.start(Action::Audit("lynis".into(),".".into()));}
+if ui.button("OSV dependency advisories…").clicked(){self.confirm(format!("Run OSV-Scanner on {}. It may query vulnerability services using dependency identifiers. No AI analysis is used.",self.project),Action::Audit("osv".into(),self.project.clone()));}
+if ui.button("osquery process inventory").clicked(){self.start(Action::Audit("osquery".into(),".".into()));}
+if ui.button("Open OpenSnitch").clicked(){if let Err(e)=crate::setup::open_tool("firewall"){self.message=e.to_string();}}});
+                ui.collapsing("Upstream installation instructions", |ui| {
+                    for (name, url) in [
+                        (
+                            "PDFiD / pdf-parser",
+                            "https://blog.didierstevens.com/programs/pdf-tools/",
+                        ),
+                        ("OSV-Scanner", "https://google.github.io/osv-scanner/"),
+                        ("osquery", "https://osquery.io/"),
+                        ("YARA-X", "https://virustotal.github.io/yara-x/"),
+                    ] {
+                        ui.hyperlink_to(name, url);
+                    }
+                });
+                ui.label("Reviewed YARA-X rules file");
+                ui.text_edit_singleline(&mut self.rules);
+                ui.label("Target");
+                ui.text_edit_singleline(&mut self.path);
+                if ui.button("Scan using these rules").clicked() {
+                    self.start(Action::Yara(self.rules.clone(), self.path.clone()));
+                }
             }
-            if ui.button("🗑 Clear Results").clicked() {
-                self.scan_task = Task::Idle;
+            Page::History => {
+                ui.heading("History");
+                ui.label("Select a report to inspect findings, limits and evidence. Reports stay on this computer unless you export them.");
+                for r in self.history.clone() {
+                    if ui
+                        .selectable_label(
+                            self.report.as_ref().is_some_and(|p| p.id == r.id),
+                            format!(
+                                "{} | {} | {}",
+                                r.kind,
+                                r.status(),
+                                crate::model::clean(&r.subject)
+                            ),
+                        )
+                        .clicked()
+                    {
+                        match self.store.report(&r.id) {
+                            Ok(full) => self.report = Some(Arc::new(full)),
+                            Err(e) => self.message = e.to_string(),
+                        }
+                    }
+                }
             }
-
-            if let Task::InProgress(_) = self.scan_task {
-                ui.spinner();
-                ui.label("Scanning...");
+            Page::Quarantine => {
+                ui.heading("Quarantine");
+                ui.label("Recovery copies are private and non-executable. Restore refuses to overwrite existing paths.");
+                match crate::scanner::quarantined(&self.store) {
+                    Ok(qs) => {
+                        for q in qs {
+                            ui.group(|ui|{ui.label(crate::model::clean(&q.original.to_string_lossy()));ui.monospace(&q.hash);if q.restored{ui.label("Restored; recovery copy retained");}else if ui.button("Restore…").clicked(){self.confirm(format!("Restore {} with permissions 0600. This file was previously flagged. Existing files will not be overwritten.",q.original.display()),Action::Restore(q.id));}});
+                        }
+                    }
+                    Err(e) => {
+                        ui.label(e.to_string());
+                    }
+                }
             }
-        });
-
-        // --- Scan Results ---
-        if let Task::Complete(result) = &self.scan_task {
-            ui.add_space(5.0);
-            ui.separator();
-            ui.label("Scan Results:");
-            egui::ScrollArea::vertical().max_height(f32::INFINITY).id_source("scan_results").show(ui, |ui| {
-                ui.monospace(result);
-            });
-        }
-    }
-
-    /// Kicks off a `clamscan` process in a background thread.
-    fn start_scan(&mut self) {
-        let mut cmd = Command::new("clamscan");
-
-        if self.clamscan_options.recursive { cmd.arg("-r"); }
-        if self.clamscan_options.verbose { cmd.arg("-v"); }
-        if self.clamscan_options.infected_only { cmd.arg("-i"); }
-        if self.clamscan_options.remove_infected { cmd.arg("--remove"); }
-
-        cmd.arg(&self.scan_path);
-
-        self.scan_task = Task::InProgress(run_command_in_thread(cmd, "clamscan"));
-    }
-
-    /// Kicks off a `freshclam` process in a background thread.
-    fn start_database_update(&mut self) {
-        let cmd = Command::new("freshclam");
-        self.update_task = Task::InProgress(run_command_in_thread(cmd, "freshclam"));
-    }
-
-    /// Checks if any running tasks have finished and updates the state.
-    fn check_for_task_completion(&mut self) {
-        // This pattern uses `mem::replace` to temporarily take ownership of the task
-        // so we can check the receiver, then puts the task back.
-        let scan_task = mem::replace(&mut self.scan_task, Task::Idle);
-        if let Task::InProgress(rx) = scan_task {
-            match rx.try_recv() {
-                Ok(result) => self.scan_task = Task::Complete(result),
-                Err(mpsc::TryRecvError::Empty) => self.scan_task = Task::InProgress(rx), // Not done, put it back
-                Err(mpsc::TryRecvError::Disconnected) => self.scan_task = Task::Complete("Task thread terminated unexpectedly.".to_string()),
-            }
-        } else {
-            self.scan_task = scan_task; // Not in progress, put it back
-        }
-
-        let update_task = mem::replace(&mut self.update_task, Task::Idle);
-        if let Task::InProgress(rx) = update_task {
-            match rx.try_recv() {
-                Ok(result) => self.update_task = Task::Complete(result),
-                Err(mpsc::TryRecvError::Empty) => self.update_task = Task::InProgress(rx),
-                Err(mpsc::TryRecvError::Disconnected) => self.update_task = Task::Complete("Task thread terminated unexpectedly.".to_string()),
-            }
-        } else {
-            self.update_task = update_task;
         }
     }
 }
-
-/// A generic helper to run a `Command` in a background thread.
-/// It returns a `Receiver` that will eventually contain the formatted output.
-fn run_command_in_thread(mut command: Command, command_name: &'static str) -> mpsc::Receiver<String> {
-    let (sender, receiver) = mpsc::channel();
-
-    thread::spawn(move || {
-        let result_str = match command.stdout(Stdio::piped()).stderr(Stdio::piped()).output() {
-            Ok(output) => {
-                let stdout = String::from_utf8_lossy(&output.stdout);
-                let stderr = String::from_utf8_lossy(&output.stderr);
-                
-                let mut result = format!("Command finished with status: {}\n", output.status);
-                if !stdout.is_empty() {
-                    result.push_str("\n--- STDOUT ---\n");
-                    result.push_str(&stdout);
-                }
-                if !stderr.is_empty() {
-                    result.push_str("\n--- STDERR ---\n");
-                    result.push_str(&stderr);
-                }
-                result
-            }
-            Err(e) => format!(
-                "❌ Failed to execute '{}': {}\n\nIs ClamAV installed and in your system's PATH?",
-                command_name, e
-            ),
-        };
-        // The receiver might be dropped if the app closes, so we ignore the send error.
-        let _ = sender.send(result_str);
-    });
-
-    receiver
+impl Drop for App {
+    fn drop(&mut self) {
+        if let Some(j) = &self.job {
+            j.stop.store(true, Ordering::Relaxed);
+        }
+    }
 }
-
-/// Entry point for the GUI application.
-pub fn run_gui() -> Result<(), eframe::Error> {
-    let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default()
-            .with_inner_size([800.0, 700.0])
-            .with_title("BigMan Antivirus"),
-        ..Default::default()
-    };
-
+pub fn run_gui(store: Store) -> Result<(), eframe::Error> {
     eframe::run_native(
-        "BigMan Antivirus",
-        options,
-        Box::new(|_cc| {
-            // Start the IPC server when the GUI is created
-            let ipc_receiver = start_ipc_server();
-            let mut app = BigmanApp::default();
-            app.ipc_receiver = Some(ipc_receiver);
-            Ok(Box::new(app))
+        "Bigman Security Companion",
+        eframe::NativeOptions {
+            viewport: egui::ViewportBuilder::default().with_inner_size([1100., 780.]),
+            ..Default::default()
+        },
+        Box::new(move |cc| {
+            cc.egui_ctx.set_visuals(egui::Visuals::dark());
+            Ok(Box::new(App::new(store)))
         }),
     )
 }

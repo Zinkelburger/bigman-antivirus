@@ -1,10 +1,10 @@
 [package]
 name = "bigman"
-version = "1.0.0"
+version = "0.2.0"
 edition = "2021"
 authors = ["BigMan AntiVirus"]
 description = "A security tool for validating downloaded scripts and content"
-license = "AGPL3"
+license = "AGPL-3.0-only"
 
 [[bin]]
 name = "bigman"
@@ -13,7 +13,16 @@ path = "src/main.rs"
 [dependencies]
 regex = "1.0"
 anyhow = "1.0"
-colored = "2.0"
+clap = { version = "4", features = ["derive"] }
+sha2 = "0.10"
+tempfile = "3"
+uuid = { version = "1", features = ["v4"] }
+walkdir = "2"
+url = "2"
+fs2 = "0.4"
+tar = "0.4"
+flate2 = "1"
+ctrlc = "3"
 eframe = "0.28"
 egui = "0.28"
 rfd = "0.14"
@@ -21,4 +30,4 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
 [target.'cfg(unix)'.dependencies]
-libc = "0.2" 
+libc = "0.2"
