@@ -1,0 +1,6 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Bigman settings</title><link rel="stylesheet" href="ui.css"></head><body class="wide">
+<h1>Bigman settings</h1><p>Checks run locally. No AI or automatic reputation requests. Browser-native protections should remain enabled.</p>
+<label><input id="downloads" type="checkbox"> Scan completed downloads with the desktop app</label><p>The native host scans regular files in ~/Downloads. Other download locations require manual selection in the desktop. This does not delay opening files or provide on-access blocking.</p>
+<h2>Your blocklist</h2><p>Import trusted domains or exact HTTP(S) URLs, one per line. Domains also match their subdomains. No remote feed is downloaded automatically. Importing replaces the previous list. Review the provider’s coverage and terms.</p>
+<input id="file" type="file" accept=".txt,.csv"><textarea id="list" rows="12" placeholder="malicious.example&#10;https://example.org/exact-path"></textarea><button id="save">Save settings and replace blocklist</button><button id="clear">Clear temporary exceptions</button><p id="status" role="status"></p><pre id="health"></pre>
+<script src="options.js"></script></body></html>

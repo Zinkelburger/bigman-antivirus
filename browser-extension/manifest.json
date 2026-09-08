@@ -1,17 +1,34 @@
 {
   "manifest_version": 3,
   "name": "BigMan AntiVirus - Link Detector",
-  "version": "1.0.0",
-  "description": "Detects mismatches between visible text and actual links",
-  "permissions": ["activeTab", "scripting", "downloads", "notifications", "nativeMessaging"],
+  "version": "0.2.0",
+  "description": "Deterministic local link checks and optional desktop download scans",
+  "permissions": [
+    "activeTab",
+    "downloads",
+    "notifications",
+    "nativeMessaging",
+    "storage",
+    "alarms"
+  ],
   "background": {
     "service_worker": "background.js"
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["link-detector.js", "content.js"],
-      "run_at": "document_end"
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": [
+        "dist/link-detector.js",
+        "content.js"
+      ],
+      "css": [
+        "content.css"
+      ],
+      "run_at": "document_end",
+      "all_frames": true
     }
   ],
   "icons": {
@@ -27,5 +44,6 @@
       "48": "icons/48.png",
       "128": "icons/128.png"
     }
-  }
+  },
+  "options_page": "options.html"
 }
