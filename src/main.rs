@@ -1,5 +1,6 @@
 mod analyzer;
 mod canary;
+mod canary_setup;
 mod gui;
 mod inspect;
 mod ipc;
@@ -108,6 +109,23 @@ enum Commands {
 }
 #[derive(Subcommand)]
 enum CanaryCommands {
+    /// Generate a local decoy, start monitoring and verify an actual read event.
+    Arm {
+        path: Option<PathBuf>,
+        /// Skip login service setup; monitor until logout/reboot or an explicit stop.
+        #[arg(long)]
+        session_only: bool,
+    },
+    /// Start monitoring existing tokens without creating another file.
+    Start {
+        #[arg(long)]
+        session_only: bool,
+    },
+    /// Stop the monitor and remove its login service, preserving decoys and history.
+    Stop {
+        #[arg(long)]
+        session_only: bool,
+    },
     Create {
         path: PathBuf,
         #[arg(long)]
@@ -230,30 +248,41 @@ fn run() -> Result<()> {
             }
             None
         }
-        Some(Commands::Canary { command }) => {
-            match command {
-                CanaryCommands::Create { path, hosted_url } => println!(
+        Some(Commands::Canary { command }) => match command {
+            CanaryCommands::Arm { path, session_only } => Some(canary_setup::arm(
+                &store,
+                &path.unwrap_or_else(canary_setup::default_path),
+                session_only,
+                &stop,
+            )?),
+            CanaryCommands::Start { session_only } => {
+                Some(canary_setup::start_monitor(&store, session_only, &stop)?)
+            }
+            CanaryCommands::Stop { session_only } => {
+                Some(canary_setup::stop_monitor(&store, session_only, &stop)?)
+            }
+            CanaryCommands::Test { id } => Some(canary_setup::verify(&store, &id, &stop)?),
+            CanaryCommands::Create { path, hosted_url } => {
+                println!(
                     "{}",
                     serde_json::to_string_pretty(&canary::create(
                         &store,
                         &path,
                         hosted_url.as_deref()
                     )?)?
-                ),
-                CanaryCommands::List => {
-                    println!("{}", serde_json::to_string_pretty(&canary::list(&store)?)?)
-                }
-                CanaryCommands::Test { id } => {
-                    canary::self_test(&store, &id)?;
-                    println!("Read performed. Verify a new Canary triggered report; monitoring must be running.");
-                }
-                CanaryCommands::Disarm { id } => {
-                    canary::disarm(&store, &id)?;
-                    println!("Disarmed. Decoy file preserved.");
-                }
+                );
+                None
             }
-            None
-        }
+            CanaryCommands::List => {
+                println!("{}", serde_json::to_string_pretty(&canary::list(&store)?)?);
+                None
+            }
+            CanaryCommands::Disarm { id } => {
+                canary::disarm(&store, &id)?;
+                println!("Disarmed. Decoy file preserved.");
+                None
+            }
+        },
         Some(Commands::Watch) => {
             canary::watch(&store, &stop)?;
             None

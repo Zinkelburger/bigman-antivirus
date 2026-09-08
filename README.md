@@ -26,7 +26,7 @@ Recommended first use:
 1. Run **Check my system**.
 2. Install the ClamAV group if needed, then **Update definitions** and scan Downloads.
 3. Review **Startup changes** before accepting an initial baseline.
-4. Create a decoy in **Canary tripwires**, start monitoring, press **Test read**, and verify a new **Canary triggered** report.
+4. Open **Canary tripwires** and click **Create, monitor and test locally**. The result must say **Local read detection verified**; any startup failure is shown separately.
 5. Enable the per-user monitor, daily scan and definition-update timers if wanted.
 
 Package installation plans support Fedora, Debian and Ubuntu. Packages come from the user's configured repositories and administrator authentication uses polkit. Repository availability can vary; failures remain visible. Bigman does not add package repositories or disable existing security services.
@@ -45,7 +45,7 @@ Package installation plans support Fedora, Debian and Ubuntu. Packages come from
 | Restricted rehearsal | Runs an explicitly approved saved installer hash in an offline Bubblewrap environment, optionally traced with strace | No host install or promotion; restrictions can prevent completion; not a malware-detonation service |
 | PDF triage | Escaped/raw PDF names, PDFiD, pdf-parser statistics, pdfinfo links | External tools require Bubblewrap; compressed/encrypted or unsupported content may remain unexamined |
 | Startup changes | Compares selected user/system startup files and symlink targets with a stored baseline | Baseline records prior state, not trust or writer attribution |
-| Local canaries | Synthetic token files with inotify read/change/removal alerts, test/disarm, durable events, desktop notifications and health heartbeat | Monitoring only while running; no reliable reader identity or access blocking |
+| Local canaries | One-action local generation, monitor startup, verified kernel read receipt, test/disarm, durable alerts and health heartbeat | No account or network required; login startup uses systemd when available; no reader identity or access blocking |
 | Hosted canary shortcuts | Saves an HTTPS token URL supplied by the user | Bigman does not provision a provider account or token; the provider triggers only when the URL is activated |
 | Optional integrations | Lynis report findings, OSV advisory matching, osquery process JSON, user-supplied YARA-X rules, OpenSnitch launch/setup | External tools must be installed; adapters preserve failures and raw evidence |
 | Browser checks | Text/destination mismatch, lookalikes, selected Unicode confusables, ClickFix text combinations, user-imported blocklists, warning pages and expiring exceptions | Limited page/link heuristics; no remote reputation requests or complete navigation interception |
@@ -101,19 +101,37 @@ bigman restore QUARANTINE_ID
 
 ## Canaries and monitoring
 
+The default is entirely local: no Canarytokens account, API key, paid service or internet connection is needed. In the desktop, choose **Canary tripwires → Create, monitor and test locally**. The CLI equivalent is:
+
 ```sh
-bigman canary create ~/Documents/backup-access.env
-bigman canary list
-bigman watch
-# In another terminal, use the ID returned by create/list:
-bigman canary test CANARY_ID
-bigman history
-bigman canary disarm CANARY_ID
+bigman canary arm
 ```
+
+This creates `~/Documents/backup-access.env` (or `~/backup-access.env` if Documents does not exist), starts monitoring, enables only the monitor at future user logins, performs a read, and waits for a fresh kernel-event receipt. Existing registered local decoys at that path are reused; unrelated existing files are refused. Install Bigman at a stable path first with `./install.sh` so the login service can still find it later.
+
+The setup result reports local detection and startup coverage separately. If the user service manager is unavailable or has conflicting settings, Bigman runs a detached session monitor and reports **incomplete** startup coverage. It does not overwrite a differently configured monitor unit. The monitor continues after closing the app/CLI; logout/reboot gaps are not covered. Enabling at login while a session monitor is already running preserves that process until logout.
+
+```sh
+bigman canary arm ~/Documents/another-decoy.env
+bigman canary arm --session-only        # no login service changes
+bigman canary list
+bigman canary start                    # restart existing tokens; create no new files
+bigman canary test CANARY_ID            # verifies a new real read receipt
+bigman history
+bigman canary stop                      # stop monitor, remove its login service
+bigman canary stop --session-only       # stop current process; leave service configuration
+bigman canary disarm CANARY_ID          # remove this registration; retain its file
+```
+
+Verification fails if monitoring is stopped, the path isn't watched, or no new receipt arrives. An old receipt does not count. Receipts prove local filesystem detection and durable evidence; they do not prove desktop notifications were displayed. Alerts remain available in History if notification utilities or the desktop notification service are unavailable. Deliberate verification reads can also appear as ordinary canary alerts.
+
+For manual creation without starting anything, use `bigman canary create PATH`, followed by `bigman watch`. `stop` also stops the startup-change monitor, but preserves tokens, registrations, reports and scan timers. `disarm` only removes the selected registration.
 
 Creation is exclusive: an existing file, directory or symlink is not overwritten. The local token is a UUID-based decoy with no working privileges. Pick a location that ordinary applications rarely read. Test reads, backups, search indexers, antivirus tools and synchronization software can produce legitimate alerts. Bigman's own scanner skips registered decoys.
 
 The monitor watches parent directories so replacements can be observed. It reports queue overflow, missing paths and watcher failures; writes a heartbeat; and groups repeated events for a canary within three seconds. Files copied or read while the monitor is stopped cannot be reconstructed later. inotify does not provide a reliable reader PID or tell whether data was exfiltrated. Host malware with the same user privileges can interfere with this application or its state.
+
+Local monitoring cannot detect later use of a stolen token on a different computer. That needs a reachable callback service, either hosted by you or a provider; Bigman does not expose a network listener or provision one. This is optional and separate from account-free local detection.
 
 To use an existing hosted token:
 
@@ -133,7 +151,7 @@ bigman services --remove --apply
 systemctl --user status bigman-monitor.service bigman-scan.timer bigman-update.timer
 ```
 
-The monitor compares persistence snapshots every five minutes. Review the initial inventory and establish a baseline first. Existing state remains after disabling services. A monitor launched directly from the GUI continues after the window closes; stop that process before switching to the service to avoid two instances competing for the monitor lock.
+The monitor compares persistence snapshots every five minutes. Review the initial inventory and establish a baseline first. Existing state remains after disabling services. Use `bigman canary stop` before replacing a session monitor with the complete service/timer setup.
 
 ## Optional deterministic tools
 
@@ -187,9 +205,10 @@ cargo clippy --locked --all-targets -- -D warnings
 cargo test --locked
 cargo build --locked
 python3 tests/cli_integration.py target/debug/bigman
+python3 tests/canary_onboarding.py target/debug/bigman
 cd browser-extension && npm run check
 ```
 
-`tests/cli_integration.py` uses synthetic files and a scanner contract fixture. Rust tests exercise real inotify events and filesystem safeguards. Browser tests cover host parsing, Unicode, mismatches, exceptions, ClickFix rules and DOM mutations. `tests/browser_smoke.cjs` additionally exercises the built bundle with real Chrome click events using Playwright (set `BIGMAN_PLAYWRIGHT_MODULE` and optionally `BIGMAN_CHROME`). CI runs Rust/CLI and extension checks and builds an extension artifact.
+`tests/cli_integration.py` uses synthetic files and a scanner contract fixture. `tests/canary_onboarding.py` exercises real monitoring, fresh-read verification, repeat setup, failure fallback and stop behavior; its service manager is a fixture so tests do not change the host’s login configuration. Rust tests exercise real inotify events and filesystem safeguards. Browser tests cover host parsing, Unicode, mismatches, exceptions, ClickFix rules and DOM mutations. `tests/browser_smoke.cjs` additionally exercises the built bundle with real Chrome click events using Playwright (set `BIGMAN_PLAYWRIGHT_MODULE` and optionally `BIGMAN_CHROME`). CI runs Rust/CLI and extension checks and builds an extension artifact.
 
 The historical [review](REVIEW.md) explains the original prototype and proposals. This README describes the implemented interfaces and their limits. Advanced host-wide credential-read attribution, privileged on-access blocking, incident cleanup, Windows/macOS support, provider-side token provisioning and enterprise monitoring servers are not implemented or implied by this release.

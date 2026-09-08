@@ -6,7 +6,6 @@ use crate::{
 use eframe::egui;
 use std::{
     path::PathBuf,
-    process::{Child, Command},
     sync::{atomic::Ordering, mpsc, Arc},
     time::{Duration, Instant},
 };
@@ -33,6 +32,9 @@ enum Action {
     Changes,
     AcceptBaseline(String),
     CreateCanary(String, Option<String>),
+    ArmCanary(String),
+    StartMonitor,
+    StopMonitor,
     TestCanary(String),
     Disarm(String),
     Install(String),
@@ -55,7 +57,10 @@ fn perform(store: &Store, a: Action, stop: &Cancel) -> anyhow::Result<Outcome> {
  Sandbox(id,hash)=>crate::inspect::sandbox(store,&id,&hash,stop)?,Audit(tool,p)=>crate::system::integration(store,&tool,PathBuf::from(p).as_path(),stop)?,Yara(r,p)=>crate::system::yara(store,PathBuf::from(r).as_path(),PathBuf::from(p).as_path(),stop)?,
  Policy(p)=>return Ok(Outcome::Message(crate::inspect::policy(PathBuf::from(p).as_path(),true)?)),
  CreateCanary(p,url)=>return Ok(Outcome::Message(format!("Created decoy {}\nStart monitoring, then use Test and verify the resulting alert. Hosted URLs contact their provider only when activated by a reader.",crate::canary::create(store,PathBuf::from(p).as_path(),url.as_deref())?.path.display()))),
- TestCanary(id)=>{crate::canary::self_test(store,&id)?;return Ok(Outcome::Message("Test read performed. Look for a new Canary triggered report in History. This does not prove monitoring worked until the event appears.".into()));},
+ ArmCanary(p)=>crate::canary_setup::arm(store,PathBuf::from(p).as_path(),false,stop)?,
+ StartMonitor=>crate::canary_setup::start_monitor(store,false,stop)?,
+ StopMonitor=>crate::canary_setup::stop_monitor(store,false,stop)?,
+ TestCanary(id)=>crate::canary_setup::verify(store,&id,stop)?,
  Disarm(id)=>{crate::canary::disarm(store,&id)?;return Ok(Outcome::Message("Canary disarmed; its file was preserved.".into()));},
  Install(tool)=>return Ok(Outcome::Message(crate::setup::install_tool(&tool,true,stop)?)),Services(remove)=>return Ok(Outcome::Message(crate::setup::services(store,true,remove,stop)?)),
  Quarantine(id,index)=>return Ok(Outcome::Message(format!("Recovery copy saved; original quarantined. ID: {}",crate::scanner::quarantine(store,&id,index)?.id))),Restore(id)=>return Ok(Outcome::Message(format!("Restored without executable permissions: {}",crate::scanner::restore(store,&id)?.display()))),
@@ -81,17 +86,12 @@ struct App {
     job: Option<Job>,
     pending: Option<(String, Action)>,
     refresh: Instant,
-    monitor: Option<Child>,
     tool: String,
 }
 impl App {
     fn new(store: Store) -> Self {
         Self {
-            decoy: store
-                .root
-                .join("canaries/backup-access.env")
-                .to_string_lossy()
-                .into(),
+            decoy: crate::canary_setup::default_path().to_string_lossy().into(),
             history: store.history().unwrap_or_default(),
             store,
             page: Page::Overview,
@@ -105,7 +105,6 @@ impl App {
             job: None,
             pending: None,
             refresh: Instant::now(),
-            monitor: None,
             tool: "clamav".into(),
         }
     }
@@ -132,7 +131,11 @@ impl App {
             ui.separator();
             ui.heading(&r.kind);
             ui.label(crate::model::clean(&r.subject));
-            ui.strong(r.status());
+            if r.errors.is_empty() && r.findings.iter().any(|f| f.rule == "canary.verified") {
+                ui.colored_label(egui::Color32::LIGHT_GREEN, "Local read detection verified");
+            } else {
+                ui.strong(r.status());
+            }
             for error in &r.errors {
                 ui.colored_label(
                     egui::Color32::from_rgb(225, 150, 65),
@@ -412,41 +415,32 @@ impl App {
                         ui.colored_label(egui::Color32::YELLOW, e);
                     }
                 }
-                if !active && ui.button("Start background monitor").clicked() {
-                    match std::env::current_exe().and_then(|p| {
-                        Command::new(p)
-                            .arg("--state")
-                            .arg(&self.store.root)
-                            .arg("watch")
-                            .stdin(std::process::Stdio::null())
-                            .stdout(std::process::Stdio::null())
-                            .stderr(std::process::Stdio::null())
-                            .spawn()
-                    }) {
-                        Ok(c) => {
-                            self.monitor = Some(c);
-                            self.message="Monitor launched. Waiting for its heartbeat; it continues after this window closes.".into();
-                        }
-                        Err(e) => self.message = e.to_string(),
-                    }
+                if !active
+                    && ui
+                        .button("Start monitoring existing tokens at login")
+                        .clicked()
+                {
+                    self.start(Action::StartMonitor);
                 }
-                if let Some(child) = &mut self.monitor {
-                    if ui.button("Stop monitor started here").clicked() {
-                        unsafe {
-                            libc::kill(child.id() as i32, libc::SIGINT);
-                        }
-                    }
-                    if let Ok(Some(_)) = child.try_wait() {
-                        self.monitor = None;
-                    }
+                if self.store.root.join("monitor-health.json").exists()
+                    && ui.button("Stop monitoring…").clicked()
+                {
+                    self.confirm("Stop local canary and startup monitoring and remove its login service. Token files and history stay on disk. Reads while stopped cannot be detected.".into(), Action::StopMonitor);
                 }
                 ui.separator();
-                ui.label("New decoy file path (must not exist)");
+                ui.label("Local decoy location (existing unrelated files are never overwritten)");
                 ui.text_edit_singleline(&mut self.decoy);
-                ui.collapsing("Optional hosted Canarytokens URL",|ui|{ui.label("Paste a token URL you created with a provider. Bigman does not create an account or contact it. The saved shortcut triggers remotely only when followed; local reads still use this monitor.");ui.text_edit_singleline(&mut self.hosted);});
-                if ui.button("Create decoy…").clicked() {
-                    self.confirm(format!("Create a new synthetic decoy at {}. Existing files are never overwritten. Start monitoring and test afterward.",self.decoy),Action::CreateCanary(self.decoy.clone(),if self.hosted.trim().is_empty(){None}else{Some(self.hosted.trim().into())}));
+                ui.label("No account or API key needed. Creates a local token, enables monitoring at login when available, and verifies a real read event. Keep Bigman installed at its current path.");
+                if ui.button("Create, monitor and test locally").clicked() {
+                    self.start(Action::ArmCanary(self.decoy.clone()));
                 }
+                ui.collapsing("Advanced: existing hosted token", |ui| {
+                    ui.label("Only needed for callbacks from another computer. Paste a provider-created HTTPS token URL and choose a new .url path above. This creates a shortcut without visiting the URL.");
+                    ui.text_edit_singleline(&mut self.hosted);
+                    if ui.add_enabled(!self.hosted.trim().is_empty(), egui::Button::new("Create hosted shortcut…")).clicked() {
+                        self.confirm(format!("Create a shortcut at {} using the supplied token URL. Existing files are never overwritten.", self.decoy), Action::CreateCanary(self.decoy.clone(), Some(self.hosted.trim().into())));
+                    }
+                });
                 match crate::canary::list(&self.store) {
                     Ok(cs) => {
                         for c in cs {
@@ -455,7 +449,7 @@ impl App {
                                 ui.small(&c.id);
                                 ui.horizontal(|ui| {
                                     if ui
-                                        .add_enabled(active, egui::Button::new("Test read"))
+                                        .add_enabled(active, egui::Button::new("Verify detection"))
                                         .clicked()
                                     {
                                         self.start(Action::TestCanary(c.id.clone()));

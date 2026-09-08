@@ -32,6 +32,15 @@ pub struct Health {
     pub watched: usize,
     pub configured: usize,
     pub errors: Vec<String>,
+    #[serde(default)]
+    pub watched_ids: Vec<String>,
+}
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ReadReceipt {
+    pub id: String,
+    pub canary_id: String,
+    pub monitor_pid: u32,
+    pub created: u64,
 }
 pub fn list(store: &Store) -> Result<Vec<Canary>> {
     if !store.root.join("canaries.json").exists() {
@@ -41,7 +50,11 @@ pub fn list(store: &Store) -> Result<Vec<Canary>> {
 }
 pub fn create(store: &Store, path: &Path, remote_url: Option<&str>) -> Result<Canary> {
     let _lock = store.lock("canaries.lock")?;
-    let parent = fs::canonicalize(path.parent().context("Choose a parent directory")?)?;
+    let parent = fs::canonicalize(
+        path.parent()
+            .filter(|p| !p.as_os_str().is_empty())
+            .unwrap_or(Path::new(".")),
+    )?;
     let p = parent.join(path.file_name().context("Choose a filename")?);
     if p.starts_with(&store.root) && !p.starts_with(store.root.join("canaries")) {
         bail!("Choose a decoy path outside application metadata");
@@ -212,7 +225,13 @@ impl Watcher {
                         p.join(std::ffi::OsStr::from_bytes(name))
                     }
                 });
-                if event.mask & libc::IN_IGNORED != 0 {
+                if event.mask & (libc::IN_IGNORED | libc::IN_MOVE_SELF | libc::IN_DELETE_SELF) != 0
+                {
+                    if event.mask & libc::IN_IGNORED == 0 {
+                        unsafe {
+                            libc::inotify_rm_watch(self.file.as_raw_fd(), event.wd);
+                        }
+                    }
                     self.watches.remove(&event.wd);
                 }
                 out.push((path, event.mask));
@@ -264,6 +283,16 @@ pub fn watch(store: &Store, stop: &Cancel) -> Result<()> {
                         .count(),
                     configured: entries.len(),
                     errors,
+                    watched_ids: entries
+                        .iter()
+                        .filter(|c| {
+                            fs::symlink_metadata(&c.path).is_ok_and(|m| m.is_file())
+                                && c.path
+                                    .parent()
+                                    .is_some_and(|p| watcher.watches.values().any(|v| v == p))
+                        })
+                        .map(|c| c.id.clone())
+                        .collect(),
                 },
             )?;
             for (path, mask) in watcher.events()? {
@@ -286,6 +315,18 @@ pub fn watch(store: &Store, stop: &Cancel) -> Result<()> {
                     .iter()
                     .filter(|c| c.path == path || c.path.parent() == Some(path.as_path()))
                 {
+                    // A receipt proves a new kernel read event, even when notifications are debounced.
+                    if c.path == path && mask & libc::IN_ACCESS != 0 {
+                        store.write(
+                            &format!("canaries/{}.read.json", c.id),
+                            &ReadReceipt {
+                                id: uuid::Uuid::new_v4().to_string(),
+                                canary_id: c.id.clone(),
+                                monitor_pid: std::process::id(),
+                                created: now(),
+                            },
+                        )?;
+                    }
                     if last
                         .get(&c.id)
                         .is_some_and(|t| t.elapsed() < Duration::from_secs(3))
@@ -358,6 +399,27 @@ pub fn watch(store: &Store, stop: &Cancel) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn reattaches_after_parent_directory_replacement() {
+        let d = tempfile::tempdir().unwrap();
+        let store = Store::open(Some(d.path().join("state"))).unwrap();
+        let parent = d.path().join("documents");
+        fs::create_dir(&parent).unwrap();
+        let c = create(&store, &parent.join("decoy.env"), None).unwrap();
+        let mut watcher = Watcher::new().unwrap();
+        assert!(watcher.configure(std::slice::from_ref(&c)).is_empty());
+        fs::rename(&parent, d.path().join("old-documents")).unwrap();
+        fs::create_dir(&parent).unwrap();
+        fs::write(&c.path, "replacement fixture").unwrap();
+        watcher.events().unwrap();
+        assert!(watcher.configure(std::slice::from_ref(&c)).is_empty());
+        self_test(&store, &c.id).unwrap();
+        assert!(watcher
+            .events()
+            .unwrap()
+            .iter()
+            .any(|(path, mask)| path.as_ref() == Some(&c.path) && mask & libc::IN_ACCESS != 0));
+    }
     #[test]
     fn real_kernel_read_event_and_no_overwrite() {
         let d = tempfile::tempdir().unwrap();

@@ -172,6 +172,77 @@ pub fn services(store: &Store, apply: bool, remove: bool, stop: &Cancel) -> Resu
     }
     Ok(if remove{"User services removed"}else{"User monitoring, daily scan and definition updates enabled. Services follow your user session; no system-wide service or lingering was enabled."}.into())
 }
+/// Configure only the monitor; easy canary setup must not enable unrelated scan timers.
+pub fn monitor_service(
+    store: &Store,
+    remove: bool,
+    already_running: bool,
+    stop: &Cancel,
+) -> Result<()> {
+    let root = std::env::var_os("XDG_CONFIG_HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| home().join(".config"))
+        .join("systemd/user");
+    let (name, contents) = service_plan(store)?
+        .into_iter()
+        .find(|(name, _)| name == "bigman-monitor.service")
+        .unwrap();
+    let path = root.join(&name);
+    if path.symlink_metadata().is_ok() {
+        let existing = crate::store::read_file(&path, crate::store::MAX_INPUT)?;
+        if existing != contents.as_bytes() {
+            bail!("Existing monitor unit has different settings. Review it in Tools before replacing it: {}", path.display());
+        }
+    } else if remove {
+        return Ok(());
+    }
+    let probe = runner::run(
+        Command::new("systemctl").args(["--user", "show-environment"]),
+        5,
+        stop,
+    )?;
+    if !probe.ok() {
+        bail!("User service manager unavailable: {}", probe.stderr);
+    }
+    if remove {
+        let result = runner::run(
+            Command::new("systemctl").args(["--user", "disable", "--now", &name]),
+            10,
+            stop,
+        )?;
+        if !result.ok() {
+            bail!("Could not disable monitor: {}", result.stderr);
+        }
+        fs::remove_file(&path)?;
+    } else {
+        fs::create_dir_all(&root)?;
+        let mut file = tempfile::NamedTempFile::new_in(&root)?;
+        use std::io::Write;
+        file.write_all(contents.as_bytes())?;
+        file.persist(&path).map_err(|e| e.error)?;
+    }
+    let reload = runner::run(
+        Command::new("systemctl").args(["--user", "daemon-reload"]),
+        10,
+        stop,
+    )?;
+    if !reload.ok() {
+        bail!("Monitor unit changed, but reload failed: {}", reload.stderr);
+    }
+    if !remove {
+        let mut cmd = Command::new("systemctl");
+        cmd.args(["--user", "enable"]);
+        // An existing detached monitor holds the lock until logout; enable its successor at login.
+        if !already_running {
+            cmd.arg("--now");
+        }
+        let result = runner::run(cmd.arg(&name), 10, stop)?;
+        if !result.ok() {
+            bail!("Could not enable monitor: {}", result.stderr);
+        }
+    }
+    Ok(())
+}
 pub fn open_tool(tool: &str) -> Result<()> {
     match tool {
         "firewall" => {
