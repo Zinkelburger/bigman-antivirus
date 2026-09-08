@@ -1,3 +1,5 @@
+> Historical brainstorming notes, preserved for context. See [README.md](README.md) for implemented workflows and current limitations. These notes are not setup instructions.
+
 # UI
 ## ClamTK equivalent
 - ClamTK GUI no longer maintained

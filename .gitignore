@@ -1,2 +1,5 @@
 node_modules/
 target/
+browser-extension/dist/
+browser-extension/coverage/
+artifacts/
