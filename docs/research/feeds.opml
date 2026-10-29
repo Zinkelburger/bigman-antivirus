@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Bigman security feed list (OPML 2.0)
+  Every xmlUrl below was fetched on 2026-10-29 with curl, returned HTTP 200, parsed
+  as RSS 2.0, RSS 1.0 (RDF) or Atom, and passed `xmllint noout` (well-formed XML).
+  None of these feeds needs an API key. API sources that do take a key (NVD API 2.0,
+  GitHub REST advisories) are not RSS feeds and are listed in
+  vulnerability-intelligence-and-feeds.md, not here.
+  Polling: once or twice a day is plenty. Send If-None-Match / If-Modified-Since.
+  Some feeds are heavy (Elastic Security Labs is roughly 8 MB per fetch because it
+  embeds full articles; CISA "all advisories" roughly 6 MB; GitHub security blog roughly 1 MB).
+  Note: Fedora Bodhi sits behind a bot challenge that serves HTML to browser-like
+  User-Agents. Use a plain tool User-Agent (e.g. "bigman/0.x") and check that the
+  response really is XML.
+  Custom attributes: bigmanFormat (verified format), bigmanSignal (high|medium|low
+  usefulness for Linux desktop / maintainer checks), bigmanNote (caveats).
+-->
+<opml version="2.0">
+  <head>
+    <title>Bigman Linux security intelligence feeds</title>
+    <dateCreated>Thu, 29 Oct 2026 16:30:00 GMT</dateCreated>
+    <ownerName>Bigman project</ownerName>
+    <docs>http://opml.org/spec2.opml</docs>
+  </head>
+  <body>
+    <outline text="Distribution security advisories" title="Distribution security advisories">
+      <!-- These are authoritative for "update package X". Prefer the machine-readable
+           sources in the Markdown for matching; feeds are for the weekly review. -->
+      <outline type="rss" text="Debian Security Advisories (DSA, long)" title="Debian Security Advisories (DSA, long)" xmlUrl="https://www.debian.org/security/dsa-long" htmlUrl="https://www.debian.org/security/" bigmanFormat="RSS 1.0 (RDF)" bigmanSignal="high"/>
+      <outline type="rss" text="Debian LTS Advisories (DLA)" title="Debian LTS Advisories (DLA)" xmlUrl="https://www.debian.org/lts/security/dla" htmlUrl="https://www.debian.org/lts/security/" bigmanFormat="RSS 1.0 (RDF)" bigmanSignal="medium" bigmanNote="Only relevant to Debian oldstable/LTS releases"/>
+      <outline type="rss" text="Ubuntu Security Notices (USN)" title="Ubuntu Security Notices (USN)" xmlUrl="https://ubuntu.com/security/notices/rss.xml" htmlUrl="https://ubuntu.com/security/notices" bigmanFormat="RSS 2.0" bigmanSignal="high" bigmanNote="Only the 10 newest notices; poll daily or use notices.json for completeness"/>
+      <outline type="rss" text="Fedora/EPEL security updates (Bodhi)" title="Fedora/EPEL security updates (Bodhi)" xmlUrl="https://bodhi.fedoraproject.org/rss/updates/?type=security" htmlUrl="https://bodhi.fedoraproject.org/updates/?type=security" bigmanFormat="RSS 2.0" bigmanSignal="high" bigmanNote="Mixes Fedora and EPEL; add &amp;releases=F44 (verified) to restrict to one release; bot challenge for browser User-Agents"/>
+      <outline type="rss" text="Arch Linux Security Advisories (ASA)" title="Arch Linux Security Advisories (ASA)" xmlUrl="https://security.archlinux.org/advisory/feed.atom" htmlUrl="https://security.archlinux.org/" bigmanFormat="Atom" bigmanSignal="low" bigmanNote="Newest ASA entry is from 2025-05; issues/all.json is the live data source"/>
+      <outline type="rss" text="openSUSE security-announce list" title="openSUSE security-announce list" xmlUrl="https://lists.opensuse.org/archives/list/security-announce@lists.opensuse.org/feed/" htmlUrl="https://lists.opensuse.org/archives/list/security-announce@lists.opensuse.org/" bigmanFormat="RSS 2.0" bigmanSignal="medium"/>
+      <outline type="rss" text="Gentoo Linux Security Advisories (GLSA)" title="Gentoo Linux Security Advisories (GLSA)" xmlUrl="https://security.gentoo.org/glsa/feed.rss" htmlUrl="https://security.gentoo.org/glsa/" bigmanFormat="RSS 2.0" bigmanSignal="low"/>
+      <outline type="rss" text="Red Hat security blog" title="Red Hat security blog" xmlUrl="https://www.redhat.com/en/rss/blog/channel/security" htmlUrl="https://www.redhat.com/en/blog/channel/security" bigmanFormat="RSS 2.0" bigmanSignal="low" bigmanNote="Commentary, not errata"/>
+    </outline>
+    <outline text="Kernel and upstream disclosure lists" title="Kernel and upstream disclosure lists">
+      <outline type="rss" text="linux-cve-announce (kernel CNA)" title="linux-cve-announce (kernel CNA)" xmlUrl="https://lore.kernel.org/linux-cve-announce/new.atom" htmlUrl="https://lore.kernel.org/linux-cve-announce/" bigmanFormat="Atom" bigmanSignal="medium" bigmanNote="High volume (many CVEs per day), only the 25 newest messages per fetch; poll at least daily or read the vulns.git repository instead"/>
+      <outline type="rss" text="oss-security (seclists.org mirror)" title="oss-security (seclists.org mirror)" xmlUrl="https://seclists.org/rss/oss-sec.rss" htmlUrl="https://www.openwall.com/lists/oss-security/" bigmanFormat="RSS 2.0" bigmanSignal="high" bigmanNote="Openwall itself publishes no feed; this is the Nmap seclists mirror; 15 newest messages per fetch"/>
+      <outline type="rss" text="Full Disclosure (seclists.org)" title="Full Disclosure (seclists.org)" xmlUrl="https://seclists.org/rss/fulldisclosure.rss" htmlUrl="https://seclists.org/fulldisclosure/" bigmanFormat="RSS 2.0" bigmanSignal="low" bigmanNote="Noisy; mostly web-app disclosures"/>
+    </outline>
+    <outline text="Exploitation and vulnerability-data signals" title="Exploitation and vulnerability-data signals">
+      <outline type="rss" text="CISA alerts (includes KEV additions)" title="CISA alerts (includes KEV additions)" xmlUrl="https://www.cisa.gov/cybersecurity-advisories/alerts.xml" htmlUrl="https://www.cisa.gov/news-events/cybersecurity-advisories" bigmanFormat="RSS 2.0" bigmanSignal="medium" bigmanNote="Use the KEV JSON for matching; this feed is the human-readable notice"/>
+      <outline type="rss" text="CISA all advisories" title="CISA all advisories" xmlUrl="https://www.cisa.gov/cybersecurity-advisories/all.xml" htmlUrl="https://www.cisa.gov/news-events/cybersecurity-advisories" bigmanFormat="RSS 2.0" bigmanSignal="low" bigmanNote="About 6 MB per fetch; mostly ICS advisories"/>
+      <outline type="rss" text="cisagov/kev-data commits" title="cisagov/kev-data commits" xmlUrl="https://github.com/cisagov/kev-data/commits/develop.atom" htmlUrl="https://github.com/cisagov/kev-data" bigmanFormat="Atom" bigmanSignal="medium" bigmanNote="Change notification for the KEV catalog"/>
+      <outline type="rss" text="github/advisory-database commits" title="github/advisory-database commits" xmlUrl="https://github.com/github/advisory-database/commits/main.atom" htmlUrl="https://github.com/github/advisory-database" bigmanFormat="Atom" bigmanSignal="low" bigmanNote="Very high volume; useful only as a 'something changed' trigger. The REST API is unauthenticated at 60 requests/hour; a GitHub token raises that limit"/>
+      <outline type="rss" text="OSV.dev blog" title="OSV.dev blog" xmlUrl="https://osv.dev/blog/index.xml" htmlUrl="https://osv.dev/blog/" bigmanFormat="RSS 2.0" bigmanSignal="low" bigmanNote="Schema and ecosystem changes that affect the OSV backend"/>
+      <outline type="rss" text="SANS Internet Storm Center" title="SANS Internet Storm Center" xmlUrl="https://isc.sans.edu/rssfeed_full.xml" htmlUrl="https://isc.sans.edu/" bigmanFormat="RSS 2.0" bigmanSignal="medium"/>
+    </outline>
+    <outline text="Linux and open-source news" title="Linux and open-source news">
+      <outline type="rss" text="LWN.net headlines" title="LWN.net headlines" xmlUrl="https://lwn.net/headlines/rss" htmlUrl="https://lwn.net/" bigmanFormat="RSS 2.0" bigmanSignal="high" bigmanNote="Includes the daily 'Security updates for DAY' items; no separate security-only feed was found. LWN returns 429 for rapid repeated requests"/>
+      <outline type="rss" text="LWN.net features" title="LWN.net features" xmlUrl="https://lwn.net/headlines/Features" htmlUrl="https://lwn.net/" bigmanFormat="RSS 2.0" bigmanSignal="medium" bigmanNote="Subscriber-only articles for the first week"/>
+      <outline type="rss" text="Phoronix" title="Phoronix" xmlUrl="https://www.phoronix.com/rss.php" htmlUrl="https://www.phoronix.com/" bigmanFormat="RSS 2.0" bigmanSignal="low" bigmanNote="Mostly hardware and performance; occasional kernel security items"/>
+      <outline type="rss" text="vulns.xyz (kpcyrd: reproducible builds, Arch)" title="vulns.xyz" xmlUrl="https://vulns.xyz/feed.xml" htmlUrl="https://vulns.xyz/" bigmanFormat="RSS 2.0" bigmanSignal="low" bigmanNote="Personal blog, infrequent; reproducible-builds and rebuilderd topics"/>
+    </outline>
+    <outline text="Software supply chain and package registries" title="Software supply chain and package registries">
+      <outline type="rss" text="Socket blog" title="Socket blog" xmlUrl="https://socket.dev/api/blog/feed.atom" htmlUrl="https://socket.dev/blog" bigmanFormat="Atom" bigmanSignal="high"/>
+      <outline type="rss" text="Wiz research" title="Wiz research" xmlUrl="https://www.wiz.io/feed/tag/research/rss.xml" htmlUrl="https://www.wiz.io/blog" bigmanFormat="RSS 2.0" bigmanSignal="high" bigmanNote="Research tag; the all-posts feed is https://www.wiz.io/feed/rss.xml"/>
+      <outline type="rss" text="Datadog Security Labs" title="Datadog Security Labs" xmlUrl="https://securitylabs.datadoghq.com/rss/feed.xml" htmlUrl="https://securitylabs.datadoghq.com/" bigmanFormat="RSS 2.0" bigmanSignal="high"/>
+      <outline type="rss" text="StepSecurity blog" title="StepSecurity blog" xmlUrl="https://www.stepsecurity.io/blog/rss.xml" htmlUrl="https://www.stepsecurity.io/blog" bigmanFormat="RSS 2.0" bigmanSignal="medium" bigmanNote="CI/GitHub Actions compromises"/>
+      <outline type="rss" text="ReversingLabs blog" title="ReversingLabs blog" xmlUrl="https://www.reversinglabs.com/blog/rss.xml" htmlUrl="https://www.reversinglabs.com/blog" bigmanFormat="RSS 2.0" bigmanSignal="medium"/>
+      <outline type="rss" text="Endor Labs" title="Endor Labs" xmlUrl="https://www.endorlabs.com/learn/rss.xml" htmlUrl="https://www.endorlabs.com/learn" bigmanFormat="RSS 2.0" bigmanSignal="medium"/>
+      <outline type="rss" text="Snyk blog" title="Snyk blog" xmlUrl="https://snyk.io/blog/feed/" htmlUrl="https://snyk.io/blog/" bigmanFormat="RSS 2.0" bigmanSignal="medium" bigmanNote="About 1.3 MB per fetch; long backlog in every response"/>
+      <outline type="rss" text="Checkmarx blog" title="Checkmarx blog" xmlUrl="https://checkmarx.com/feed/" htmlUrl="https://checkmarx.com/blog/" bigmanFormat="RSS 2.0" bigmanSignal="medium" bigmanNote="The old Checkmarx Zero Medium feed (zero.checkmarx.com/feed) stops at 2024-12"/>
+      <outline type="rss" text="OpenSSF blog" title="OpenSSF blog" xmlUrl="https://openssf.org/feed/" htmlUrl="https://openssf.org/blog/" bigmanFormat="RSS 2.0" bigmanSignal="medium"/>
+      <outline type="rss" text="GitHub blog: security" title="GitHub blog: security" xmlUrl="https://github.blog/security/feed/" htmlUrl="https://github.blog/security/" bigmanFormat="RSS 2.0" bigmanSignal="medium" bigmanNote="About 1 MB per fetch"/>
+      <outline type="rss" text="GitHub Security Lab" title="GitHub Security Lab" xmlUrl="https://github.blog/tag/github-security-lab/feed/" htmlUrl="https://securitylab.github.com/" bigmanFormat="RSS 2.0" bigmanSignal="medium"/>
+    </outline>
+    <outline text="Threat research labs" title="Threat research labs">
+      <outline type="rss" text="Elastic Security Labs" title="Elastic Security Labs" xmlUrl="https://www.elastic.co/security-labs/rss/feed.xml" htmlUrl="https://www.elastic.co/security-labs" bigmanFormat="RSS 2.0" bigmanSignal="high" bigmanNote="About 8 MB per fetch (full text of every article); always use conditional GET"/>
+      <outline type="rss" text="Aqua Security blog (includes Nautilus research)" title="Aqua Security blog" xmlUrl="https://www.aquasec.com/feed/" htmlUrl="https://www.aquasec.com/blog/" bigmanFormat="RSS 2.0" bigmanSignal="medium" bigmanNote="No Nautilus-only feed was found; filter on category CLOUD ATTACKS / threat research"/>
+      <outline type="rss" text="Sysdig blog" title="Sysdig blog" xmlUrl="https://www.sysdig.com/blog/rss.xml" htmlUrl="https://www.sysdig.com/blog" bigmanFormat="RSS 2.0" bigmanSignal="medium" bigmanNote="Threat Research Team posts are mixed with product posts"/>
+      <outline type="rss" text="Unit 42 (Palo Alto Networks)" title="Unit 42" xmlUrl="https://unit42.paloaltonetworks.com/feed/" htmlUrl="https://unit42.paloaltonetworks.com/" bigmanFormat="RSS 2.0" bigmanSignal="medium"/>
+      <outline type="rss" text="Qualys vulnerabilities and threat research" title="Qualys threat research" xmlUrl="https://blog.qualys.com/vulnerabilities-threat-research/feed" htmlUrl="https://blog.qualys.com/vulnerabilities-threat-research" bigmanFormat="RSS 2.0" bigmanSignal="high" bigmanNote="Qualys TRU publishes many Linux local privilege escalation findings"/>
+      <outline type="rss" text="Kaspersky Securelist" title="Securelist" xmlUrl="https://securelist.com/feed/" htmlUrl="https://securelist.com/" bigmanFormat="RSS 2.0" bigmanSignal="medium"/>
+      <outline type="rss" text="ESET WeLiveSecurity" title="ESET WeLiveSecurity" xmlUrl="https://www.welivesecurity.com/en/rss/feed/" htmlUrl="https://www.welivesecurity.com/en/" bigmanFormat="RSS 2.0" bigmanSignal="medium"/>
+      <outline type="rss" text="Google Project Zero" title="Google Project Zero" xmlUrl="https://projectzero.google/feed.xml" htmlUrl="https://projectzero.google/" bigmanFormat="Atom" bigmanSignal="medium" bigmanNote="Moved from googleprojectzero.blogspot.com (old URL redirects)"/>
+      <outline type="rss" text="Trend Micro newsroom: cyberthreat" title="Trend Micro newsroom: cyberthreat" xmlUrl="https://newsroom.trendmicro.com/cyberthreat?pagetemplate=rss" htmlUrl="https://www.trendmicro.com/en_us/research.html" bigmanFormat="RSS 2.0" bigmanSignal="low" bigmanNote="Press releases, not research posts. No working English research feed was found"/>
+    </outline>
+    <outline text="General security news" title="General security news">
+      <outline type="rss" text="Ars Technica security" title="Ars Technica security" xmlUrl="https://arstechnica.com/security/feed/" htmlUrl="https://arstechnica.com/security/" bigmanFormat="RSS 2.0" bigmanSignal="medium"/>
+      <outline type="rss" text="BleepingComputer" title="BleepingComputer" xmlUrl="https://www.bleepingcomputer.com/feed/" htmlUrl="https://www.bleepingcomputer.com/" bigmanFormat="RSS 2.0" bigmanSignal="medium" bigmanNote="All topics; the Linux tag feed returns 404"/>
+      <outline type="rss" text="The Hacker News" title="The Hacker News" xmlUrl="https://feeds.feedburner.com/TheHackersNews" htmlUrl="https://thehackernews.com/" bigmanFormat="RSS 2.0" bigmanSignal="medium" bigmanNote="High volume; deduplicate against primary sources"/>
+      <outline type="rss" text="Krebs on Security" title="Krebs on Security" xmlUrl="https://krebsonsecurity.com/feed/" htmlUrl="https://krebsonsecurity.com/" bigmanFormat="RSS 2.0" bigmanSignal="low"/>
+    </outline>
+  </body>
+</opml>

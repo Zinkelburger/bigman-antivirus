@@ -1,0 +1,88 @@
+exit 2
+{
+  "id": "<uuid>",
+  "created": 0,
+  "kind": "Installer inspection",
+  "subject": "<inputs>/installer.sh",
+  "sha256": "4397ea1f9014f4ae085fb4f108db3aaa16f00d5711ff5070fb36d4117b18f87e",
+  "findings": [
+    {
+      "rule": "shell.download",
+      "severity": "review",
+      "summary": "Downloads remote content",
+      "evidence": "Line 4: curl -fsSL https://example.org/tool.tar.gz -o /tmp/tool.tar.gz",
+      "action": "Inspect each payload and verify its origin before execution."
+    },
+    {
+      "rule": "shell.download",
+      "severity": "review",
+      "summary": "Downloads remote content",
+      "evidence": "Line 5: curl -fsSL https://example.org/setup.sh | sh",
+      "action": "Inspect each payload and verify its origin before execution."
+    },
+    {
+      "rule": "shell.execute-download",
+      "severity": "high",
+      "summary": "Downloads and executes code",
+      "evidence": "Line 5: curl -fsSL https://example.org/setup.sh | sh",
+      "action": "Save and inspect the exact downloaded bytes first."
+    },
+    {
+      "rule": "shell.privilege",
+      "severity": "review",
+      "summary": "Requests elevated privileges",
+      "evidence": "Line 6: sudo install -m 0755 /tmp/tool /usr/local/bin/tool",
+      "action": "Check why this operation needs administrator access."
+    },
+    {
+      "rule": "shell.credentials",
+      "severity": "high",
+      "summary": "References credentials or browser data",
+      "evidence": "Line 7: cat ~/.aws/credentials > /dev/null",
+      "action": "Run without real credentials and investigate why these paths are needed."
+    },
+    {
+      "rule": "shell.persistence",
+      "severity": "review",
+      "summary": "References startup or persistent configuration",
+      "evidence": "Line 8: echo 'export PATH=$PATH:/opt/tool' >> ~/.bashrc",
+      "action": "Review the command that will run in future sessions."
+    },
+    {
+      "rule": "shell.dynamic",
+      "severity": "review",
+      "summary": "Dynamic or encoded code requires further inspection",
+      "evidence": "Line 9: eval \"$(echo ZWNobyBoaQ== | base64 -d)\"",
+      "action": "The complete behavior is unresolved by static rules."
+    },
+    {
+      "rule": "shell.permissions",
+      "severity": "high",
+      "summary": "Broad or privileged file permissions",
+      "evidence": "Line 10: chmod 777 /tmp/tool",
+      "action": "Prefer the minimum permissions required."
+    },
+    {
+      "rule": "shell.delete",
+      "severity": "review",
+      "summary": "Potentially destructive file removal",
+      "evidence": "Line 11: rm -rf /tmp/tool-build",
+      "action": "Verify the expanded target paths."
+    },
+    {
+      "rule": "shell.network-listener",
+      "severity": "review",
+      "summary": "Network utility can expose or forward services",
+      "evidence": "Line 12: nc -l 8080",
+      "action": "Review destinations and listening interfaces."
+    }
+  ],
+  "coverage": [
+    "Static capability rules only. Computed commands, sourced files, downloaded payloads and runtime behavior may be unresolved. No code was executed.",
+    "Saved exact artifact: <root>/state/artifacts/<uuid>.sh"
+  ],
+  "errors": [
+    "ShellCheck is not installed; only built-in capability rules ran."
+  ],
+  "details": "#!/bin/sh\n# Synthetic installer fixture for golden output. Never executed.\necho \"Installing example tool\"\ncurl -fsSL https://example.org/tool.tar.gz -o /tmp/tool.tar.gz\ncurl -fsSL https://example.org/setup.sh | sh\nsudo install -m 0755 /tmp/tool /usr/local/bin/tool\ncat ~/.aws/credentials > /dev/null\necho 'export PATH=$PATH:/opt/tool' >> ~/.bashrc\neval \"$(echo ZWNobyBoaQ== | base64 -d)\"\nchmod 777 /tmp/tool\nrm -rf /tmp/tool-build\nnc -l 8080\n"
+}

@@ -1,0 +1,120 @@
+exit 1
+{
+  "id": "<uuid>",
+  "created": 0,
+  "kind": "Security checkup",
+  "subject": "Local Linux workstation",
+  "sha256": null,
+  "findings": [
+    {
+      "rule": "tool.missing",
+      "severity": "info",
+      "summary": "clamscan is not installed",
+      "evidence": "Known-malware file scanning",
+      "action": "Open Tools for a supported installation plan. Optional tools are not required for unrelated features."
+    },
+    {
+      "rule": "tool.missing",
+      "severity": "info",
+      "summary": "freshclam is not installed",
+      "evidence": "Signature updates",
+      "action": "Open Tools for a supported installation plan. Optional tools are not required for unrelated features."
+    },
+    {
+      "rule": "tool.missing",
+      "severity": "info",
+      "summary": "shellcheck is not installed",
+      "evidence": "Shell correctness checks",
+      "action": "Open Tools for a supported installation plan. Optional tools are not required for unrelated features."
+    },
+    {
+      "rule": "tool.missing",
+      "severity": "info",
+      "summary": "bwrap is not installed",
+      "evidence": "Restricted execution",
+      "action": "Open Tools for a supported installation plan. Optional tools are not required for unrelated features."
+    },
+    {
+      "rule": "tool.missing",
+      "severity": "info",
+      "summary": "strace is not installed",
+      "evidence": "Execution traces",
+      "action": "Open Tools for a supported installation plan. Optional tools are not required for unrelated features."
+    },
+    {
+      "rule": "tool.missing",
+      "severity": "info",
+      "summary": "lynis is not installed",
+      "evidence": "System hardening audit",
+      "action": "Open Tools for a supported installation plan. Optional tools are not required for unrelated features."
+    },
+    {
+      "rule": "tool.missing",
+      "severity": "info",
+      "summary": "osv-scanner is not installed",
+      "evidence": "Dependency vulnerability checks",
+      "action": "Open Tools for a supported installation plan. Optional tools are not required for unrelated features."
+    },
+    {
+      "rule": "tool.missing",
+      "severity": "info",
+      "summary": "osqueryi is not installed",
+      "evidence": "System inventory",
+      "action": "Open Tools for a supported installation plan. Optional tools are not required for unrelated features."
+    },
+    {
+      "rule": "tool.missing",
+      "severity": "info",
+      "summary": "yr is not installed",
+      "evidence": "YARA-X rules",
+      "action": "Open Tools for a supported installation plan. Optional tools are not required for unrelated features."
+    },
+    {
+      "rule": "tool.missing",
+      "severity": "info",
+      "summary": "pdfid.py is not installed",
+      "evidence": "PDF triage",
+      "action": "Open Tools for a supported installation plan. Optional tools are not required for unrelated features."
+    },
+    {
+      "rule": "tool.missing",
+      "severity": "info",
+      "summary": "pdf-parser.py is not installed",
+      "evidence": "PDF structural inspection",
+      "action": "Open Tools for a supported installation plan. Optional tools are not required for unrelated features."
+    },
+    {
+      "rule": "tool.missing",
+      "severity": "info",
+      "summary": "pdfinfo is not installed",
+      "evidence": "PDF metadata and links",
+      "action": "Open Tools for a supported installation plan. Optional tools are not required for unrelated features."
+    },
+    {
+      "rule": "tool.missing",
+      "severity": "info",
+      "summary": "opensnitch-ui is not installed",
+      "evidence": "Application firewall interface",
+      "action": "Open Tools for a supported installation plan. Optional tools are not required for unrelated features."
+    },
+    {
+      "rule": "clamav.no-definitions",
+      "severity": "high",
+      "summary": "No definitions found in known locations",
+      "evidence": "Private Bigman signatures and /var/lib/clamav checked",
+      "action": "Update definitions or confirm a custom ClamAV database location."
+    },
+    {
+      "rule": "monitor.stopped",
+      "severity": "review",
+      "summary": "Canary monitoring is not reporting a fresh heartbeat",
+      "evidence": "No heartbeat within ten seconds",
+      "action": "Start monitoring from Canaries or enable the user service."
+    }
+  ],
+  "coverage": [
+    "Read-only local tool/configuration check. No vulnerability feeds refreshed, no credentials read, and no claim that existing malware is absent. Listening sockets are inventory, not detections."
+  ],
+  "errors": [],
+  "details": ""
+}

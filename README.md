@@ -206,9 +206,10 @@ cargo test --locked
 cargo build --locked
 python3 tests/cli_integration.py target/debug/bigman
 python3 tests/canary_onboarding.py target/debug/bigman
+python3 tests/cli_golden.py target/debug/bigman
 cd browser-extension && npm run check
 ```
 
-`tests/cli_integration.py` uses synthetic files and a scanner contract fixture. `tests/canary_onboarding.py` exercises real monitoring, fresh-read verification, repeat setup, failure fallback and stop behavior; its service manager is a fixture so tests do not change the host’s login configuration. Rust tests exercise real inotify events and filesystem safeguards. Browser tests cover host parsing, Unicode, mismatches, exceptions, ClickFix rules and DOM mutations. `tests/browser_smoke.cjs` additionally exercises the built bundle with real Chrome click events using Playwright (set `BIGMAN_PLAYWRIGHT_MODULE` and optionally `BIGMAN_CHROME`). CI runs Rust/CLI and extension checks and builds an extension artifact.
+`tests/cli_integration.py` uses synthetic files and a scanner contract fixture. `tests/cli_golden.py` pins the exact text and JSON output of `doctor`, `inspect`, piped inspection and `packages` against `tests/golden/`; rerun it with `--update` only after an intentional output change. `tests/canary_onboarding.py` exercises real monitoring, fresh-read verification, repeat setup, failure fallback and stop behavior; its service manager is a fixture so tests do not change the host’s login configuration. Rust tests exercise real inotify events and filesystem safeguards. Browser tests cover host parsing, Unicode, mismatches, exceptions, ClickFix rules and DOM mutations. `tests/browser_smoke.cjs` additionally exercises the built bundle with real Chrome click events using Playwright (set `BIGMAN_PLAYWRIGHT_MODULE` and optionally `BIGMAN_CHROME`). CI runs Rust/CLI and extension checks and builds an extension artifact.
 
 The historical [review](REVIEW.md) explains the original prototype and proposals. This README describes the implemented interfaces and their limits. Advanced host-wide credential-read attribution, privileged on-access blocking, incident cleanup, Windows/macOS support, provider-side token provisioning and enterprise monitoring servers are not implemented or implied by this release.

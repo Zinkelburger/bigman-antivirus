@@ -1,0 +1,62 @@
+exit 1
+Installer inspection — stdin
+Findings to review
+Report <uuid>
+SHA-256: 4397ea1f9014f4ae085fb4f108db3aaa16f00d5711ff5070fb36d4117b18f87e
+
+[Review] Downloads remote content (shell.download)
+Line 4: curl -fsSL https://example.org/tool.tar.gz -o /tmp/tool.tar.gz
+Next: Inspect each payload and verify its origin before execution.
+
+[Review] Downloads remote content (shell.download)
+Line 5: curl -fsSL https://example.org/setup.sh | sh
+Next: Inspect each payload and verify its origin before execution.
+
+[High] Downloads and executes code (shell.execute-download)
+Line 5: curl -fsSL https://example.org/setup.sh | sh
+Next: Save and inspect the exact downloaded bytes first.
+
+[Review] Requests elevated privileges (shell.privilege)
+Line 6: sudo install -m 0755 /tmp/tool /usr/local/bin/tool
+Next: Check why this operation needs administrator access.
+
+[High] References credentials or browser data (shell.credentials)
+Line 7: cat ~/.aws/credentials > /dev/null
+Next: Run without real credentials and investigate why these paths are needed.
+
+[Review] References startup or persistent configuration (shell.persistence)
+Line 8: echo 'export PATH=$PATH:/opt/tool' >> ~/.bashrc
+Next: Review the command that will run in future sessions.
+
+[Review] Dynamic or encoded code requires further inspection (shell.dynamic)
+Line 9: eval "$(echo ZWNobyBoaQ== | base64 -d)"
+Next: The complete behavior is unresolved by static rules.
+
+[High] Broad or privileged file permissions (shell.permissions)
+Line 10: chmod 777 /tmp/tool
+Next: Prefer the minimum permissions required.
+
+[Review] Potentially destructive file removal (shell.delete)
+Line 11: rm -rf /tmp/tool-build
+Next: Verify the expanded target paths.
+
+[Review] Network utility can expose or forward services (shell.network-listener)
+Line 12: nc -l 8080
+Next: Review destinations and listening interfaces.
+
+Coverage: Static capability rules only. Computed commands, sourced files, downloaded payloads and runtime behavior may be unresolved. No code was executed.
+
+Details
+#!/bin/sh
+# Synthetic installer fixture for golden output. Never executed.
+echo "Installing example tool"
+curl -fsSL https://example.org/tool.tar.gz -o /tmp/tool.tar.gz
+curl -fsSL https://example.org/setup.sh | sh
+sudo install -m 0755 /tmp/tool /usr/local/bin/tool
+cat ~/.aws/credentials > /dev/null
+echo 'export PATH=$PATH:/opt/tool' >> ~/.bashrc
+eval "$(echo ZWNobyBoaQ== | base64 -d)"
+chmod 777 /tmp/tool
+rm -rf /tmp/tool-build
+nc -l 8080
+

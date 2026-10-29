@@ -17,6 +17,7 @@ jobs:
       - run: cargo build --locked
       - run: python3 tests/cli_integration.py target/debug/bigman
       - run: python3 tests/canary_onboarding.py target/debug/bigman
+      - run: python3 tests/cli_golden.py target/debug/bigman
   extension:
     runs-on: ubuntu-latest
     defaults:
