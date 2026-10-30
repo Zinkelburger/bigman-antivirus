@@ -1,14 +1,20 @@
-use serde::{Deserialize, Serialize};
+mod coverage;
+pub use coverage::{Coverage, SkipReason, Skipped};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+use serde::{Deserialize, Serialize};
+use ts_rs::TS;
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, TS)]
 #[serde(rename_all = "snake_case")]
+#[ts(export)]
 pub enum Severity {
     Info,
     Review,
     High,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export)]
 pub struct Finding {
     pub rule: String,
     pub severity: Severity,
@@ -17,7 +23,8 @@ pub struct Finding {
     pub action: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export)]
 pub struct Report {
     pub id: String,
     pub created: u64,
@@ -25,7 +32,7 @@ pub struct Report {
     pub subject: String,
     pub sha256: Option<String>,
     pub findings: Vec<Finding>,
-    pub coverage: Vec<String>,
+    pub coverage: Coverage,
     pub errors: Vec<String>,
     pub details: String,
 }
@@ -57,7 +64,7 @@ impl Report {
             subject: subject.to_string(),
             sha256: None,
             findings: vec![],
-            coverage: vec![],
+            coverage: Coverage::default(),
             errors: vec![],
             details: String::new(),
         }
@@ -78,10 +85,16 @@ impl Report {
             action: action.into(),
         });
     }
+    /// Tool errors or skipped coverage make a result incomplete.
+    pub fn is_incomplete(&self) -> bool {
+        !self.errors.is_empty() || !self.coverage.skipped.is_empty()
+    }
+    /// Info findings are notes; only Review and High are something to review,
+    /// matching the CLI exit codes.
     pub fn status(&self) -> &'static str {
-        if !self.errors.is_empty() {
+        if self.is_incomplete() {
             "Incomplete"
-        } else if !self.findings.is_empty() {
+        } else if self.findings.iter().any(|f| f.severity != Severity::Info) {
             "Findings to review"
         } else {
             "No findings from these checks"
@@ -107,12 +120,48 @@ impl Report {
         for e in &self.errors {
             out.push_str(&format!("\nIncomplete: {}\n", clean(e)));
         }
-        for c in &self.coverage {
+        for s in &self.coverage.skipped {
+            out.push_str(&format!(
+                "\nNot checked: {} ({:?}) {}\n",
+                s.what,
+                s.why,
+                clean(&s.detail)
+            ));
+        }
+        for c in &self.coverage.notes {
             out.push_str(&format!("\nCoverage: {c}\n"));
         }
         if !self.details.is_empty() {
             out.push_str(&format!("\nDetails\n{}", clean(&self.details)));
         }
         out
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn info_notes_are_not_findings_to_review() {
+        let mut r = Report::new("Security checkup", "fixture");
+        r.add(
+            "tool.missing",
+            Severity::Info,
+            "lynis is not installed",
+            "",
+            "",
+        );
+        assert_eq!(r.status(), "No findings from these checks");
+        r.add(
+            "shell.privilege",
+            Severity::Review,
+            "Requests elevated privileges",
+            "",
+            "",
+        );
+        assert_eq!(r.status(), "Findings to review");
+        r.coverage
+            .skip("ShellCheck", SkipReason::ToolMissing, "not installed");
+        assert_eq!(r.status(), "Incomplete");
     }
 }

@@ -5,30 +5,52 @@
 //! `MAX_FRAME` bytes. A client sends `ClientFrame`s and reads `ServerFrame`s.
 pub mod client;
 
+use crate::{
+    checks::{
+        canary::Health as MonitorHealth,
+        doctor::{SignatureState, ToolState},
+    },
+    model::Report,
+};
 use anyhow::{bail, Context, Result};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{
     io::{BufRead, Read, Write},
     path::PathBuf,
 };
+use ts_rs::TS;
 
 /// Largest accepted frame. Reports with full evidence stay well below this.
 pub const MAX_FRAME: u64 = 16 * 1024 * 1024;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(tag = "type", rename_all = "snake_case")]
+#[ts(export)]
 pub enum Request {
     Health,
+    /// Protection state for the Overview tiles. Read-only and fast.
+    Status,
+    /// Run the read-only security checkup and save its report.
+    Doctor,
+    /// Most recent reports first, as history summaries (full evidence via the report id).
+    History {
+        limit: u32,
+    },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(tag = "type", rename_all = "snake_case")]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(tag = "type", content = "value", rename_all = "snake_case")]
+#[ts(export)]
 pub enum Response {
     Health(DaemonHealth),
+    Status(Box<ProtectionStatus>),
+    Report(Box<Report>),
+    History(Vec<Report>),
     Error(ErrorBody),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
+#[ts(export)]
 pub struct DaemonHealth {
     pub version: String,
     pub pid: u32,
@@ -36,18 +58,32 @@ pub struct DaemonHealth {
     pub state_dir: PathBuf,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct ProtectionStatus {
+    pub checked_at: u64,
+    pub tools: Vec<ToolState>,
+    pub signatures: Option<SignatureState>,
+    /// The canary monitor's latest heartbeat, when it is fresh.
+    pub monitor: Option<MonitorHealth>,
+    pub last_scan: Option<Report>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
+#[ts(export)]
 pub struct ErrorBody {
     pub message: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
+#[ts(export)]
 pub struct ClientFrame {
     pub id: u64,
     pub request: Request,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export)]
 pub struct ServerFrame {
     pub id: u64,
     pub response: Response,

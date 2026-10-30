@@ -1,0 +1,221 @@
+/*
+ * Bigman design tokens. The only place colors, type sizes and radii are defined.
+ * Severity colors (info, review, high) are reserved for severity; calm green only
+ * appears in the status strip and tray; the accent marks interaction and first-seen.
+ */
+@import "tailwindcss";
+@import "@fontsource-variable/atkinson-hyperlegible-next";
+@import "@fontsource-variable/atkinson-hyperlegible-mono";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* Light: neutral ground, graphite rail like a field notebook's cloth cover. */
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+  --ground: oklch(97.4% 0.002 90);
+  --surface: oklch(99.4% 0.001 90);
+  --sunken: oklch(95.2% 0.003 90);
+  --rule: oklch(89.5% 0.004 90);
+  --rule-strong: oklch(80% 0.006 90);
+  --ink: oklch(23% 0.008 90);
+  --ink-muted: oklch(44% 0.008 90);
+  --rail: oklch(25.5% 0.007 90);
+  --rail-ink: oklch(93% 0.004 90);
+  --rail-ink-muted: oklch(72% 0.006 90);
+  --rail-active: oklch(33% 0.008 90);
+  --accent: oklch(49% 0.17 293);
+  --accent-ink: oklch(99% 0 0);
+  --accent-soft: oklch(95% 0.03 293);
+  --info: oklch(50% 0.07 245);
+  --info-soft: oklch(95% 0.015 245);
+  --review: oklch(52% 0.12 65);
+  --review-soft: oklch(95.5% 0.04 80);
+  --high: oklch(51% 0.18 27);
+  --high-soft: oklch(95.5% 0.025 27);
+  --calm: oklch(50% 0.09 155);
+  --focus: oklch(49% 0.17 293);
+  --shadow: 0 8px 28px oklch(20% 0.01 90 / 0.14), 0 1px 3px oklch(20% 0.01 90 / 0.08);
+}
+
+/* Dark: follows the system unless overridden. The [data-theme="dark"] block below
+ * repeats these values because CSS cannot share one rule between a media query and
+ * a selector; keep the two in sync. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: oklch(18.5% 0.004 90);
+    --surface: oklch(21.5% 0.005 90);
+    --sunken: oklch(16.5% 0.004 90);
+    --rule: oklch(30% 0.006 90);
+    --rule-strong: oklch(40% 0.008 90);
+    --ink: oklch(93% 0.004 90);
+    --ink-muted: oklch(73% 0.007 90);
+    --rail: oklch(14.5% 0.004 90);
+    --rail-ink: oklch(92% 0.004 90);
+    --rail-ink-muted: oklch(70% 0.006 90);
+    --rail-active: oklch(23% 0.006 90);
+    --accent: oklch(76% 0.12 293);
+    --accent-ink: oklch(18% 0.03 293);
+    --accent-soft: oklch(30% 0.06 293);
+    --info: oklch(76% 0.07 245);
+    --info-soft: oklch(28% 0.03 245);
+    --review: oklch(81% 0.12 78);
+    --review-soft: oklch(29% 0.05 70);
+    --high: oklch(73% 0.15 27);
+    --high-soft: oklch(29% 0.06 27);
+    --calm: oklch(76% 0.1 155);
+    --focus: oklch(76% 0.12 293);
+    --shadow: 0 10px 32px oklch(0% 0 0 / 0.5), 0 1px 3px oklch(0% 0 0 / 0.4);
+  }
+}
+[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: oklch(18.5% 0.004 90);
+  --surface: oklch(21.5% 0.005 90);
+  --sunken: oklch(16.5% 0.004 90);
+  --rule: oklch(30% 0.006 90);
+  --rule-strong: oklch(40% 0.008 90);
+  --ink: oklch(93% 0.004 90);
+  --ink-muted: oklch(73% 0.007 90);
+  --rail: oklch(14.5% 0.004 90);
+  --rail-ink: oklch(92% 0.004 90);
+  --rail-ink-muted: oklch(70% 0.006 90);
+  --rail-active: oklch(23% 0.006 90);
+  --accent: oklch(76% 0.12 293);
+  --accent-ink: oklch(18% 0.03 293);
+  --accent-soft: oklch(30% 0.06 293);
+  --info: oklch(76% 0.07 245);
+  --info-soft: oklch(28% 0.03 245);
+  --review: oklch(81% 0.12 78);
+  --review-soft: oklch(29% 0.05 70);
+  --high: oklch(73% 0.15 27);
+  --high-soft: oklch(29% 0.06 27);
+  --calm: oklch(76% 0.1 155);
+  --focus: oklch(76% 0.12 293);
+  --shadow: 0 10px 32px oklch(0% 0 0 / 0.5), 0 1px 3px oklch(0% 0 0 / 0.4);
+}
+
+/* Only these tokens exist as utilities: the default palette and type scale are removed. */
+@theme inline {
+  --color-*: initial;
+  --color-ground: var(--ground);
+  --color-surface: var(--surface);
+  --color-sunken: var(--sunken);
+  --color-rule: var(--rule);
+  --color-rule-strong: var(--rule-strong);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-rail: var(--rail);
+  --color-rail-ink: var(--rail-ink);
+  --color-rail-ink-muted: var(--rail-ink-muted);
+  --color-rail-active: var(--rail-active);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-review: var(--review);
+  --color-review-soft: var(--review-soft);
+  --color-high: var(--high);
+  --color-high-soft: var(--high-soft);
+  --color-calm: var(--calm);
+  --color-focus: var(--focus);
+  --color-transparent: transparent;
+
+  --font-*: initial;
+  --font-sans: "Atkinson Hyperlegible Next Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Atkinson Hyperlegible Mono Variable", ui-monospace, monospace;
+
+  /* Three sizes: small (labels, dense data), body, title. */
+  --text-*: initial;
+  --text-small: 0.8125rem;
+  --text-small--line-height: 1.125rem;
+  --text-body: 0.9375rem;
+  --text-body--line-height: 1.375rem;
+  --text-title: 1.25rem;
+  --text-title--line-height: 1.75rem;
+
+  --radius-*: initial;
+  --radius-control: 4px;
+  --radius-panel: 6px;
+  --radius-full: 9999px;
+
+  --shadow-*: initial;
+  --shadow-panel: var(--shadow);
+}
+
+@layer base {
+  html {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 100%;
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    margin: 0;
+    font-size: var(--text-body);
+    line-height: var(--text-body--line-height);
+    background: var(--ground);
+  }
+  ::selection {
+    background: var(--accent-soft);
+    color: var(--ink);
+  }
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+    border-radius: var(--radius-control);
+  }
+  * {
+    scrollbar-color: var(--rule-strong) transparent;
+    scrollbar-width: thin;
+  }
+  code,
+  kbd,
+  pre,
+  samp {
+    font-family: var(--font-mono);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@keyframes bigman-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0 0;
+  }
+}
+/* Opacity only: rows are positioned with transforms. */
+@keyframes bigman-row-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes bigman-indeterminate {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(300%);
+  }
+}
+@keyframes bigman-panel-in {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+}

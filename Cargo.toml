@@ -1,6 +1,8 @@
 [workspace]
 resolver = "2"
-members = ["crates/core", "crates/cli", "crates/daemon", "crates/native-host"]
+members = ["crates/core", "crates/cli", "crates/daemon", "crates/native-host", "crates/app/src-tauri"]
+# The desktop app needs WebKitGTK development files; build it with `-p bigman-app`.
+default-members = ["crates/core", "crates/cli", "crates/daemon", "crates/native-host"]
 
 [workspace.package]
 version = "0.2.0"

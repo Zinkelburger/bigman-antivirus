@@ -126,11 +126,12 @@ impl Store {
         self.write(&format!("reports/{}.json", r.id), r)?;
         let mut summary = r.clone();
         summary.details.clear();
-        summary.coverage = vec![format!(
+        summary.coverage.notes = vec![format!(
             "History summary; {} findings and {} errors. Open the report for full evidence.",
             r.findings.len(),
             r.errors.len()
         )];
+        summary.coverage.skipped.truncate(20);
         summary.findings.truncate(20);
         for finding in &mut summary.findings {
             finding.evidence = finding.evidence.chars().take(1000).collect();

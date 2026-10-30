@@ -18,16 +18,19 @@ use std::{
     sync::atomic::Ordering,
     time::{Duration, Instant},
 };
+use ts_rs::TS;
 pub mod setup;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export)]
 pub struct Canary {
     pub id: String,
     pub path: PathBuf,
     pub created: u64,
     pub kind: String,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
+#[ts(export, rename = "MonitorHealth")]
 pub struct Health {
     pub updated: u64,
     pub pid: u32,

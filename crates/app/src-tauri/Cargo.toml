@@ -1,0 +1,32 @@
+[package]
+name = "bigman-app"
+description = "Bigman desktop app: a thin Tauri client of bigmand"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+publish = false
+
+[[bin]]
+name = "bigman-app"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2.7", features = [] }
+
+[dependencies]
+bigman-core.workspace = true
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tauri = { version = "2.12", features = ["tray-icon", "image-png"] }
+tauri-plugin-notification = "2.8"
+tauri-plugin-opener = "2.7"
+tauri-plugin-window-state = "2.5"
+
+[features]
+# Serve the bundled UI from crates/app/ui/dist. Without it the window loads the Vite
+# dev server at http://127.0.0.1:1420 for hot reload:
+#   npm --prefix crates/app/ui run dev  &  cargo run -p bigman-app --no-default-features
+default = ["bundled-ui"]
+bundled-ui = ["tauri/custom-protocol"]

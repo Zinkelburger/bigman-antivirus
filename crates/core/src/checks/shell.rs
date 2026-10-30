@@ -99,7 +99,7 @@ pub fn analyze_content(content: &str) -> Report {
             if pattern.is_match(line) {
                 r.add(
                     id,
-                    (*severity).clone(),
+                    **severity,
                     summary,
                     format!("Line {}: {}", line_no + 1, line),
                     action,

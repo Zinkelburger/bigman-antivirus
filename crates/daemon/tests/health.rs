@@ -38,11 +38,27 @@ fn answers_health_on_a_private_socket() {
         }
         other => panic!("unexpected {other:?}"),
     }
-    // Two requests on one connection keep their ids.
+    // Several requests on one connection keep their ids.
     assert!(matches!(
         client.request(Request::Health).unwrap(),
         Response::Health(_)
     ));
+    match client.request(Request::Status).unwrap() {
+        Response::Status(status) => {
+            assert_eq!(status.tools.len(), bigman_core::checks::doctor::TOOLS.len());
+            assert!(status.monitor.is_none() && status.last_scan.is_none());
+        }
+        other => panic!("unexpected {other:?}"),
+    }
+    let checkup = match client.request(Request::Doctor).unwrap() {
+        Response::Report(report) => report,
+        other => panic!("unexpected {other:?}"),
+    };
+    assert_eq!(checkup.kind, "Security checkup");
+    match client.request(Request::History { limit: 10 }).unwrap() {
+        Response::History(reports) => assert_eq!(reports[0].id, checkup.id),
+        other => panic!("unexpected {other:?}"),
+    }
 
     let mut raw = UnixStream::connect(&path).unwrap();
     raw.write_all(b"{\"id\":1,\"request\":{\"type\":\"run_shell\"}}\n")

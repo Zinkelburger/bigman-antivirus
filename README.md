@@ -210,6 +210,27 @@ python3 tests/cli_golden.py target/debug/bigman
 cd browser-extension && npm run check
 ```
 
+### Desktop app (in progress)
+
+The new desktop app lives in `crates/app`: a Tauri 2 shell (`src-tauri`) and a React + TypeScript UI (`ui`). It is a thin client of `bigmand`; it never runs a check itself and starts the daemon if it is not answering. Until it reaches parity, `bigman gui` remains the egui interface.
+
+```sh
+# Fedora build dependencies for the Tauri shell
+sudo dnf install webkit2gtk4.1-devel libsoup3-devel javascriptcoregtk4.1-devel libappindicator-gtk3-devel librsvg2-devel openssl-devel
+
+cd crates/app/ui
+npm ci --ignore-scripts
+npm run dev:browser          # UI in a normal browser against fixture data (?scenario=calm|incomplete|empty|disconnected)
+npm run check                # typecheck, lint, architecture rules, vitest
+npm run build                # bundle the UI into crates/app/ui/dist
+cd ../../..
+cargo build                  # bigman, bigmand
+cargo run -p bigman-app      # the desktop app, using the built UI
+# Hot reload: npm --prefix crates/app/ui run dev, then cargo run -p bigman-app --no-default-features
+```
+
+`http://127.0.0.1:1420/#/gallery` shows every design-system component in every state, light and dark. The TypeScript types for the daemon contract are generated from the Rust types by `cargo test` into `crates/app/ui/src/ipc/generated`; never edit them by hand. `tests/app_smoke.mjs` drives the built app through `tauri-driver` (install it with `cargo install tauri-driver`; it needs `WebKitWebDriver`). `cargo deny check` enforces the licence policy in `deny.toml`.
+
 `tests/cli_integration.py` uses synthetic files and a scanner contract fixture. `tests/cli_golden.py` pins the exact text and JSON output of `doctor`, `inspect`, piped inspection and `packages` against `tests/golden/`; rerun it with `--update` only after an intentional output change. `tests/canary_onboarding.py` exercises real monitoring, fresh-read verification, repeat setup, failure fallback and stop behavior; its service manager is a fixture so tests do not change the host’s login configuration. Rust tests exercise real inotify events and filesystem safeguards. Browser tests cover host parsing, Unicode, mismatches, exceptions, ClickFix rules and DOM mutations. `tests/browser_smoke.cjs` additionally exercises the built bundle with real Chrome click events using Playwright (set `BIGMAN_PLAYWRIGHT_MODULE` and optionally `BIGMAN_CHROME`). CI runs Rust/CLI and extension checks and builds an extension artifact.
 
 The historical [review](REVIEW.md) explains the original prototype and proposals. This README describes the implemented interfaces and their limits. Advanced host-wide credential-read attribution, privileged on-access blocking, incident cleanup, Windows/macOS support, provider-side token provisioning and enterprise monitoring servers are not implemented or implied by this release.

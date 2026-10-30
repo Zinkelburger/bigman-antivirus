@@ -101,7 +101,7 @@ The whole UI is built from these and nothing else. Adding a component requires a
 | Feedback | `EmptyState`, `Skeleton`, `Toast`, `ProgressRow` (for long scans, with cancel) |
 | Input | `PathPicker`, `Toggle`, `Select`, `SearchField` |
 
-Twenty-six components. If the count grows past thirty-five, stop and run `/impeccable distill`.
+Twenty-six components, plus `Tally` (the life-list repeat mark inside `Timeline`) and the native `TrayMenu`. If the count grows past thirty-five, stop and run `/impeccable distill`.
 
 ### B7. Navigation
 
@@ -199,7 +199,7 @@ ui/src/
 - A feature folder never imports another feature folder. Shared code goes to `design/` or `ipc/` and must carry no feature knowledge.
 - Feature code never imports `@tauri-apps/api`. This keeps browser dev mode and the Electron escape hatch real.
 - `npm run dev:browser` runs the UI in a normal browser against `mock/` with fixture data. Most UI work happens there. (The plan originally said pnpm; the repository already uses npm with a lockfile for the browser extension, so the app uses npm too.)
-- TypeScript types for the contract are generated from the Rust types with `tauri-specta` (or `ts-rs` if specta blocks). Hand-written contract types are a build failure.
+- TypeScript types for the contract are generated from the Rust types with `ts-rs` (chosen over `tauri-specta`, whose Tauri 2 line was still pre-release) by `cargo test` into `ui/src/ipc/generated`; CI fails if they are stale. `scripts/check-architecture.mjs` fails the build on hand-written contract types and on the folder rules below.
 - Component gallery at `/gallery` is the design-system source of truth and the input for `/impeccable critique`.
 
 ### C4. Platform traits
@@ -304,10 +304,10 @@ Each feature lists threat IDs and an acceptance test. **have** = exists today an
 
 ### D1. Overview
 
-- **have** Protection status tile (tools present, daemon alive, signatures age) and last-scan tile.
+- **have** Bigman's tools tile (signatures age, canary tripwires, optional tools; Bigman's own readiness, so neutral, never a severity badge) and last-scan tile. Renamed from "Protection status" by the owner on 2026-10-30 after the first critique: a missing signature set showed a red High on first launch.
 - **new** "Since you last looked" tile: unread first-seen events, opens Activity filtered.
 - **new** Updates tile: pending updates with CVE count and KEV count, opens Protect > Advisories.
-- **new** 24-hour compact timeline below the tiles, same rows as Activity.
+- **new** 24-hour compact timeline below the tiles, same rows as Activity. Until activity collection exists (milestone 4) it lists the user's own checks from report history; "first seen" there means the first report of that check on that subject within the loaded history.
 - **new** Calm state per B4.
 
 Acceptance: on a clean VM with the daemon running, Overview renders four tiles, the status line, and an empty timeline with an `EmptyState` explaining what will appear.
@@ -482,7 +482,7 @@ Opt-in. Reads a receipt or an inspection packet and explains it. It can add find
 
 ## Part J. Milestones
 
-Work one milestone per branch and pull request. Each ends with a demo the owner can run with `cargo run -p bigman-app` and the exit test green. Stop and ask at a milestone boundary if a decision in Part K is needed to continue; otherwise do not stop.
+Work one milestone per branch and pull request. Each ends with a demo the owner can run with `cargo run -p bigman-app` (the default `bundled-ui` feature serves `crates/app/ui/dist`; build it with `npm --prefix crates/app/ui run build`) and the exit test green. Stop and ask at a milestone boundary if a decision in Part K is needed to continue; otherwise do not stop.
 
 | # | Milestone | Scope | Exit test |
 |---|---|---|---|

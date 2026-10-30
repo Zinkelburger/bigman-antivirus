@@ -158,7 +158,7 @@ fn scan_inner(store: &Store, path: &Path, stop: &Cancel) -> Result<Report> {
                     {
                         items[index].detected = true;
                         items[index].signature = signature.into();
-                        r.add("clamav.match",Severity::High,"ClamAV signature or heuristic matched",format!("{}\n{}\nSHA-256 {}",items[index].path.display(),signature,items[index].hash),"Review the signature and quarantine the unchanged file if appropriate. Limit/encryption alerts mean content was not fully examined.");
+                        r.add("clamav.match",Severity::High,"A file matches a ClamAV signature",format!("{}\n{}\nSHA-256 {}",items[index].path.display(),signature,items[index].hash),"If you did not expect this file, quarantine it: Bigman keeps a private recovery copy you can restore. A Limits or Encrypted signature means the content was not fully examined.");
                         if signature.contains("Limits.Exceeded") || signature.contains("Encrypted")
                         {
                             r.errors.push(format!(

@@ -3,8 +3,10 @@
 pub mod server;
 
 use bigman_core::{
-    ipc::{DaemonHealth, ErrorBody, Request, Response},
+    checks::{canary, doctor},
+    ipc::{DaemonHealth, ErrorBody, ProtectionStatus, Request, Response},
     model::now,
+    runner,
     store::Store,
 };
 
@@ -29,7 +31,36 @@ impl Daemon {
                 started: self.started,
                 state_dir: self.store.root.clone(),
             }),
+            Request::Status => match self.status() {
+                Ok(status) => Response::Status(Box::new(status)),
+                Err(e) => error(e),
+            },
+            Request::Doctor => match doctor::doctor(&self.store, &runner::cancel()) {
+                Ok(report) => Response::Report(Box::new(report)),
+                Err(e) => error(e),
+            },
+            Request::History { limit } => match self.store.history() {
+                Ok(mut reports) => {
+                    reports.truncate(limit as usize);
+                    Response::History(reports)
+                }
+                Err(e) => error(e),
+            },
         }
+    }
+    fn status(&self) -> anyhow::Result<ProtectionStatus> {
+        let last_scan = self
+            .store
+            .history()?
+            .into_iter()
+            .find(|r| r.kind == "File scan");
+        Ok(ProtectionStatus {
+            checked_at: now(),
+            tools: doctor::tools(),
+            signatures: doctor::signatures(&self.store),
+            monitor: canary::setup::health(&self.store),
+            last_scan,
+        })
     }
 }
 

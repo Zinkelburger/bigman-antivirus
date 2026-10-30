@@ -77,10 +77,14 @@ exit 2
       "action": "Review destinations and listening interfaces."
     }
   ],
-  "coverage": [
-    "Static capability rules only. Computed commands, sourced files, downloaded payloads and runtime behavior may be unresolved. No code was executed.",
-    "Saved exact artifact: <root>/state/artifacts/<uuid>.sh"
-  ],
+  "coverage": {
+    "checked": [],
+    "notes": [
+      "Static capability rules only. Computed commands, sourced files, downloaded payloads and runtime behavior may be unresolved. No code was executed.",
+      "Saved exact artifact: <root>/state/artifacts/<uuid>.sh"
+    ],
+    "skipped": []
+  },
   "errors": [
     "ShellCheck is not installed; only built-in capability rules ran."
   ],

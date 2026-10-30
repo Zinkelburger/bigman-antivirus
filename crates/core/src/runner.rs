@@ -146,15 +146,21 @@ pub fn bigman_executable() -> Result<std::path::PathBuf> {
     if current.file_name().is_some_and(|n| n == "bigman") {
         return Ok(current);
     }
-    let sibling = current.with_file_name("bigman");
+    sibling_executable("bigman")
+}
+/// A Bigman binary installed next to the running one, or else found on PATH.
+pub fn sibling_executable(name: &str) -> Result<std::path::PathBuf> {
+    let sibling = std::env::current_exe()?.with_file_name(name);
     if sibling.is_file() {
-        Ok(sibling)
-    } else {
-        anyhow::bail!(
-            "Cannot find the bigman binary next to {}",
-            current.display()
-        )
+        return Ok(sibling);
     }
+    std::env::var_os("PATH")
+        .and_then(|p| {
+            std::env::split_paths(&p)
+                .map(|d| d.join(name))
+                .find(|p| p.is_file())
+        })
+        .with_context(|| format!("Cannot find {name} next to this program or on PATH"))
 }
 /// Start a long-running process in its own session and reap it in the background.
 /// Used for the monitor and for desktop tools; bounded jobs use `run`.

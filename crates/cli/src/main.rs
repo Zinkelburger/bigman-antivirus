@@ -348,7 +348,7 @@ fn run() -> Result<()> {
     };
     if let Some(r) = report {
         output(&r, cli.json)?;
-        let code = if !r.errors.is_empty() {
+        let code = if r.is_incomplete() {
             2
         } else if r
             .findings
@@ -378,6 +378,7 @@ fn daemon_status(json: bool) -> Result<()> {
             h.state_dir.display()
         ),
         ipc::Response::Error(e) => bail!("Daemon error: {}", e.message),
+        other => bail!("Unexpected daemon response: {other:?}"),
     }
     Ok(())
 }

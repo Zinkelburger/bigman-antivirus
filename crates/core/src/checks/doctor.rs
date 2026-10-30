@@ -4,66 +4,99 @@ use crate::{
     store::Store,
 };
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use std::{fs, path::PathBuf, process::Command};
+use ts_rs::TS;
+
+/// Optional tools Bigman can drive, with what each one adds.
+pub const TOOLS: [(&str, &str); 13] = [
+    ("clamscan", "Known-malware file scanning"),
+    ("freshclam", "Signature updates"),
+    ("shellcheck", "Shell correctness checks"),
+    ("bwrap", "Restricted execution"),
+    ("strace", "Execution traces"),
+    ("lynis", "System hardening audit"),
+    ("osv-scanner", "Dependency vulnerability checks"),
+    ("osqueryi", "System inventory"),
+    ("yr", "YARA-X rules"),
+    ("pdfid.py", "PDF triage"),
+    ("pdf-parser.py", "PDF structural inspection"),
+    ("pdfinfo", "PDF metadata and links"),
+    ("opensnitch-ui", "Application firewall interface"),
+];
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
+#[ts(export)]
+pub struct ToolState {
+    pub name: String,
+    pub purpose: String,
+    pub available: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
+#[ts(export)]
+pub struct SignatureState {
+    /// Modification time of the newest daily database file.
+    pub updated: u64,
+    pub location: PathBuf,
+}
+
+pub fn tools() -> Vec<ToolState> {
+    TOOLS
+        .iter()
+        .map(|(name, purpose)| ToolState {
+            name: (*name).into(),
+            purpose: (*purpose).into(),
+            available: runner::available(name),
+        })
+        .collect()
+}
+
+/// The private Bigman database when present, otherwise the distro default.
+pub fn signatures(store: &Store) -> Option<SignatureState> {
+    let root = crate::checks::scan::own_database(store)
+        .unwrap_or_else(|| PathBuf::from("/var/lib/clamav"));
+    let newest = ["daily.cld", "daily.cvd"]
+        .iter()
+        .filter_map(|name| fs::metadata(root.join(name)).ok()?.modified().ok())
+        .filter_map(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_secs())
+        .max()?;
+    Some(SignatureState {
+        updated: newest,
+        location: root,
+    })
+}
 
 pub fn doctor(store: &Store, stop: &Cancel) -> Result<Report> {
     let mut r = Report::new("Security checkup", "Local Linux workstation");
-    for (tool, purpose) in [
-        ("clamscan", "Known-malware file scanning"),
-        ("freshclam", "Signature updates"),
-        ("shellcheck", "Shell correctness checks"),
-        ("bwrap", "Restricted execution"),
-        ("strace", "Execution traces"),
-        ("lynis", "System hardening audit"),
-        ("osv-scanner", "Dependency vulnerability checks"),
-        ("osqueryi", "System inventory"),
-        ("yr", "YARA-X rules"),
-        ("pdfid.py", "PDF triage"),
-        ("pdf-parser.py", "PDF structural inspection"),
-        ("pdfinfo", "PDF metadata and links"),
-        ("opensnitch-ui", "Application firewall interface"),
-    ] {
-        if runner::available(tool) {
+    for tool in tools() {
+        if tool.available {
             r.details
-                .push_str(&format!("Available: {tool} — {purpose}\n"));
+                .push_str(&format!("Available: {} — {}\n", tool.name, tool.purpose));
         } else {
-            r.add("tool.missing",Severity::Info,&format!("{tool} is not installed"),purpose,"Open Tools for a supported installation plan. Optional tools are not required for unrelated features.");
+            r.add("tool.missing",Severity::Info,&format!("{} is not installed", tool.name),&tool.purpose,"Open Setup for an installation plan. Optional tools are not required for unrelated features.");
         }
     }
-    let mut newest = 0;
-    for root in [crate::checks::scan::own_database(store)
-        .unwrap_or_else(|| PathBuf::from("/var/lib/clamav"))]
-    {
-        for name in ["daily.cld", "daily.cvd"] {
-            if let Ok(m) = fs::metadata(root.join(name)) {
-                if let Ok(t) = m.modified().and_then(|t| {
-                    t.duration_since(std::time::UNIX_EPOCH)
-                        .map_err(std::io::Error::other)
-                }) {
-                    newest = newest.max(t.as_secs());
-                }
-            }
-        }
-    }
-    if newest == 0 {
-        r.add(
+    match signatures(store) {
+        None => r.add(
             "clamav.no-definitions",
             Severity::High,
             "No definitions found in known locations",
             "Private Bigman signatures and /var/lib/clamav checked",
             "Update definitions or confirm a custom ClamAV database location.",
-        );
-    } else if now().saturating_sub(newest) > 3 * 86400 {
-        r.add(
+        ),
+        Some(sig) if now().saturating_sub(sig.updated) > 3 * 86400 => r.add(
             "clamav.stale",
             Severity::Review,
             "Definitions appear stale",
             format!(
                 "Daily database file is {} days old",
-                now().saturating_sub(newest) / 86400
+                now().saturating_sub(sig.updated) / 86400
             ),
             "Update definitions. File age is a freshness signal, not a verified database version.",
-        );
+        ),
+        Some(_) => {}
     }
     match store.read::<crate::checks::canary::Health>("monitor-health.json") {
         Ok(h) if now().saturating_sub(h.updated) < 10 => {

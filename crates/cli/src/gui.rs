@@ -46,6 +46,7 @@ enum Action {
     Audit(String, String),
     Yara(String, String),
 }
+#[allow(clippy::large_enum_variant)] // The egui GUI is removed once the desktop app reaches parity.
 enum Outcome {
     Report(Report),
     Message(String),
@@ -158,7 +159,7 @@ impl App {
                     ui.small(&finding.rule);
                 });
             }
-            for c in &r.coverage {
+            for c in &r.coverage.notes {
                 ui.small(c);
             }
             if let Some(hash) = &r.sha256 {
