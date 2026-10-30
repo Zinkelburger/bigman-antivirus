@@ -197,7 +197,7 @@ The main-page popup summarizes the main document. Content scripts also check acc
 
 State defaults to `$XDG_DATA_HOME/bigman` or `~/.local/share/bigman`. Use an absolute `--state /path/to/private-directory` for separate profiles/tests. Directories are mode 0700 and report/recovery files mode 0600. Writes use temporary files and atomic replacement. Existing broad-permission or symlinked state directories are refused. This protects against other ordinary users, not compromise of the same account or root.
 
-Source modules separate reports/storage, process execution, inspection, scans, canaries, system checks, setup, native protocol and GUI. Rules have stable IDs and local evidence. There is no telemetry from Bigman; explicitly launched upstream tools may have their own network behavior.
+The Cargo workspace has four crates. `crates/core` holds the report model, private store, bounded process runner, daemon contract (`ipc`) and one module per check under `checks/`; it has no binaries and no UI. `crates/cli` is the `bigman` command (and, until the new desktop app reaches parity, the egui GUI). `crates/daemon` is `bigmand`, the per-user collector daemon; it currently answers `Health` on `$XDG_RUNTIME_DIR/bigman/bigmand.sock` (mode 0600, peer uid checked; `BIGMAN_SOCKET` overrides the path) and `bigman daemon status` queries it. `crates/native-host` is the browser native-messaging bridge. Rules have stable IDs and local evidence. There is no telemetry from Bigman; explicitly launched upstream tools may have their own network behavior.
 
 ```sh
 cargo fmt --check

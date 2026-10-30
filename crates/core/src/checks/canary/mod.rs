@@ -18,6 +18,8 @@ use std::{
     sync::atomic::Ordering,
     time::{Duration, Instant},
 };
+pub mod setup;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Canary {
     pub id: String,
@@ -370,7 +372,7 @@ pub fn watch(store: &Store, stop: &Cancel) -> Result<()> {
                 }
             }
             if persist.elapsed() > Duration::from_secs(300) {
-                let r = crate::system::changes(store)?;
+                let r = crate::checks::changes::changes(store)?;
                 let fingerprint =
                     crate::store::digest(&serde_json::to_vec(&(&r.findings, &r.errors))?);
                 let previous = store

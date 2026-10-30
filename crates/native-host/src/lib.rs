@@ -1,7 +1,12 @@
 //! Browser native messaging uses bounded stdio frames. Results are persisted once;
 //! the desktop reads the same history, so no listening socket or duplicate scan is needed.
-use crate::{model::Report, runner::Cancel, store::Store};
 use anyhow::{bail, Result};
+use bigman_core::{
+    checks::{inspect, pdf, scan, setup},
+    model::Report,
+    runner::Cancel,
+    store::Store,
+};
 use serde::{Deserialize, Serialize};
 use std::{
     io::{Read, Write},
@@ -53,7 +58,7 @@ pub fn handle(store: &Store, req: Request, stop: &Cancel) -> Result<Response> {
         if url.scheme() != "https" {
             bail!("Native installer previews require HTTPS URLs; select local scripts in the desktop app");
         }
-        crate::inspect::inspect(
+        inspect::inspect(
             store,
             req.url
                 .as_deref()
@@ -69,14 +74,14 @@ pub fn handle(store: &Store, req: Request, stop: &Cancel) -> Result<Response> {
             bail!("Download path must not be a symlink");
         }
         let p = std::fs::canonicalize(p)?;
-        let downloads = std::fs::canonicalize(crate::setup::downloads())?;
+        let downloads = std::fs::canonicalize(setup::downloads())?;
         if !p.starts_with(downloads) || !p.is_file() {
             bail!("Browser scans are restricted to regular files in ~/Downloads. Open other files explicitly in the desktop app.");
         }
         match req.op.as_str() {
-            "" | "scan" => crate::scanner::scan(store, &p, stop)?,
-            "pdf" => crate::pdf_scanner::scan_pdf(store, &p, stop)?,
-            "inspect-file" => crate::inspect::inspect(store, &p.to_string_lossy(), stop)?,
+            "" | "scan" => scan::scan(store, &p, stop)?,
+            "pdf" => pdf::scan_pdf(store, &p, stop)?,
+            "inspect-file" => inspect::inspect(store, &p.to_string_lossy(), stop)?,
             _ => bail!("Unsupported native operation"),
         }
     };

@@ -68,7 +68,7 @@ fn quote(s: &str) -> Result<String> {
     ))
 }
 pub fn service_plan(store: &Store) -> Result<Vec<(String, String)>> {
-    let exe = std::env::current_exe()?;
+    let exe = runner::bigman_executable()?;
     let base = format!(
         "{} --state {}",
         quote(&exe.to_string_lossy())?,
@@ -245,9 +245,7 @@ pub fn monitor_service(
 }
 pub fn open_tool(tool: &str) -> Result<()> {
     match tool {
-        "firewall" => {
-            Command::new("opensnitch-ui").spawn()?;
-        }
+        "firewall" => runner::spawn_detached(&mut Command::new("opensnitch-ui"))?,
         _ => bail!("Unsupported application"),
     };
     Ok(())
@@ -256,7 +254,7 @@ pub fn write_native_manifest(path: &Path, extension: &str) -> Result<()> {
     if extension.len() != 32 || !extension.bytes().all(|c| (b'a'..=b'p').contains(&c)) {
         bail!("Chrome extension ID must contain exactly 32 letters a–p");
     }
-    let manifest = serde_json::json!({"name":"com.bigman.pdf_scanner","description":"Bigman deterministic local security checks","path":std::env::current_exe()?,"type":"stdio","allowed_origins":[format!("chrome-extension://{extension}/")]});
+    let manifest = serde_json::json!({"name":"com.bigman.pdf_scanner","description":"Bigman deterministic local security checks","path":runner::bigman_executable()?,"type":"stdio","allowed_origins":[format!("chrome-extension://{extension}/")]});
     fs::create_dir_all(
         path.parent()
             .ok_or_else(|| anyhow::anyhow!("Missing parent"))?,

@@ -138,6 +138,43 @@ pub fn available(name: &str) -> bool {
         })
     })
 }
+/// The `bigman` CLI binary. Service units, native-host manifests and the detached
+/// monitor must name it even when the caller is the daemon or the desktop app,
+/// which are installed next to it.
+pub fn bigman_executable() -> Result<std::path::PathBuf> {
+    let current = std::env::current_exe()?;
+    if current.file_name().is_some_and(|n| n == "bigman") {
+        return Ok(current);
+    }
+    let sibling = current.with_file_name("bigman");
+    if sibling.is_file() {
+        Ok(sibling)
+    } else {
+        anyhow::bail!(
+            "Cannot find the bigman binary next to {}",
+            current.display()
+        )
+    }
+}
+/// Start a long-running process in its own session and reap it in the background.
+/// Used for the monitor and for desktop tools; bounded jobs use `run`.
+pub fn spawn_detached(cmd: &mut Command) -> Result<()> {
+    unsafe {
+        cmd.pre_exec(|| {
+            if libc::setsid() < 0 {
+                return Err(std::io::Error::last_os_error());
+            }
+            Ok(())
+        });
+    }
+    let mut child = cmd
+        .spawn()
+        .with_context(|| format!("Cannot start {:?}", cmd.get_program()))?;
+    std::thread::spawn(move || {
+        let _ = child.wait();
+    });
+    Ok(())
+}
 /// A parser is exposed only to its input and system runtime. No home or network.
 pub fn parser_command(tool: &str, args: &[&str], input: &std::path::Path) -> Result<Command> {
     if !available("bwrap") {

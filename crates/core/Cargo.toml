@@ -1,0 +1,22 @@
+[package]
+name = "bigman-core"
+description = "Bigman's deterministic checks, report model, store and daemon contract"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+flate2.workspace = true
+fs2.workspace = true
+libc.workspace = true
+regex.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+tar.workspace = true
+tempfile.workspace = true
+url.workspace = true
+uuid.workspace = true
+walkdir.workspace = true

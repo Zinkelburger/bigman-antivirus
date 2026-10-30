@@ -1,0 +1,22 @@
+[package]
+name = "bigman-daemon"
+description = "bigmand: Bigman's per-user collector daemon"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "bigmand"
+path = "src/main.rs"
+
+[dependencies]
+bigman-core.workspace = true
+anyhow.workspace = true
+clap.workspace = true
+ctrlc.workspace = true
+libc.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

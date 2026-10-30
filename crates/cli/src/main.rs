@@ -1,19 +1,12 @@
-mod analyzer;
-mod canary;
-mod canary_setup;
 mod gui;
-mod inspect;
-mod ipc;
-mod model;
-mod pdf_scanner;
-mod runner;
-mod scanner;
-mod setup;
-mod store;
-mod system;
 use anyhow::{bail, Result};
+use bigman_core::{
+    checks::{canary, changes, doctor, inspect, integrations, packages, pdf, scan, setup, shell},
+    ipc::{self, client::Client},
+    model::{self, Report},
+    runner, store,
+};
 use clap::{Parser, Subcommand};
-use model::Report;
 use std::{
     io::{IsTerminal, Read},
     path::PathBuf,
@@ -106,6 +99,16 @@ enum Commands {
     NativeInstall {
         extension_id: String,
     },
+    /// Query the bigmand collector daemon.
+    Daemon {
+        #[command(subcommand)]
+        command: DaemonCommands,
+    },
+}
+#[derive(Subcommand)]
+enum DaemonCommands {
+    /// Show whether bigmand answers on its socket.
+    Status,
 }
 #[derive(Subcommand)]
 enum CanaryCommands {
@@ -191,20 +194,20 @@ fn run() -> Result<()> {
                 bail!("Input limit exceeded");
             }
             let text = std::str::from_utf8(&bytes)?;
-            let r = analyzer::analyze_content(text);
+            let r = shell::analyze_content(text);
             store.bytes(&format!("artifacts/{}.sh", r.id), &bytes)?;
             store.save(&r)?;
             Some(r)
         }
-        Some(Commands::Doctor) => Some(system::doctor(&store, &stop)?),
+        Some(Commands::Doctor) => Some(doctor::doctor(&store, &stop)?),
         Some(Commands::Inspect { target }) => Some(inspect::inspect(&store, &target, &stop)?),
-        Some(Commands::Packages { path }) => Some(inspect::packages(&store, &path)?),
+        Some(Commands::Packages { path }) => Some(packages::packages(&store, &path)?),
         Some(Commands::PackagePolicy { path, apply }) => {
-            println!("{}", inspect::policy(&path, apply)?);
+            println!("{}", packages::policy(&path, apply)?);
             None
         }
         Some(Commands::Scan { path, notify }) => {
-            let result = scanner::scan(&store, &path.unwrap_or_else(setup::downloads), &stop);
+            let result = scan::scan(&store, &path.unwrap_or_else(setup::downloads), &stop);
             if notify {
                 match &result {
                     Ok(r) if !r.findings.is_empty() || !r.errors.is_empty() => {
@@ -216,16 +219,16 @@ fn run() -> Result<()> {
             }
             Some(result?)
         }
-        Some(Commands::Pdf { path }) => Some(pdf_scanner::scan_pdf(&store, &path, &stop)?),
-        Some(Commands::Update) => Some(scanner::update(&store, &stop)?),
+        Some(Commands::Pdf { path }) => Some(pdf::scan_pdf(&store, &path, &stop)?),
+        Some(Commands::Update) => Some(scan::update(&store, &stop)?),
         Some(Commands::Sandbox {
             report,
             approve_sha256,
         }) => Some(inspect::sandbox(&store, &report, &approve_sha256, &stop)?),
         Some(Commands::Changes { accept_baseline }) => {
             let r = match accept_baseline {
-                Some(id) => system::accept_reviewed_baseline(&store, &id)?,
-                None => system::changes(&store)?,
+                Some(id) => changes::accept_reviewed_baseline(&store, &id)?,
+                None => changes::changes(&store)?,
             };
             store.save(&r)?;
             Some(r)
@@ -249,19 +252,19 @@ fn run() -> Result<()> {
             None
         }
         Some(Commands::Canary { command }) => match command {
-            CanaryCommands::Arm { path, session_only } => Some(canary_setup::arm(
+            CanaryCommands::Arm { path, session_only } => Some(canary::setup::arm(
                 &store,
-                &path.unwrap_or_else(canary_setup::default_path),
+                &path.unwrap_or_else(canary::setup::default_path),
                 session_only,
                 &stop,
             )?),
             CanaryCommands::Start { session_only } => {
-                Some(canary_setup::start_monitor(&store, session_only, &stop)?)
+                Some(canary::setup::start_monitor(&store, session_only, &stop)?)
             }
             CanaryCommands::Stop { session_only } => {
-                Some(canary_setup::stop_monitor(&store, session_only, &stop)?)
+                Some(canary::setup::stop_monitor(&store, session_only, &stop)?)
             }
-            CanaryCommands::Test { id } => Some(canary_setup::verify(&store, &id, &stop)?),
+            CanaryCommands::Test { id } => Some(canary::setup::verify(&store, &id, &stop)?),
             CanaryCommands::Create { path, hosted_url } => {
                 println!(
                     "{}",
@@ -290,29 +293,29 @@ fn run() -> Result<()> {
         Some(Commands::Quarantine { report, index }) => {
             println!(
                 "{}",
-                serde_json::to_string_pretty(&scanner::quarantine(&store, &report, index)?)?
+                serde_json::to_string_pretty(&scan::quarantine(&store, &report, index)?)?
             );
             None
         }
         Some(Commands::Restore { id }) => {
             println!(
                 "Restored without executable permissions: {}",
-                scanner::restore(&store, &id)?.display()
+                scan::restore(&store, &id)?.display()
             );
             None
         }
         Some(Commands::Quarantined) => {
             println!(
                 "{}",
-                serde_json::to_string_pretty(&scanner::quarantined(&store)?)?
+                serde_json::to_string_pretty(&scan::quarantined(&store)?)?
             );
             None
         }
         Some(Commands::Audit { tool, path }) => {
-            Some(system::integration(&store, &tool, &path, &stop)?)
+            Some(integrations::integration(&store, &tool, &path, &stop)?)
         }
         Some(Commands::Yara { rules, target }) => {
-            Some(system::yara(&store, &rules, &target, &stop)?)
+            Some(integrations::yara(&store, &rules, &target, &stop)?)
         }
         Some(Commands::Setup { tool, apply }) => {
             println!("{}", setup::install_tool(&tool, apply, &stop)?);
@@ -323,7 +326,13 @@ fn run() -> Result<()> {
             None
         }
         Some(Commands::NativeHost) => {
-            ipc::host(&store, &stop)?;
+            bigman_native_host::host(&store, &stop)?;
+            None
+        }
+        Some(Commands::Daemon {
+            command: DaemonCommands::Status,
+        }) => {
+            daemon_status(cli.json)?;
             None
         }
         Some(Commands::NativeInstall { extension_id }) => {
@@ -353,6 +362,22 @@ fn run() -> Result<()> {
         if code != 0 {
             std::process::exit(code);
         }
+    }
+    Ok(())
+}
+fn daemon_status(json: bool) -> Result<()> {
+    let mut client = Client::connect()?;
+    client.set_timeout(Some(std::time::Duration::from_secs(5)))?;
+    match client.request(ipc::Request::Health)? {
+        ipc::Response::Health(h) if json => println!("{}", serde_json::to_string_pretty(&h)?),
+        ipc::Response::Health(h) => println!(
+            "bigmand {} is running (pid {}) at {}\nState: {}",
+            h.version,
+            h.pid,
+            ipc::client::describe_socket(),
+            h.state_dir.display()
+        ),
+        ipc::Response::Error(e) => bail!("Daemon error: {}", e.message),
     }
     Ok(())
 }

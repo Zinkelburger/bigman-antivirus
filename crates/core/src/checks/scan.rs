@@ -47,7 +47,7 @@ fn scan_inner(store: &Store, path: &Path, stop: &Cancel) -> Result<Report> {
     let mut items = vec![];
     let mut scan_paths = vec![];
     let mut total = 0usize;
-    let canaries = crate::canary::list(store)?;
+    let canaries = crate::checks::canary::list(store)?;
     let walker = walkdir::WalkDir::new(&path)
         .follow_links(false)
         .into_iter()

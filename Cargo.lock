@@ -559,19 +559,29 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f2032f911046de80f0a198e0901378627c33f59ea0ac00e363d481118bd70a53"
 
 [[package]]
-name = "bigman"
+name = "bigman-cli"
 version = "0.2.0"
 dependencies = [
  "anyhow",
+ "bigman-core",
+ "bigman-native-host",
  "clap",
  "ctrlc",
  "eframe",
  "egui",
+ "rfd",
+ "serde_json",
+]
+
+[[package]]
+name = "bigman-core"
+version = "0.2.0"
+dependencies = [
+ "anyhow",
  "flate2",
  "fs2",
  "libc",
  "regex",
- "rfd",
  "serde",
  "serde_json",
  "sha2",
@@ -580,6 +590,30 @@ dependencies = [
  "url",
  "uuid",
  "walkdir",
+]
+
+[[package]]
+name = "bigman-daemon"
+version = "0.2.0"
+dependencies = [
+ "anyhow",
+ "bigman-core",
+ "clap",
+ "ctrlc",
+ "libc",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
+name = "bigman-native-host"
+version = "0.2.0"
+dependencies = [
+ "anyhow",
+ "bigman-core",
+ "serde",
+ "serde_json",
+ "url",
 ]
 
 [[package]]

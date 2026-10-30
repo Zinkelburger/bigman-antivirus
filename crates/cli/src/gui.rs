@@ -1,5 +1,6 @@
-use crate::{
-    model::{Report, Severity},
+use bigman_core::{
+    checks,
+    model::{self, Report, Severity},
     runner::{self, Cancel},
     store::Store,
 };
@@ -52,18 +53,18 @@ enum Outcome {
 fn perform(store: &Store, a: Action, stop: &Cancel) -> anyhow::Result<Outcome> {
     use Action::*;
     let report=match a{
- Doctor=>crate::system::doctor(store,stop)?,Scan(p)=>crate::scanner::scan(store,PathBuf::from(p).as_path(),stop)?,Pdf(p)=>crate::pdf_scanner::scan_pdf(store,PathBuf::from(p).as_path(),stop)?,Update=>crate::scanner::update(store,stop)?,Inspect(p)=>crate::inspect::inspect(store,&p,stop)?,Packages(p)=>crate::inspect::packages(store,PathBuf::from(p).as_path())?,Changes=>{let r=crate::system::changes(store)?;store.save(&r)?;r},
- AcceptBaseline(id)=>crate::system::accept_reviewed_baseline(store,&id)?,
- Sandbox(id,hash)=>crate::inspect::sandbox(store,&id,&hash,stop)?,Audit(tool,p)=>crate::system::integration(store,&tool,PathBuf::from(p).as_path(),stop)?,Yara(r,p)=>crate::system::yara(store,PathBuf::from(r).as_path(),PathBuf::from(p).as_path(),stop)?,
- Policy(p)=>return Ok(Outcome::Message(crate::inspect::policy(PathBuf::from(p).as_path(),true)?)),
- CreateCanary(p,url)=>return Ok(Outcome::Message(format!("Created decoy {}\nStart monitoring, then use Test and verify the resulting alert. Hosted URLs contact their provider only when activated by a reader.",crate::canary::create(store,PathBuf::from(p).as_path(),url.as_deref())?.path.display()))),
- ArmCanary(p)=>crate::canary_setup::arm(store,PathBuf::from(p).as_path(),false,stop)?,
- StartMonitor=>crate::canary_setup::start_monitor(store,false,stop)?,
- StopMonitor=>crate::canary_setup::stop_monitor(store,false,stop)?,
- TestCanary(id)=>crate::canary_setup::verify(store,&id,stop)?,
- Disarm(id)=>{crate::canary::disarm(store,&id)?;return Ok(Outcome::Message("Canary disarmed; its file was preserved.".into()));},
- Install(tool)=>return Ok(Outcome::Message(crate::setup::install_tool(&tool,true,stop)?)),Services(remove)=>return Ok(Outcome::Message(crate::setup::services(store,true,remove,stop)?)),
- Quarantine(id,index)=>return Ok(Outcome::Message(format!("Recovery copy saved; original quarantined. ID: {}",crate::scanner::quarantine(store,&id,index)?.id))),Restore(id)=>return Ok(Outcome::Message(format!("Restored without executable permissions: {}",crate::scanner::restore(store,&id)?.display()))),
+ Doctor=>checks::doctor::doctor(store,stop)?,Scan(p)=>checks::scan::scan(store,PathBuf::from(p).as_path(),stop)?,Pdf(p)=>checks::pdf::scan_pdf(store,PathBuf::from(p).as_path(),stop)?,Update=>checks::scan::update(store,stop)?,Inspect(p)=>checks::inspect::inspect(store,&p,stop)?,Packages(p)=>checks::packages::packages(store,PathBuf::from(p).as_path())?,Changes=>{let r=checks::changes::changes(store)?;store.save(&r)?;r},
+ AcceptBaseline(id)=>checks::changes::accept_reviewed_baseline(store,&id)?,
+ Sandbox(id,hash)=>checks::inspect::sandbox(store,&id,&hash,stop)?,Audit(tool,p)=>checks::integrations::integration(store,&tool,PathBuf::from(p).as_path(),stop)?,Yara(r,p)=>checks::integrations::yara(store,PathBuf::from(r).as_path(),PathBuf::from(p).as_path(),stop)?,
+ Policy(p)=>return Ok(Outcome::Message(checks::packages::policy(PathBuf::from(p).as_path(),true)?)),
+ CreateCanary(p,url)=>return Ok(Outcome::Message(format!("Created decoy {}\nStart monitoring, then use Test and verify the resulting alert. Hosted URLs contact their provider only when activated by a reader.",checks::canary::create(store,PathBuf::from(p).as_path(),url.as_deref())?.path.display()))),
+ ArmCanary(p)=>checks::canary::setup::arm(store,PathBuf::from(p).as_path(),false,stop)?,
+ StartMonitor=>checks::canary::setup::start_monitor(store,false,stop)?,
+ StopMonitor=>checks::canary::setup::stop_monitor(store,false,stop)?,
+ TestCanary(id)=>checks::canary::setup::verify(store,&id,stop)?,
+ Disarm(id)=>{checks::canary::disarm(store,&id)?;return Ok(Outcome::Message("Canary disarmed; its file was preserved.".into()));},
+ Install(tool)=>return Ok(Outcome::Message(checks::setup::install_tool(&tool,true,stop)?)),Services(remove)=>return Ok(Outcome::Message(checks::setup::services(store,true,remove,stop)?)),
+ Quarantine(id,index)=>return Ok(Outcome::Message(format!("Recovery copy saved; original quarantined. ID: {}",checks::scan::quarantine(store,&id,index)?.id))),Restore(id)=>return Ok(Outcome::Message(format!("Restored without executable permissions: {}",checks::scan::restore(store,&id)?.display()))),
  };
     Ok(Outcome::Report(report))
 }
@@ -91,11 +92,13 @@ struct App {
 impl App {
     fn new(store: Store) -> Self {
         Self {
-            decoy: crate::canary_setup::default_path().to_string_lossy().into(),
+            decoy: checks::canary::setup::default_path()
+                .to_string_lossy()
+                .into(),
             history: store.history().unwrap_or_default(),
             store,
             page: Page::Overview,
-            path: crate::setup::downloads().to_string_lossy().into(),
+            path: checks::setup::downloads().to_string_lossy().into(),
             installer: String::new(),
             project: String::new(),
             rules: String::new(),
@@ -130,7 +133,7 @@ impl App {
         if let Some(r) = self.report.clone() {
             ui.separator();
             ui.heading(&r.kind);
-            ui.label(crate::model::clean(&r.subject));
+            ui.label(model::clean(&r.subject));
             if r.errors.is_empty() && r.findings.iter().any(|f| f.rule == "canary.verified") {
                 ui.colored_label(egui::Color32::LIGHT_GREEN, "Local read detection verified");
             } else {
@@ -139,7 +142,7 @@ impl App {
             for error in &r.errors {
                 ui.colored_label(
                     egui::Color32::from_rgb(225, 150, 65),
-                    format!("Incomplete: {}", crate::model::clean(error)),
+                    format!("Incomplete: {}", model::clean(error)),
                 );
             }
             for finding in &r.findings {
@@ -162,7 +165,7 @@ impl App {
                 ui.monospace(format!("SHA-256 {hash}"));
             }
             ui.collapsing("Technical details", |ui| {
-                ui.monospace(crate::model::clean(
+                ui.monospace(model::clean(
                     &r.details.chars().take(100_000).collect::<String>(),
                 ));
                 if r.details.chars().count() > 100_000 {
@@ -172,12 +175,12 @@ impl App {
             ui.horizontal(|ui|{if ui.button("Export report…").clicked(){if let Some(p)=rfd::FileDialog::new().set_file_name(format!("bigman-{}.json",r.id)).save_file(){self.message=match serde_json::to_vec_pretty(r.as_ref()).map_err(anyhow::Error::from).and_then(|b|std::fs::write(p,b).map_err(Into::into)){Ok(_)=>"Report exported. It may contain local paths and script content.".into(),Err(e)=>e.to_string()};}}
  if r.kind=="Installer inspection"{if let Some(hash)=&r.sha256{if ui.button("Rehearse in restricted environment…").clicked(){self.confirm(format!("Execute saved installer {}\nSHA-256 {}\nUses a disposable offline filesystem with no home directory or credentials. May fail due to restrictions. This runs code; it does not establish safety or install onto the host.",r.id,hash),Action::Sandbox(r.id.clone(),hash.clone()));}}}});
             if r.kind == "File scan" {
-                if let Ok(items) = crate::scanner::inventory(&self.store, &r.id) {
+                if let Ok(items) = checks::scan::inventory(&self.store, &r.id) {
                     for (i, item) in items.iter().enumerate().filter(|(_, v)| v.detected) {
                         if ui
                             .button(format!(
                                 "Quarantine {}…",
-                                crate::model::clean(&item.path.to_string_lossy())
+                                model::clean(&item.path.to_string_lossy())
                             ))
                             .clicked()
                         {
@@ -261,7 +264,7 @@ impl eframe::App for App {
                     });
                 }
                 if !self.message.is_empty() {
-                    ui.label(crate::model::clean(&self.message));
+                    ui.label(model::clean(&self.message));
                     ui.separator();
                 }
                 ui.add_enabled_ui(!busy, |ui| self.draw_page(ui));
@@ -365,8 +368,10 @@ impl App {
                         self.start(Action::Packages(self.project.clone()));
                     }
                     if ui.button("Disable automatic install scripts…").clicked() {
-                        match crate::inspect::policy(PathBuf::from(&self.project).as_path(), false)
-                        {
+                        match checks::packages::policy(
+                            PathBuf::from(&self.project).as_path(),
+                            false,
+                        ) {
                             Ok(p) => self.confirm(p, Action::Policy(self.project.clone())),
                             Err(e) => self.message = e.to_string(),
                         }
@@ -399,11 +404,11 @@ impl App {
                 ui.label("Synthetic decoy files alert when read, changed or removed while the monitor is running. They do not contain usable credentials. Backups, indexers and your tests can trigger them.");
                 let health = self
                     .store
-                    .read::<crate::canary::Health>("monitor-health.json")
+                    .read::<checks::canary::Health>("monitor-health.json")
                     .ok();
                 let active = health
                     .as_ref()
-                    .is_some_and(|h| crate::model::now().saturating_sub(h.updated) < 10);
+                    .is_some_and(|h| model::now().saturating_sub(h.updated) < 10);
                 ui.strong(if active {
                     "Monitor is reporting"
                 } else {
@@ -441,11 +446,11 @@ impl App {
                         self.confirm(format!("Create a shortcut at {} using the supplied token URL. Existing files are never overwritten.", self.decoy), Action::CreateCanary(self.decoy.clone(), Some(self.hosted.trim().into())));
                     }
                 });
-                match crate::canary::list(&self.store) {
+                match checks::canary::list(&self.store) {
                     Ok(cs) => {
                         for c in cs {
                             ui.group(|ui| {
-                                ui.label(crate::model::clean(&c.path.to_string_lossy()));
+                                ui.label(model::clean(&c.path.to_string_lossy()));
                                 ui.small(&c.id);
                                 ui.horizontal(|ui| {
                                     if ui
@@ -490,7 +495,7 @@ impl App {
                         }
                     });
                 if ui.button("Preview installation…").clicked() {
-                    match crate::setup::install_tool(&self.tool, false, &runner::cancel()) {
+                    match checks::setup::install_tool(&self.tool, false, &runner::cancel()) {
                         Ok(p) => self.confirm(p, Action::Install(self.tool.clone())),
                         Err(e) => self.message = e.to_string(),
                     }
@@ -500,7 +505,7 @@ impl App {
                     .button("Enable monitoring and daily Downloads scan…")
                     .clicked()
                 {
-                    match crate::setup::services(&self.store, false, false, &runner::cancel()) {
+                    match checks::setup::services(&self.store, false, false, &runner::cancel()) {
                         Ok(p) => self.confirm(p, Action::Services(false)),
                         Err(e) => self.message = e.to_string(),
                     }
@@ -514,7 +519,7 @@ impl App {
                 ui.horizontal(|ui|{if ui.button("Lynis system audit").clicked(){self.start(Action::Audit("lynis".into(),".".into()));}
 if ui.button("OSV dependency advisories…").clicked(){self.confirm(format!("Run OSV-Scanner on {}. It may query vulnerability services using dependency identifiers. No AI analysis is used.",self.project),Action::Audit("osv".into(),self.project.clone()));}
 if ui.button("osquery process inventory").clicked(){self.start(Action::Audit("osquery".into(),".".into()));}
-if ui.button("Open OpenSnitch").clicked(){if let Err(e)=crate::setup::open_tool("firewall"){self.message=e.to_string();}}});
+if ui.button("Open OpenSnitch").clicked(){if let Err(e)=checks::setup::open_tool("firewall"){self.message=e.to_string();}}});
                 ui.collapsing("Upstream installation instructions", |ui| {
                     for (name, url) in [
                         (
@@ -543,12 +548,7 @@ if ui.button("Open OpenSnitch").clicked(){if let Err(e)=crate::setup::open_tool(
                     if ui
                         .selectable_label(
                             self.report.as_ref().is_some_and(|p| p.id == r.id),
-                            format!(
-                                "{} | {} | {}",
-                                r.kind,
-                                r.status(),
-                                crate::model::clean(&r.subject)
-                            ),
+                            format!("{} | {} | {}", r.kind, r.status(), model::clean(&r.subject)),
                         )
                         .clicked()
                     {
@@ -562,10 +562,10 @@ if ui.button("Open OpenSnitch").clicked(){if let Err(e)=crate::setup::open_tool(
             Page::Quarantine => {
                 ui.heading("Quarantine");
                 ui.label("Recovery copies are private and non-executable. Restore refuses to overwrite existing paths.");
-                match crate::scanner::quarantined(&self.store) {
+                match checks::scan::quarantined(&self.store) {
                     Ok(qs) => {
                         for q in qs {
-                            ui.group(|ui|{ui.label(crate::model::clean(&q.original.to_string_lossy()));ui.monospace(&q.hash);if q.restored{ui.label("Restored; recovery copy retained");}else if ui.button("Restore…").clicked(){self.confirm(format!("Restore {} with permissions 0600. This file was previously flagged. Existing files will not be overwritten.",q.original.display()),Action::Restore(q.id));}});
+                            ui.group(|ui|{ui.label(model::clean(&q.original.to_string_lossy()));ui.monospace(&q.hash);if q.restored{ui.label("Restored; recovery copy retained");}else if ui.button("Restore…").clicked(){self.confirm(format!("Restore {} with permissions 0600. This file was previously flagged. Existing files will not be overwritten.",q.original.display()),Action::Restore(q.id));}});
                         }
                     }
                     Err(e) => {

@@ -1,0 +1,14 @@
+[package]
+name = "bigman-native-host"
+description = "Browser native-messaging bridge for Bigman"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+bigman-core.workspace = true
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+url.workspace = true

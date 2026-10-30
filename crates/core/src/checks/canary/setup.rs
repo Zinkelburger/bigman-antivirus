@@ -1,5 +1,5 @@
 use crate::{
-    canary::{self, Health, ReadReceipt},
+    checks::canary::{self, Health, ReadReceipt},
     model::{now, Report, Severity},
     runner::{self, Cancel},
     store::{home, read_file, Store, MAX_INPUT},
@@ -7,7 +7,7 @@ use crate::{
 use anyhow::{bail, Context, Result};
 use std::{
     fs,
-    os::unix::{fs::OpenOptionsExt, process::CommandExt},
+    os::unix::fs::OpenOptionsExt,
     path::{Path, PathBuf},
     process::{Command, Stdio},
     sync::atomic::Ordering,
@@ -43,7 +43,7 @@ fn launch(store: &Store) -> Result<()> {
         .mode(0o600)
         .custom_flags(libc::O_NOFOLLOW)
         .open(store.root.join("monitor.log"))?;
-    let mut command = Command::new(std::env::current_exe()?);
+    let mut command = Command::new(runner::bigman_executable()?);
     command
         .arg("--state")
         .arg(&store.root)
@@ -52,19 +52,7 @@ fn launch(store: &Store) -> Result<()> {
         .stdout(Stdio::null())
         .stderr(log);
     // Detach from the invoking terminal so closing the CLI does not stop protection.
-    unsafe {
-        command.pre_exec(|| {
-            if libc::setsid() < 0 {
-                return Err(std::io::Error::last_os_error());
-            }
-            Ok(())
-        });
-    }
-    let mut child = command.spawn()?;
-    std::thread::spawn(move || {
-        let _ = child.wait();
-    });
-    Ok(())
+    runner::spawn_detached(&mut command)
 }
 
 pub fn verify(store: &Store, id: &str, stop: &Cancel) -> Result<Report> {
@@ -179,7 +167,7 @@ fn start_inner(
 ) -> Result<()> {
     let mut service_enabled = false;
     if !session_only {
-        match crate::setup::monitor_service(store, false, health(store).is_some(), stop) {
+        match crate::checks::setup::monitor_service(store, false, health(store).is_some(), stop) {
             Ok(()) => {
                 service_enabled = true;
                 report.coverage.push("Monitor enabled for future user logins using the current binary path. Keep that binary installed; logout/reboot gaps are not monitored. No scan timers were enabled.".into());
@@ -213,7 +201,7 @@ pub fn stop_monitor(store: &Store, session_only: bool, stop: &Cancel) -> Result<
     let _lock = store.lock("canary-setup.lock")?;
     let mut report = Report::new("Monitor stop", "Local canary and startup monitoring");
     if !session_only {
-        if let Err(error) = crate::setup::monitor_service(store, true, false, stop) {
+        if let Err(error) = crate::checks::setup::monitor_service(store, true, false, stop) {
             report
                 .errors
                 .push(format!("Login service removal failed: {error}"));
@@ -245,7 +233,7 @@ fn stop_process(store: &Store, stop: &Cancel) -> Result<()> {
         let argv = read_file(&proc.join("cmdline"), MAX_INPUT)?;
         let args: Vec<_> = argv.split(|b| *b == 0).filter(|b| !b.is_empty()).collect();
         use std::os::unix::ffi::OsStrExt;
-        let executable = std::env::current_exe()?;
+        let executable = runner::bigman_executable()?;
         if h.pid < 2
             || args.len() != 4
             || (args[0] != executable.as_os_str().as_bytes()
