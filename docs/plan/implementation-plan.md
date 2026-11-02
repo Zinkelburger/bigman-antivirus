@@ -522,6 +522,10 @@ Made on 2026-10-29 by the owner, answering the open questions:
 2. **Baseline format:** there are no existing baselines to preserve. The widened format in milestone 5 starts from scratch; an older baseline file is treated as absent and the user reviews an initial inventory.
 3. **`systemd-journal` group:** Setup offers it as a previewed polkit action that prints the exact command, what it grants and how to undo it. Never applied automatically.
 4. **Logo:** the existing logo is the application and launcher icon only; the app and tray use a quiet monochrome "B" mark so red stays reserved for High severity.
+5. **Visual direction (2026-10-30):** "Life List", a field naturalist's life list: first sightings entered once with a ringed violet mark, repeats folded under them with a tally. Recorded in `.impeccable/surfaces/crates-app-ui-src.md`.
+6. **Inspect (2026-11-02):** one field for a file, folder or HTTPS URL; the daemon picks the inspector (`core/src/checks/route.rs`, `bigman check`). YARA-X rules and dependency advisories sit under "More inspections". The Downloads watch in milestone 7 reuses the same routing.
+7. **Protect (2026-11-02):** keeps five sub-views (Scans, Quarantine, Startup files, Canaries, Audits); Scans opens with the last scan's status and signature age.
+8. **Previewed actions (2026-11-02):** every state change is a `core::actions::Action` with a daemon-written preview and a verb for its confirm button; reversible changes return their undo action, offered as Undo in the result; the extra acknowledgment is reserved for running unreviewed code (the installer rehearsal).
 
 Open, ask the owner when reached:
 

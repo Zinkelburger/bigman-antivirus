@@ -265,7 +265,7 @@ pub fn sandbox(store: &Store, id: &str, hash: &str, stop: &Cancel) -> Result<Rep
     let output = runner::run(&mut cmd, 90, stop)?;
     let mut r = Report::new("Restricted installer rehearsal", &original.subject);
     r.sha256 = Some(hash.into());
-    r.coverage.push("Disposable filesystem, no host home/configuration/credentials/service sockets, no network, no privileges; 90-second timeout and resource limits. A rehearsal is not proof of safety. No automatic host install or artifact promotion.".into());
+    r.coverage.push("Disposable filesystem, no host home/configuration/credentials/service sockets, no network, no privileges; 90-second timeout and resource limits. A rehearsal shows what the script tried in this one run, not what it would do elsewhere. No automatic host install or artifact promotion.".into());
     if !output.ok() {
         r.errors.push(format!("Rehearsal did not complete successfully (exit {:?}, timeout/cancel={}, truncated={}). It was not retried unrestricted.",output.code,output.interrupted,output.truncated));
     }

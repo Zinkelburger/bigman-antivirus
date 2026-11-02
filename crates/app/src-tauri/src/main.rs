@@ -1,6 +1,7 @@
 //! Bigman desktop app: a Tauri shell whose only job is to forward typed requests
 //! to bigmand and show the results. No checks run in this process.
 mod daemon;
+mod files;
 mod tray;
 
 use std::sync::Arc;
@@ -28,7 +29,12 @@ fn main() {
         .plugin(tauri_plugin_opener::init())
         .manage(Arc::new(daemon::Launcher::default()))
         .manage(tray::NotificationPause::default())
-        .invoke_handler(tauri::generate_handler![daemon::daemon_request])
+        .invoke_handler(tauri::generate_handler![
+            daemon::daemon_request,
+            daemon::daemon_cancel,
+            files::choose_path,
+            files::export_report
+        ])
         .setup(|app| {
             tray::install(app.handle())?;
             Ok(())

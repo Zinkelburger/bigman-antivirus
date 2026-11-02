@@ -9,10 +9,11 @@ interface PathPickerProps {
   /** Opens the desktop's file chooser; absent in browser dev mode. */
   onBrowse?: (() => void) | undefined;
   placeholder?: string;
+  autoFocus?: boolean;
 }
 
 /** A path typed or chosen. Validation happens in core, exactly as for the CLI. */
-export function PathPicker({ label, value, onChange, onBrowse, placeholder }: PathPickerProps) {
+export function PathPicker({ label, value, onChange, onBrowse, placeholder, autoFocus = false }: PathPickerProps) {
   const id = useId();
   return (
     <div className="flex flex-col gap-1">
@@ -25,6 +26,8 @@ export function PathPicker({ label, value, onChange, onBrowse, placeholder }: Pa
           value={value}
           spellCheck={false}
           placeholder={placeholder}
+          // Only set when the user asked for a fresh start ("Inspect something else").
+          autoFocus={autoFocus}
           onChange={(e) => onChange(e.target.value)}
           className="h-8 min-w-0 flex-1 rounded-control border border-rule-strong bg-surface px-3 font-mono text-small text-ink placeholder:text-ink-muted"
         />

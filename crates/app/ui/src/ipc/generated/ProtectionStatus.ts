@@ -8,4 +8,8 @@ export type ProtectionStatus = { checked_at: number, tools: Array<ToolState>, si
 /**
  * The canary monitor's latest heartbeat, when it is fresh.
  */
-monitor: MonitorHealth | null, last_scan: Report | null, };
+monitor: MonitorHealth | null, last_scan: Report | null, 
+/**
+ * The folder scans and the browser extension default to.
+ */
+downloads: string, };

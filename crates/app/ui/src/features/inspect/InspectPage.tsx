@@ -1,11 +1,162 @@
-import { EmptyState, PageHeader } from "@/design";
+import type { ColumnDef } from "@tanstack/react-table";
+import { useState } from "react";
+import {
+  ActionButton,
+  ago,
+  CheckStatus,
+  DaemonGate,
+  DataTable,
+  nowSeconds,
+  PageHeader,
+  PathPicker,
+  ReportById,
+  reportSeverity,
+  reportStatus,
+  reportTitle,
+  SeverityBadge,
+  useDrilldown,
+} from "@/design";
+import { desktopShell, useCheck, useHistory, type Report } from "@/ipc";
+
+const KINDS = new Set(["Installer inspection", "Restricted installer rehearsal", "Package script inventory", "PDF triage", "YARA-X scan", "osv integration"]);
+
+const columns = (now: number): ColumnDef<Report>[] => [
+  { id: "when", header: "When", accessorFn: (r) => r.created, cell: ({ row }) => ago(row.original.created, now), meta: { width: "9rem" } },
+  { id: "kind", header: "Inspection", accessorFn: (r) => reportTitle(r.kind), meta: { width: "12rem" } },
+  { accessorKey: "subject", header: "Of", meta: { mono: true } },
+  {
+    id: "result",
+    header: "Result",
+    accessorFn: (r) => reportStatus(r),
+    cell: ({ row }) => {
+      const severity = reportSeverity(row.original);
+      return severity && severity !== "info" ? <SeverityBadge severity={severity} /> : reportStatus(row.original);
+    },
+    meta: { width: "14rem" },
+  },
+];
+
+/** Expert inspections that need extra input or send data off the machine. */
+function MoreInspections({ onRun, busy }: { onRun: (request: "yara" | "osv", target: string, rules: string) => void; busy: boolean }) {
+  const [rules, setRules] = useState("");
+  const [target, setTarget] = useState("");
+  const choose = async (kind: "file" | "directory", title: string, set: (v: string) => void) => {
+    const chosen = await desktopShell().choosePath(kind, title);
+    if (chosen) set(chosen);
+  };
+  return (
+    <details className="rounded-panel border border-rule bg-surface p-4">
+      <summary className="cursor-pointer font-semibold text-ink">More inspections: YARA-X rules and dependency advisories</summary>
+      <div className="mt-3 flex flex-col gap-3">
+        <PathPicker label="File or folder" value={target} onChange={setTarget} onBrowse={() => void choose("directory", "Choose what to scan", setTarget)} />
+        <PathPicker label="YARA-X rules file you reviewed" value={rules} onChange={setRules} onBrowse={() => void choose("file", "Choose a YARA-X rules file", setRules)} />
+        <p className="m-0 max-w-[56ch] text-small text-ink-muted">
+          Rule matches are results of those rules, not proof of malware. Dependency advisories run OSV-Scanner on a
+          project folder and send its package names and versions to osv.dev.
+        </p>
+        <div className="flex gap-2">
+          <ActionButton disabled={busy || !target || !rules} onClick={() => onRun("yara", target, rules)}>
+            Scan with these rules
+          </ActionButton>
+          <ActionButton disabled={busy || !target} onClick={() => onRun("osv", target, rules)}>
+            Check dependency advisories
+          </ActionButton>
+        </div>
+      </div>
+    </details>
+  );
+}
 
 export function InspectPage() {
+  const check = useCheck();
+  const history = useHistory();
+  const open = useDrilldown((s) => s.open);
+  const [target, setTarget] = useState("");
+  const [ranOn, setRanOn] = useState("");
+  const [again, setAgain] = useState(false);
+  const now = nowSeconds();
+  const recent = (history.data ?? []).filter((r) => KINDS.has(r.kind));
+
+  const browse = async () => {
+    const chosen = await desktopShell().choosePath("file", "Choose what to inspect");
+    if (chosen) setTarget(chosen);
+  };
+  const inspect = () => {
+    setRanOn(target);
+    check.mutate({ type: "inspect_any", target });
+  };
+  const showForm = !check.data && !check.isPending;
+
   return (
     <>
       <PageHeader title="Inspect" />
-      <div className="px-6 py-5">
-        <EmptyState>Installers, packages, PDFs and repositories you inspect before running them are read here, without executing anything.</EmptyState>
+      <div className="flex flex-col gap-5 px-6 py-5">
+        <DaemonGate>
+          {showForm ? (
+            <form
+              aria-label="Inspect"
+              className="flex flex-col gap-3"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (target) inspect();
+              }}
+            >
+              <p className="m-0 max-w-[56ch] text-ink-muted">
+                Bigman reads it and says what it can do, without running it. Installer scripts are saved byte for
+                byte; packages, projects and PDFs are read as data. HTTPS URLs are fetched once, without your
+                proxies or credentials.
+              </p>
+              <PathPicker label="File, folder or HTTPS URL" value={target} onChange={setTarget} onBrowse={() => void browse()} placeholder="https://example.org/install.sh" autoFocus={again} />
+              <div>
+                <ActionButton type="submit" variant="primary" disabled={!target}>
+                  Inspect
+                </ActionButton>
+              </div>
+            </form>
+          ) : (
+            <div className="flex flex-wrap items-center gap-3 rounded-panel border border-rule bg-surface px-4 py-2">
+              <span className="min-w-0 flex-1 truncate font-mono text-small text-ink" title={ranOn}>
+                {ranOn}
+              </span>
+              <ActionButton
+                variant="quiet"
+                disabled={check.isPending}
+                onClick={() => {
+                  setAgain(true);
+                  check.reset();
+                }}
+              >
+                Inspect something else
+              </ActionButton>
+            </div>
+          )}
+          <CheckStatus check={check} running={`Inspecting ${ranOn}`} />
+          {showForm && (
+            <MoreInspections
+              busy={check.isPending}
+              onRun={(kind, path, rules) => {
+                setRanOn(path);
+                check.mutate(kind === "yara" ? { type: "yara", rules, target: path } : { type: "audit", tool: "osv", path });
+              }}
+            />
+          )}
+          {recent.length > 0 && (
+            <section aria-labelledby="recent-inspections" className="flex flex-col gap-2">
+              <h2 id="recent-inspections" className="m-0 text-body font-semibold text-ink">
+                Recent inspections
+              </h2>
+              <DataTable
+                label="Recent inspections"
+                columns={columns(now)}
+                data={recent}
+                getRowId={(r) => r.id}
+                initialSorting={[{ id: "when", desc: true }]}
+                onOpen={(r) => open({ title: reportTitle(r.kind), content: <ReportById id={r.id} /> })}
+                height={280}
+              />
+            </section>
+          )}
+        </DaemonGate>
       </div>
     </>
   );

@@ -27,6 +27,11 @@ impl Client {
             next_id: 1,
         })
     }
+    /// A handle that cancels the request in flight on this connection: the daemon
+    /// sees the client's side close, stops the job and still sends its report.
+    pub fn canceller(&self) -> Result<Canceller> {
+        Ok(Canceller(self.writer.try_clone()?))
+    }
     /// Bounds how long a single request may wait for its response.
     pub fn set_timeout(&self, timeout: Option<Duration>) -> Result<()> {
         self.writer.set_read_timeout(timeout)?;
@@ -46,6 +51,14 @@ impl Client {
             );
         }
         Ok(frame.response)
+    }
+}
+
+pub struct Canceller(UnixStream);
+
+impl Canceller {
+    pub fn cancel(&self) {
+        let _ = self.0.shutdown(std::net::Shutdown::Write);
     }
 }
 

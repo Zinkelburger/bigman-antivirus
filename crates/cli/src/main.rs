@@ -1,7 +1,8 @@
-mod gui;
 use anyhow::{bail, Result};
 use bigman_core::{
-    checks::{canary, changes, doctor, inspect, integrations, packages, pdf, scan, setup, shell},
+    checks::{
+        canary, changes, doctor, inspect, integrations, packages, pdf, route, scan, setup, shell,
+    },
     ipc::{self, client::Client},
     model::{self, Report},
     runner, store,
@@ -28,9 +29,14 @@ struct Cli {
 }
 #[derive(Subcommand)]
 enum Commands {
+    /// Open the desktop app.
     Gui,
     Doctor,
     Inspect {
+        target: String,
+    },
+    /// Inspect a file, folder or HTTPS URL with the inspector that fits it.
+    Check {
         target: String,
     },
     Packages {
@@ -178,11 +184,11 @@ fn run() -> Result<()> {
     })?;
     let report = match cli.command {
         Some(Commands::Gui) => {
-            gui::run_gui(store).map_err(|e| anyhow::anyhow!(e.to_string()))?;
+            open_app()?;
             None
         }
         None if std::io::stdin().is_terminal() => {
-            gui::run_gui(store).map_err(|e| anyhow::anyhow!(e.to_string()))?;
+            open_app()?;
             None
         }
         None => {
@@ -201,6 +207,7 @@ fn run() -> Result<()> {
         }
         Some(Commands::Doctor) => Some(doctor::doctor(&store, &stop)?),
         Some(Commands::Inspect { target }) => Some(inspect::inspect(&store, &target, &stop)?),
+        Some(Commands::Check { target }) => Some(route::inspect_any(&store, &target, &stop)?),
         Some(Commands::Packages { path }) => Some(packages::packages(&store, &path)?),
         Some(Commands::PackagePolicy { path, apply }) => {
             println!("{}", packages::policy(&path, apply)?);
@@ -336,10 +343,7 @@ fn run() -> Result<()> {
             None
         }
         Some(Commands::NativeInstall { extension_id }) => {
-            for browser in ["google-chrome", "chromium"] {
-                let p = home_config()
-                    .join(browser)
-                    .join("NativeMessagingHosts/com.bigman.pdf_scanner.json");
+            for p in setup::native_manifest_paths() {
                 setup::write_native_manifest(&p, &extension_id)?;
                 println!("Registered {}", p.display());
             }
@@ -365,6 +369,15 @@ fn run() -> Result<()> {
     }
     Ok(())
 }
+/// The desktop app is a separate binary installed next to this one.
+fn open_app() -> Result<()> {
+    let app = runner::sibling_executable("bigman-app").map_err(|_| {
+        anyhow::anyhow!(
+            "The Bigman desktop app is not installed next to this binary. Install it with ./install.sh, or use the CLI commands (bigman --help)."
+        )
+    })?;
+    runner::spawn_detached(&mut std::process::Command::new(app))
+}
 fn daemon_status(json: bool) -> Result<()> {
     let mut client = Client::connect()?;
     client.set_timeout(Some(std::time::Duration::from_secs(5)))?;
@@ -381,9 +394,4 @@ fn daemon_status(json: bool) -> Result<()> {
         other => bail!("Unexpected daemon response: {other:?}"),
     }
     Ok(())
-}
-fn home_config() -> PathBuf {
-    std::env::var_os("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| store::home().join(".config"))
 }

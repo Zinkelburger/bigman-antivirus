@@ -17,6 +17,8 @@ export interface PreviewDialogProps {
   undo?: { label: string; run: () => Promise<ReactNode> } | undefined;
   /** ConfirmDanger requires an acknowledgment before confirming. */
   acknowledgment?: string | undefined;
+  /** False until the plan has loaded; confirming is not possible before. */
+  ready?: boolean;
 }
 
 type Phase = { step: "plan" } | { step: "running" } | { step: "result"; result: ReactNode } | { step: "error"; message: string };
@@ -31,6 +33,7 @@ export function PreviewDialog({
   onConfirm,
   undo,
   acknowledgment,
+  ready = true,
 }: PreviewDialogProps) {
   const [phase, setPhase] = useState<Phase>({ step: "plan" });
   const [acknowledged, setAcknowledged] = useState(false);
@@ -58,7 +61,7 @@ export function PreviewDialog({
           <div className="flex items-center justify-between gap-4 border-b border-rule px-5 py-3">
             <Dialog.Title className="text-title font-semibold text-ink">{title}</Dialog.Title>
             <Dialog.Close
-              aria-label="Close"
+              aria-label="Close dialog"
               disabled={phase.step === "running"}
               className="cursor-pointer rounded-control p-1 text-ink-muted hover:bg-sunken"
             >
@@ -115,7 +118,7 @@ export function PreviewDialog({
                 <ActionButton
                   variant="primary"
                   busy={phase.step === "running"}
-                  disabled={acknowledgment !== undefined && !acknowledged}
+                  disabled={!ready || (acknowledgment !== undefined && !acknowledged)}
                   onClick={() => void run(onConfirm)}
                 >
                   {confirmLabel}

@@ -3,7 +3,10 @@ import type { Response } from "./generated/Response";
 
 /** How the UI reaches bigmand: the Tauri shell in the app, fixtures in browser dev mode. */
 export interface Transport {
-  request(request: Request): Promise<Response>;
+  /** A `token` lets the request be cancelled with `cancel(token)`. */
+  request(request: Request, token?: string): Promise<Response>;
+  /** Cancels a running request; it still resolves, with its cancelled report. */
+  cancel(token: string): Promise<void>;
 }
 
 /** bigmand could not be reached. Views show the Disconnected state. */
@@ -35,8 +38,9 @@ type ValueOf<K extends Response["type"]> = Extract<Response, { type: K }> extend
 export async function call<K extends Exclude<Response["type"], "error">>(
   request: Request,
   expect: K,
+  token?: string,
 ): Promise<ValueOf<K>> {
-  const response = await transport().request(request);
+  const response = await transport().request(request, token);
   if (response.type === "error") throw new DaemonError(response.value.message);
   if (response.type !== expect) {
     throw new DaemonError(`Expected a ${expect} response, received ${response.type}`);

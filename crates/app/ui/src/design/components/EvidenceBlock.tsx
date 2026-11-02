@@ -10,8 +10,8 @@ interface EvidenceBlockProps {
   highlight?: readonly number[] | undefined;
   /** Number of the first line, for excerpts. */
   startLine?: number;
-  /** Shows a note beside highlighted lines, such as the rule that matched. */
-  notes?: Readonly<Record<number, string>> | undefined;
+  /** A note beside a highlighted line, such as the rule that matched, in its severity's color. */
+  notes?: Readonly<Record<number, { text: string; tone: "review" | "high" }>> | undefined;
   maxLines?: number;
 }
 
@@ -57,7 +57,7 @@ export function EvidenceBlock({
           return (
             <div
               key={i}
-              className={`grid grid-cols-[auto_minmax(0,1fr)] gap-3 px-3 ${hit ? "bg-review-soft" : ""}`}
+              className={`grid grid-cols-[auto_minmax(0,1fr)] gap-3 px-3 ${hit ? (notes[n]?.tone === "high" ? "bg-high-soft" : "bg-review-soft") : ""}`}
             >
               {numbered ? (
                 <span aria-hidden className="w-8 text-right text-ink-muted select-none">
@@ -69,7 +69,9 @@ export function EvidenceBlock({
               <span className="break-words whitespace-pre-wrap">
                 {line || " "}
                 {hit && notes[n] && (
-                  <span className="ml-3 font-sans font-semibold text-review">{notes[n]}</span>
+                  <span className={`ml-3 font-sans font-semibold ${notes[n].tone === "high" ? "text-high" : "text-review"}`}>
+                    {notes[n].text}
+                  </span>
                 )}
               </span>
             </div>

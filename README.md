@@ -6,28 +6,21 @@ Results say **findings to review**, **no findings from these checks**, or **inco
 
 ## Start
 
-Requirements: Linux, a current stable Rust toolchain, and a graphical desktop for the GUI. Build checks were run with Rust 1.98. The CLI works without a graphical session. Optional system tools are discovered at runtime.
-
-```sh
-cargo build --locked
-./target/debug/bigman gui
-```
-
-For a user-local binary and application-menu entry:
+Requirements: Linux, a current stable Rust toolchain, Node.js 22 with npm, and WebKitGTK development files for the desktop app (see [Desktop app](#desktop-app)). Build checks were run with Rust 1.98. The CLI works without a graphical session. Optional system tools are discovered at runtime.
 
 ```sh
 ./install.sh
 ```
 
-This builds the locked release and installs under `~/.local`. It does not install antivirus packages, change firewall policy, register browser hosts, start monitors, or enable schedules. Use the app’s **Tools & setup** page to review and apply those supported actions.
+This builds the locked release of `bigman` (CLI), `bigmand` (the per-user daemon that runs every check) and `bigman-app` (the desktop app), and installs them under `~/.local` with an application-menu entry. It does not install antivirus packages, change firewall policy, register browser hosts, start monitors, or enable schedules. Use the app's **Setup** tab to review and apply those supported actions; each one shows exactly what will change before it runs.
 
 Recommended first use:
 
-1. Run **Check my system**.
-2. Install the ClamAV group if needed, then **Update definitions** and scan Downloads.
-3. Review **Startup changes** before accepting an initial baseline.
-4. Open **Canary tripwires** and click **Create, monitor and test locally**. The result must say **Local read detection verified**; any startup failure is shown separately.
-5. Enable the per-user monitor, daily scan and definition-update timers if wanted.
+1. On **Overview**, click **Run checkup**.
+2. In **Setup**, install the ClamAV group if needed. In **Protect → Scans**, click **Update signatures**, then scan Downloads.
+3. In **Protect → Startup files**, compare and review the inventory before accepting an initial baseline.
+4. In **Protect → Canaries**, click **Create, monitor and test…**. The result must say **Local read detection verified**; any startup failure is shown separately.
+5. In **Setup**, install the background services if you want the monitor and the daily scan and update timers.
 
 Package installation plans support Fedora, Debian and Ubuntu. Packages come from the user's configured repositories and administrator authentication uses polkit. Repository availability can vary; failures remain visible. Bigman does not add package repositories or disable existing security services.
 
@@ -50,7 +43,7 @@ Package installation plans support Fedora, Debian and Ubuntu. Packages come from
 | Optional integrations | Lynis report findings, OSV advisory matching, osquery process JSON, user-supplied YARA-X rules, OpenSnitch launch/setup | External tools must be installed; adapters preserve failures and raw evidence |
 | Browser checks | Text/destination mismatch, lookalikes, selected Unicode confusables, ClickFix text combinations, user-imported blocklists, warning pages and expiring exceptions | Limited page/link heuristics; no remote reputation requests or complete navigation interception |
 | Background services | Rootless monitor, daily Downloads scan and private ClamAV update timers | Explicit installation/removal; follows user session; no lingering or system services enabled |
-| History/export | Private JSON reports, coverage, errors and evidence shared by CLI, GUI and native host | Export is explicit; reports can contain local paths and inspected source |
+| History/export | Private JSON reports, coverage, errors and evidence shared by the CLI, the desktop app's Activity tab and the native host | Export is explicit; reports can contain local paths and inspected source |
 
 ## CLI
 
@@ -93,7 +86,7 @@ Quarantine identifiers and indexed scan items:
 
 ```sh
 # Item indexes and hashes are in STATE/artifacts/REPORT_ID.scan.json.
-# The desktop provides a Quarantine button for each matched item.
+# In the app, open a scan in Protect → Scans and use Quarantine… on a flagged file.
 bigman quarantine REPORT_ID ITEM_INDEX
 bigman quarantined
 bigman restore QUARANTINE_ID
@@ -101,7 +94,7 @@ bigman restore QUARANTINE_ID
 
 ## Canaries and monitoring
 
-The default is entirely local: no Canarytokens account, API key, paid service or internet connection is needed. In the desktop, choose **Canary tripwires → Create, monitor and test locally**. The CLI equivalent is:
+The default is entirely local: no Canarytokens account, API key, paid service or internet connection is needed. In the app, choose **Protect → Canaries → Create, monitor and test…**. The CLI equivalent is:
 
 ```sh
 bigman canary arm
@@ -197,7 +190,7 @@ The main-page popup summarizes the main document. Content scripts also check acc
 
 State defaults to `$XDG_DATA_HOME/bigman` or `~/.local/share/bigman`. Use an absolute `--state /path/to/private-directory` for separate profiles/tests. Directories are mode 0700 and report/recovery files mode 0600. Writes use temporary files and atomic replacement. Existing broad-permission or symlinked state directories are refused. This protects against other ordinary users, not compromise of the same account or root.
 
-The Cargo workspace has four crates. `crates/core` holds the report model, private store, bounded process runner, daemon contract (`ipc`) and one module per check under `checks/`; it has no binaries and no UI. `crates/cli` is the `bigman` command (and, until the new desktop app reaches parity, the egui GUI). `crates/daemon` is `bigmand`, the per-user collector daemon; it currently answers `Health` on `$XDG_RUNTIME_DIR/bigman/bigmand.sock` (mode 0600, peer uid checked; `BIGMAN_SOCKET` overrides the path) and `bigman daemon status` queries it. `crates/native-host` is the browser native-messaging bridge. Rules have stable IDs and local evidence. There is no telemetry from Bigman; explicitly launched upstream tools may have their own network behavior.
+The Cargo workspace has five crates. `crates/core` holds the report model, private store, bounded process runner, daemon contract (`ipc`) and one module per check under `checks/`; it has no binaries and no UI. `crates/cli` is the `bigman` command; `bigman gui` opens the desktop app. `crates/daemon` is `bigmand`, the per-user daemon that runs every check for the app: it listens on `$XDG_RUNTIME_DIR/bigman/bigmand.sock` (mode 0600, peer uid checked; `BIGMAN_SOCKET` overrides the path), and a client that disconnects cancels its running check. `bigman daemon status` queries it. `crates/app` is the desktop app. `crates/native-host` is the browser native-messaging bridge. Rules have stable IDs and local evidence. There is no telemetry from Bigman; explicitly launched upstream tools may have their own network behavior.
 
 ```sh
 cargo fmt --check
@@ -207,12 +200,13 @@ cargo build --locked
 python3 tests/cli_integration.py target/debug/bigman
 python3 tests/canary_onboarding.py target/debug/bigman
 python3 tests/cli_golden.py target/debug/bigman
+python3 tests/daemon_integration.py target/debug
 cd browser-extension && npm run check
 ```
 
-### Desktop app (in progress)
+### Desktop app
 
-The new desktop app lives in `crates/app`: a Tauri 2 shell (`src-tauri`) and a React + TypeScript UI (`ui`). It is a thin client of `bigmand`; it never runs a check itself and starts the daemon if it is not answering. Until it reaches parity, `bigman gui` remains the egui interface.
+The new desktop app lives in `crates/app`: a Tauri 2 shell (`src-tauri`) and a React + TypeScript UI (`ui`). It is a thin client of `bigmand`; it never runs a check itself and starts the daemon if it is not answering. Every state change is a previewed action (`crates/core/src/actions.rs`): the daemon describes exactly what will change, you confirm, then it applies.
 
 ```sh
 # Fedora build dependencies for the Tauri shell
@@ -231,6 +225,6 @@ cargo run -p bigman-app      # the desktop app, using the built UI
 
 `http://127.0.0.1:1420/#/gallery` shows every design-system component in every state, light and dark. The TypeScript types for the daemon contract are generated from the Rust types by `cargo test` into `crates/app/ui/src/ipc/generated`; never edit them by hand. `tests/app_smoke.mjs` drives the built app through `tauri-driver` (install it with `cargo install tauri-driver`; it needs `WebKitWebDriver`). `cargo deny check` enforces the licence policy in `deny.toml`.
 
-`tests/cli_integration.py` uses synthetic files and a scanner contract fixture. `tests/cli_golden.py` pins the exact text and JSON output of `doctor`, `inspect`, piped inspection and `packages` against `tests/golden/`; rerun it with `--update` only after an intentional output change. `tests/canary_onboarding.py` exercises real monitoring, fresh-read verification, repeat setup, failure fallback and stop behavior; its service manager is a fixture so tests do not change the host’s login configuration. Rust tests exercise real inotify events and filesystem safeguards. Browser tests cover host parsing, Unicode, mismatches, exceptions, ClickFix rules and DOM mutations. `tests/browser_smoke.cjs` additionally exercises the built bundle with real Chrome click events using Playwright (set `BIGMAN_PLAYWRIGHT_MODULE` and optionally `BIGMAN_CHROME`). CI runs Rust/CLI and extension checks and builds an extension artifact.
+`tests/cli_integration.py` uses synthetic files and a scanner contract fixture. `tests/cli_golden.py` pins the exact text and JSON output of `doctor`, `inspect`, piped inspection and `packages` against `tests/golden/`; rerun it with `--update` only after an intentional output change. `tests/daemon_integration.py` drives the desktop app's workflows (scan, previewed quarantine and restore, inspection, package policy, baseline, canaries, history) against a real `bigmand` over its socket. `tests/canary_onboarding.py` exercises real monitoring, fresh-read verification, repeat setup, failure fallback and stop behavior; its service manager is a fixture so tests do not change the host’s login configuration. Rust tests exercise real inotify events and filesystem safeguards. Browser tests cover host parsing, Unicode, mismatches, exceptions, ClickFix rules and DOM mutations. `tests/browser_smoke.cjs` additionally exercises the built bundle with real Chrome click events using Playwright (set `BIGMAN_PLAYWRIGHT_MODULE` and optionally `BIGMAN_CHROME`). CI runs Rust/CLI and extension checks and builds an extension artifact.
 
 The historical [review](REVIEW.md) explains the original prototype and proposals. This README describes the implemented interfaces and their limits. Advanced host-wide credential-read attribution, privileged on-access blocking, incident cleanup, Windows/macOS support, provider-side token provisioning and enterprise monitoring servers are not implemented or implied by this release.

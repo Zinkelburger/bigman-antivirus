@@ -12,14 +12,17 @@ use std::{
     path::{Path, PathBuf},
     process::Command,
 };
-#[derive(Clone, Serialize, Deserialize)]
+use ts_rs::TS;
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export)]
 pub struct ScanItem {
     pub path: PathBuf,
     pub hash: String,
     pub detected: bool,
     pub signature: String,
 }
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export)]
 pub struct Quarantined {
     pub id: String,
     pub original: PathBuf,

@@ -108,32 +108,83 @@ pub fn serve(socket: &Socket, daemon: Arc<Daemon>, stop: &Cancel) -> Result<()> 
     Ok(())
 }
 
-fn connection(stream: UnixStream, daemon: &Daemon) -> Result<()> {
+enum Event {
+    Frame(ClientFrame),
+    /// The client closed its side, or sent something unreadable.
+    Closed(Option<String>),
+    Done(ServerFrame),
+}
+
+/// One client. A reader thread turns frames into events; each request runs on
+/// its own thread with a cancel flag that a disconnect sets, so a closed window
+/// or a Cancel button stops a long scan. Requests on one connection run in order.
+fn connection(stream: UnixStream, daemon: &Arc<Daemon>) -> Result<()> {
+    let (tx, rx) = std::sync::mpsc::channel::<Event>();
+    let reader_tx = tx.clone();
     let mut reader = BufReader::new(stream.try_clone()?);
-    let mut writer = stream;
-    loop {
-        let frame: ClientFrame = match read_frame(&mut reader) {
-            Ok(Some(frame)) => frame,
-            Ok(None) => return Ok(()),
-            Err(e) => {
-                // A malformed frame gets one error reply, then the connection closes.
-                write_frame(
-                    &mut writer,
-                    &ServerFrame {
-                        id: 0,
-                        response: error(format!("Invalid request: {e}")),
-                    },
-                )?;
-                return Ok(());
-            }
+    std::thread::spawn(move || loop {
+        let event = match read_frame::<ClientFrame>(&mut reader) {
+            Ok(Some(frame)) => Event::Frame(frame),
+            Ok(None) => Event::Closed(None),
+            Err(e) => Event::Closed(Some(format!("Invalid request: {e}"))),
         };
-        let response = daemon.handle(frame.request);
-        write_frame(
-            &mut writer,
-            &ServerFrame {
+        let closed = matches!(event, Event::Closed(_));
+        if reader_tx.send(event).is_err() || closed {
+            break;
+        }
+    });
+
+    let mut writer = stream;
+    let mut queue = std::collections::VecDeque::new();
+    let mut running: Option<Cancel> = None;
+    let mut closed = false;
+    let start = |frame: ClientFrame, tx: &std::sync::mpsc::Sender<Event>| -> Cancel {
+        let stop = bigman_core::runner::cancel();
+        let (daemon, job_stop, tx) = (daemon.clone(), stop.clone(), tx.clone());
+        std::thread::spawn(move || {
+            let response = daemon.handle(frame.request, &job_stop);
+            let _ = tx.send(Event::Done(ServerFrame {
                 id: frame.id,
                 response,
-            },
-        )?;
+            }));
+        });
+        stop
+    };
+    for event in rx {
+        match event {
+            Event::Frame(frame) if running.is_some() => queue.push_back(frame),
+            Event::Frame(frame) => running = Some(start(frame, &tx)),
+            Event::Closed(problem) => {
+                if let Some(message) = problem {
+                    // A malformed frame gets one error reply, then the connection closes.
+                    let _ = write_frame(
+                        &mut writer,
+                        &ServerFrame {
+                            id: 0,
+                            response: error(message),
+                        },
+                    );
+                }
+                closed = true;
+                match &running {
+                    Some(stop) => stop.store(true, Ordering::Relaxed),
+                    None => break,
+                }
+            }
+            Event::Done(frame) => {
+                running = None;
+                // A client that half-closed to cancel still reads the cancelled report.
+                if write_frame(&mut writer, &frame).is_err() {
+                    closed = true;
+                }
+                if closed {
+                    break;
+                }
+                if let Some(next) = queue.pop_front() {
+                    running = Some(start(next, &tx));
+                }
+            }
+        }
     }
+    Ok(())
 }

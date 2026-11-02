@@ -3,17 +3,18 @@ import { lazy, StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import "./design/tokens.css";
 import { applyTheme, storedTheme } from "./design/theme";
-import { DisconnectedError, setTransport, type Transport } from "./ipc";
+import { DisconnectedError, setDesktopShell, setTransport, type DesktopShell, type Transport } from "./ipc";
 import { App } from "./shell/App";
 
 const Gallery = lazy(() => import("./design/gallery/Gallery"));
 
-async function chooseTransport(): Promise<Transport> {
+async function connect(): Promise<[Transport, DesktopShell]> {
   if (import.meta.env.MODE === "browser") {
     const mock = await import("./mock/transport");
-    return mock.mockTransport(mock.scenarioFromLocation());
+    return [mock.mockTransport(mock.scenarioFromLocation()), mock.mockShell];
   }
-  return (await import("./ipc/tauri")).tauriTransport;
+  const tauri = await import("./ipc/tauri");
+  return [tauri.tauriTransport, tauri.tauriShell];
 }
 
 const queryClient = new QueryClient({
@@ -28,7 +29,9 @@ const queryClient = new QueryClient({
   },
 });
 
-setTransport(await chooseTransport());
+const [transport, shell] = await connect();
+setTransport(transport);
+setDesktopShell(shell);
 applyTheme(storedTheme());
 
 const root = document.getElementById("root");

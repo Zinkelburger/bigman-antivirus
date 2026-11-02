@@ -11,6 +11,62 @@ use std::{
 pub fn downloads() -> PathBuf {
     home().join("Downloads")
 }
+/// Optional tool groups Setup can install, with the binaries that show they are present.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, ts_rs::TS)]
+#[ts(export)]
+pub struct ToolGroup {
+    pub id: String,
+    pub label: String,
+    pub purpose: String,
+    pub installed: bool,
+}
+
+const TOOL_GROUPS: [(&str, &str, &str, &[&str]); 6] = [
+    (
+        "clamav",
+        "ClamAV",
+        "Known-malware file scanning and signature updates",
+        &["clamscan", "freshclam"],
+    ),
+    (
+        "shellcheck",
+        "ShellCheck",
+        "Shell correctness checks during installer inspection",
+        &["shellcheck"],
+    ),
+    (
+        "sandbox",
+        "Bubblewrap and strace",
+        "Offline installer rehearsal and isolated PDF parsing",
+        &["bwrap", "strace"],
+    ),
+    (
+        "pdf",
+        "Poppler utilities",
+        "PDF metadata and link extraction",
+        &["pdfinfo"],
+    ),
+    ("lynis", "Lynis", "System hardening audit", &["lynis"]),
+    (
+        "firewall",
+        "OpenSnitch",
+        "Application firewall",
+        &["opensnitch-ui"],
+    ),
+];
+
+pub fn tool_groups() -> Vec<ToolGroup> {
+    TOOL_GROUPS
+        .iter()
+        .map(|(id, label, purpose, binaries)| ToolGroup {
+            id: (*id).into(),
+            label: (*label).into(),
+            purpose: (*purpose).into(),
+            installed: binaries.iter().all(|b| runner::available(b)),
+        })
+        .collect()
+}
+
 pub fn tool_plan(tool: &str) -> Result<Vec<String>> {
     let os = fs::read_to_string("/etc/os-release").unwrap_or_default();
     let fedora = os.lines().any(|l| l == "ID=fedora");
@@ -249,6 +305,20 @@ pub fn open_tool(tool: &str) -> Result<()> {
         _ => bail!("Unsupported application"),
     };
     Ok(())
+}
+/// Chrome and Chromium per-user native-messaging host manifests.
+pub fn native_manifest_paths() -> Vec<PathBuf> {
+    let config = std::env::var_os("XDG_CONFIG_HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| home().join(".config"));
+    ["google-chrome", "chromium"]
+        .iter()
+        .map(|browser| {
+            config
+                .join(browser)
+                .join("NativeMessagingHosts/com.bigman.pdf_scanner.json")
+        })
+        .collect()
 }
 pub fn write_native_manifest(path: &Path, extension: &str) -> Result<()> {
     if extension.len() != 32 || !extension.bytes().all(|c| (b'a'..=b'p').contains(&c)) {

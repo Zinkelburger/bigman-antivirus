@@ -28,6 +28,11 @@ export function formatAge(seconds: number, now: number): string {
   return plural(Math.floor(age / 86_400), "day");
 }
 
+/** "just now", "5 minutes ago": for lists and tiles. */
+export function ago(seconds: number, now: number): string {
+  return now - seconds < 60 ? "just now" : `${formatAge(seconds, now)} ago`;
+}
+
 export function plural(n: number, word: string): string {
   return `${formatCount(n)} ${word}${n === 1 ? "" : "s"}`;
 }

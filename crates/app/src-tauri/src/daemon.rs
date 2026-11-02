@@ -1,12 +1,16 @@
 //! Forwards UI requests to bigmand. The app never runs a check itself.
 use bigman_core::{
-    ipc::{client::Client, Request, Response},
+    ipc::{
+        client::{Canceller, Client},
+        Request, Response,
+    },
     runner,
 };
 use serde::Serialize;
 use std::{
+    collections::HashMap,
     process::{Command, Stdio},
-    sync::Mutex,
+    sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
 
@@ -24,6 +28,8 @@ pub enum RequestError {
 #[derive(Default)]
 pub struct Launcher {
     last_start: Mutex<Option<Instant>>,
+    /// Requests the UI may cancel, by the token it chose.
+    running: Mutex<HashMap<String, Canceller>>,
 }
 
 const RESTART_COOLDOWN: Duration = Duration::from_secs(10);
@@ -31,15 +37,41 @@ const RESTART_COOLDOWN: Duration = Duration::from_secs(10);
 impl Launcher {
     /// One connection per request: a long scan never blocks a health poll.
     pub fn request(&self, request: Request) -> Result<Response, RequestError> {
-        match Client::connect() {
-            Ok(mut client) => client
-                .request(request)
-                .map_err(|e| RequestError::Failed(format!("{e:#}"))),
+        self.request_with_token(request, None)
+    }
+
+    pub fn request_with_token(
+        &self,
+        request: Request,
+        token: Option<String>,
+    ) -> Result<Response, RequestError> {
+        let mut client = match Client::connect() {
+            Ok(client) => client,
             Err(e) => {
                 self.start_daemon();
-                Err(RequestError::Disconnected(format!("{e:#}")))
+                return Err(RequestError::Disconnected(format!("{e:#}")));
             }
+        };
+        if let (Some(token), Ok(canceller)) = (&token, client.canceller()) {
+            self.lock_running().insert(token.clone(), canceller);
         }
+        let result = client
+            .request(request)
+            .map_err(|e| RequestError::Failed(format!("{e:#}")));
+        if let Some(token) = token {
+            self.lock_running().remove(&token);
+        }
+        result
+    }
+
+    pub fn cancel(&self, token: &str) {
+        if let Some(canceller) = self.lock_running().get(token) {
+            canceller.cancel();
+        }
+    }
+
+    fn lock_running(&self) -> std::sync::MutexGuard<'_, HashMap<String, Canceller>> {
+        self.running.lock().unwrap_or_else(|p| p.into_inner())
     }
 
     fn start_daemon(&self) {
@@ -61,11 +93,18 @@ impl Launcher {
 
 #[tauri::command]
 pub async fn daemon_request(
-    launcher: tauri::State<'_, std::sync::Arc<Launcher>>,
+    launcher: tauri::State<'_, Arc<Launcher>>,
     request: Request,
+    token: Option<String>,
 ) -> Result<Response, RequestError> {
     let launcher = launcher.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || launcher.request(request))
+    tauri::async_runtime::spawn_blocking(move || launcher.request_with_token(request, token))
         .await
         .map_err(|e| RequestError::Failed(e.to_string()))?
+}
+
+/// Cancels the request started with this token; its cancelled report still arrives.
+#[tauri::command]
+pub fn daemon_cancel(launcher: tauri::State<'_, Arc<Launcher>>, token: String) {
+    launcher.cancel(&token);
 }

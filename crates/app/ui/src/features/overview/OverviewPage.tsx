@@ -3,7 +3,7 @@ import {
   ActionButton,
   DataTable,
   fold,
-  formatAge,
+  ago,
   IncompleteNotice,
   KeyValue,
   nowSeconds,
@@ -11,7 +11,9 @@ import {
   plural,
   ProgressRow,
   reportOccurrences,
+  ReportById,
   ReportPanel,
+  reportTitle,
   reportSeverity,
   reportStatus,
   Select,
@@ -26,7 +28,7 @@ import {
 } from "@/design";
 import {
   DisconnectedError,
-  useDoctor,
+  useCheck,
   useHistory,
   useStatus,
   type ProtectionStatus,
@@ -69,7 +71,7 @@ function ToolsPanel({ status, now }: { status: ProtectionStatus; now: number }) 
   const r = readiness(status, now);
   return (
     <div className="flex flex-col gap-4">
-      <p className="m-0 max-w-[65ch] text-ink-muted">
+      <p className="m-0 max-w-[56ch] text-ink-muted">
         These are Bigman&apos;s own tools, not findings about your computer. Missing tools only limit the checks that
         need them.
       </p>
@@ -119,7 +121,7 @@ function ResultLine({ reports, status, rangeLabel, now }: { reports: Report[]; s
           <p className="m-0 text-body font-semibold text-ink">
             Findings to review: {plural(toReview.length, "result")} from the {rangeLabel.toLowerCase()}.
           </p>
-          <ActionButton variant="quiet" onClick={() => open({ title: first.kind, content: <ReportPanel report={first} now={now} /> })}>
+          <ActionButton variant="quiet" onClick={() => open({ title: reportTitle(first.kind), content: <ReportById id={first.id} /> })}>
             Open the latest
           </ActionButton>
         </div>
@@ -141,7 +143,7 @@ function ResultLine({ reports, status, rangeLabel, now }: { reports: Report[]; s
 export function OverviewPage() {
   const status = useStatus();
   const history = useHistory();
-  const doctor = useDoctor();
+  const doctor = useCheck();
   const open = useDrilldown((s) => s.open);
   const toast = useToasts((s) => s.push);
   const { range, setRange } = useShell();
@@ -163,7 +165,7 @@ export function OverviewPage() {
   const entries = fold(reportOccurrences(history.data ?? [])).filter((e) => e.at >= since);
 
   const runCheckup = () =>
-    doctor.mutate(undefined, {
+    doctor.mutate({ type: "doctor" }, {
       onSuccess: (report) => {
         toast("Checkup finished.");
         open({ title: "Checkup", content: <ReportPanel report={report} now={nowSeconds()} /> });
@@ -197,7 +199,14 @@ export function OverviewPage() {
         {status.isError && !disconnected && (
           <IncompleteNotice title="Bigman could not report its status" errors={[status.error.message]} />
         )}
-        {doctor.isPending && <ProgressRow label="Running the checkup" detail="Read-only: tools, signatures, canaries and listening programs." progress={null} />}
+        {doctor.isPending && (
+          <ProgressRow
+            label="Running the checkup"
+            detail="Read-only: tools, signatures, canaries and listening programs."
+            progress={null}
+            onCancel={doctor.cancel}
+          />
+        )}
         {doctor.isError && <IncompleteNotice title="The checkup did not finish" errors={[doctor.error.message]} />}
         {data && history.data && <ResultLine reports={inRange} status={data} rangeLabel={rangeLabel} now={now} />}
 
@@ -233,11 +242,11 @@ export function OverviewPage() {
                 : !scan
                   ? "Scans of Downloads appear here."
                   : scanStatus === "Incomplete"
-                    ? `${plural(scan.coverage.skipped.length + scan.errors.length, "item")} not checked · ${formatAge(scan.created, now)} ago`
-                    : `${scan.subject} · ${formatAge(scan.created, now)} ago`
+                    ? `${plural(scan.coverage.skipped.length + scan.errors.length, "item")} not checked · ${ago(scan.created, now)}`
+                    : `${scan.subject} · ${ago(scan.created, now)}`
             }
             severity={scanSeverity === "info" ? null : scanSeverity}
-            onOpen={scan ? () => open({ title: "Last scan", content: <ReportPanel report={scan} now={now} /> }) : undefined}
+            onOpen={scan ? () => open({ title: "Last scan", content: <ReportById id={scan.id} /> }) : undefined}
           />
           <StatusTile
             label="Updates"
@@ -261,12 +270,11 @@ export function OverviewPage() {
               entries={entries}
               now={now}
               onOpen={(entry) => {
-                const report = history.data?.find((r) => r.id === entry.id);
-                if (report) open({ title: report.kind, content: <ReportPanel report={report} now={now} /> });
+                open({ title: entry.source, content: <ReportById id={entry.id} /> });
               }}
               empty={
                 <>
-                  <p className="m-0 max-w-[65ch]">
+                  <p className="m-0 max-w-[56ch]">
                     Each check you run is entered here the first time; later runs of the same check fold under it.
                   </p>
                   <ActionButton disabled={doctor.isPending} onClick={runCheckup}>

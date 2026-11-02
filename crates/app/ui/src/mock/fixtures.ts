@@ -79,6 +79,7 @@ export const scanIncomplete = report({
 export const statusScenarios: Record<string, ProtectionStatus> = {
   findings: {
     checked_at: NOW,
+    downloads: "/home/sam/Downloads",
     tools: tools(["lynis", "osv-scanner", "osqueryi", "yr", "pdfid.py", "pdf-parser.py"]),
     signatures: { updated: days(5), location: "/var/lib/clamav" },
     monitor: {
@@ -93,6 +94,7 @@ export const statusScenarios: Record<string, ProtectionStatus> = {
   },
   calm: {
     checked_at: NOW,
+    downloads: "/home/sam/Downloads",
     tools: tools([]),
     signatures: { updated: minutes(180), location: "/home/sam/.local/share/bigman/signatures" },
     monitor: {
@@ -107,6 +109,7 @@ export const statusScenarios: Record<string, ProtectionStatus> = {
   },
   incomplete: {
     checked_at: NOW,
+    downloads: "/home/sam/Downloads",
     tools: tools(["shellcheck", "strace"]),
     signatures: { updated: minutes(600), location: "/var/lib/clamav" },
     monitor: null,
@@ -114,6 +117,7 @@ export const statusScenarios: Record<string, ProtectionStatus> = {
   },
   empty: {
     checked_at: NOW,
+    downloads: "/home/sam/Downloads",
     tools: tools(TOOL_LIST.map(([name]) => name)),
     signatures: null,
     monitor: null,
@@ -158,6 +162,9 @@ export function history(scenario: string): Report[] {
       created: at(8),
       kind: "Installer inspection",
       subject: "/home/sam/Downloads/install-tool.sh",
+      sha256: "4397ea1f9014f4ae085fb4f108db3aaa16f00d5711ff5070fb36d4117b18f87e",
+      details: '#!/bin/sh\necho "Installing example tool"\ncurl -fsSL https://example.org/tool.tar.gz -o /tmp/tool.tar.gz\ncurl -fsSL https://example.org/setup.sh | sh\nsudo install -m 0755 /tmp/tool /usr/local/bin/tool',
+      coverage: { checked: ["Capability rules"], notes: ["Static capability rules only. No code was executed."], skipped: [] },
       findings:
         scenario === "calm"
           ? []
@@ -166,7 +173,7 @@ export function history(scenario: string): Report[] {
                 rule: "shell.execute-download",
                 severity: "high",
                 summary: "Downloads and executes code",
-                evidence: "Line 5: curl -fsSL https://example.org/setup.sh | sh",
+                evidence: "Line 4: curl -fsSL https://example.org/setup.sh | sh",
                 action: "Save and inspect the exact downloaded bytes first.",
               },
             ],

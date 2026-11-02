@@ -132,7 +132,18 @@ impl Store {
             r.errors.len()
         )];
         summary.coverage.skipped.truncate(20);
+        // Most severe first, so truncation never drops a High finding behind lesser ones.
+        summary.findings.sort_by_key(|f| std::cmp::Reverse(f.severity));
         summary.findings.truncate(20);
+        summary.summary = Some(crate::model::SummaryCounts {
+            findings: r.findings.len() as u32,
+            to_review: r
+                .findings
+                .iter()
+                .filter(|f| f.severity != crate::model::Severity::Info)
+                .count() as u32,
+            errors: r.errors.len() as u32,
+        });
         for finding in &mut summary.findings {
             finding.evidence = finding.evidence.chars().take(1000).collect();
         }
@@ -195,6 +206,35 @@ mod tests {
         let r = Report::new("test", "fixture");
         s.save(&r).unwrap();
         assert_eq!(s.history().unwrap()[0].id, r.id);
+        // Summaries keep the most severe findings and their true counts.
+        let mut long = Report::new("Installer inspection", "fixture");
+        for i in 0..25 {
+            long.add(
+                "shell.download",
+                crate::model::Severity::Review,
+                "Downloads",
+                i,
+                "",
+            );
+        }
+        long.add(
+            "shell.execute-download",
+            crate::model::Severity::High,
+            "Executes",
+            26,
+            "",
+        );
+        s.save(&long).unwrap();
+        let summary = s
+            .history()
+            .unwrap()
+            .into_iter()
+            .find(|h| h.id == long.id)
+            .unwrap();
+        assert_eq!(summary.findings[0].rule, "shell.execute-download");
+        assert_eq!(summary.findings.len(), 20);
+        assert_eq!(summary.summary.unwrap().to_review, 26);
+        assert!(s.report(&long.id).unwrap().summary.is_none());
         assert!(s.path("../escape").is_err());
         assert_eq!(
             fs::metadata(s.root.join("reports")).unwrap().mode() & 0o777,

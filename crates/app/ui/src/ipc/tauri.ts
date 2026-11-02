@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { Response } from "./generated/Response";
+import type { DesktopShell } from "./shell";
 import { DaemonError, DisconnectedError, type Transport } from "./transport";
 
 /** The shell's `RequestError` (src-tauri/src/daemon.rs). */
@@ -12,14 +13,32 @@ function isShellError(value: unknown): value is ShellError {
   return typeof value === "object" && value !== null && "kind" in value && "message" in value;
 }
 
+function rethrow(error: unknown): never {
+  if (isShellError(error) && error.kind === "failed") throw new DaemonError(error.message);
+  throw new DisconnectedError(isShellError(error) ? error.message : String(error));
+}
+
 /** The desktop shell forwards each request to bigmand over its private socket. */
 export const tauriTransport: Transport = {
-  async request(request) {
+  async request(request, token) {
     try {
-      return await invoke<Response>("daemon_request", { request });
+      return await invoke<Response>("daemon_request", { request, token: token ?? null });
     } catch (error) {
-      if (isShellError(error) && error.kind === "failed") throw new DaemonError(error.message);
-      throw new DisconnectedError(isShellError(error) ? error.message : String(error));
+      rethrow(error);
+    }
+  },
+  async cancel(token) {
+    await invoke("daemon_cancel", { token });
+  },
+};
+
+export const tauriShell: DesktopShell = {
+  choosePath: (kind, title) => invoke<string | null>("choose_path", { kind, title }),
+  async exportReport(id) {
+    try {
+      return await invoke<string | null>("export_report", { id });
+    } catch (error) {
+      rethrow(error);
     }
   },
 };

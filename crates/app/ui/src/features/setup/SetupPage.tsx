@@ -1,11 +1,178 @@
-import { EmptyState, PageHeader } from "@/design";
+import { Circle, CircleCheck, Dot } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import {
+  ActionButton,
+  ActionDialog,
+  applyTheme,
+  IncompleteNotice,
+  PageHeader,
+  Select,
+  Skeleton,
+  storedTheme,
+  nowSeconds,
+  signatureAge,
+  TextField,
+  type ThemeChoice,
+} from "@/design";
+import { useQueryClient } from "@tanstack/react-query";
+import { DisconnectedError, useHealth, useOpenTool, useStatus, useToolGroups } from "@/ipc";
+
+/**
+ * One line of the checklist. `done` is true or false for steps that can be
+ * completed; null for settings and information, which get a neutral marker.
+ */
+function Item({ title, done, children }: { title: string; done: boolean | null; children: ReactNode }) {
+  const Mark = done === null ? Dot : done ? CircleCheck : Circle;
+  return (
+    <li className="grid grid-cols-[1.25rem_minmax(0,1fr)] gap-x-3 border-b border-rule py-4 last:border-b-0">
+      <Mark aria-hidden size={18} className={`mt-0.5 ${done ? "text-ink" : "text-ink-muted"}`} />
+      <div className="flex min-w-0 flex-col gap-2">
+        <h2 className="m-0 text-body font-semibold text-ink">
+          {title}
+          {done !== null && <span className="sr-only">{done ? " (done)" : " (not done)"}</span>}
+        </h2>
+        {children}
+      </div>
+    </li>
+  );
+}
+
+const THEMES: readonly { value: ThemeChoice; label: string }[] = [
+  { value: "system", label: "Follow the system" },
+  { value: "light", label: "Light" },
+  { value: "dark", label: "Dark" },
+];
+
+function Tools({ disabled }: { disabled: boolean }) {
+  const groups = useToolGroups();
+  const openTool = useOpenTool();
+  if (disabled) return <p className="m-0 text-small text-ink-muted">Shown once background checks are running.</p>;
+  if (groups.isPending) return <Skeleton shape="rows" count={3} />;
+  if (groups.isError) return <IncompleteNotice title="Tools could not be listed" errors={[groups.error.message]} />;
+  return (
+    <ul className="m-0 flex list-none flex-col gap-2 p-0">
+      {groups.data.map((g) => (
+        <li key={g.id} className="flex min-h-8 flex-wrap items-center justify-between gap-x-4 gap-y-1">
+          <span className="min-w-0">
+            <span className="font-semibold text-ink">{g.label}</span>
+            <span className="text-ink-muted"> · {g.purpose}</span>
+          </span>
+          {g.installed ? (
+            g.id === "firewall" ? (
+              <ActionButton variant="quiet" disabled={openTool.isPending} onClick={() => openTool.mutate("firewall")}>
+                Open OpenSnitch
+              </ActionButton>
+            ) : (
+              <span className="text-small text-ink-muted">Installed</span>
+            )
+          ) : (
+            <ActionDialog action={{ kind: "install_tool", tool: g.id }} label="Install…" variant="quiet" />
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 export function SetupPage() {
+  const health = useHealth();
+  const client = useQueryClient();
+  const groups = useToolGroups();
+  const status = useStatus();
+  const [extension, setExtension] = useState("");
+  const [theme, setTheme] = useState<ThemeChoice>(storedTheme);
+  const validExtension = /^[a-p]{32}$/.test(extension);
+  const down = health.error instanceof DisconnectedError;
+  const clamav = groups.data?.find((g) => g.id === "clamav")?.installed;
+  const signatures = status.data?.signatures;
+  const scanning = clamav === undefined || !status.data ? null : clamav && signatures !== null && nowSeconds() - (signatures?.updated ?? 0) <= 3 * 86_400;
+
   return (
     <>
       <PageHeader title="Setup" />
-      <div className="px-6 py-5">
-        <EmptyState>Optional tools, background services and notification settings are installed and changed here, always previewed first.</EmptyState>
+      <div className="px-6 py-2">
+        <ul className="m-0 list-none p-0">
+          <Item title="Background checks" done={health.data ? true : down ? false : null}>
+            <p className="m-0 max-w-[56ch] text-ink-muted">
+              {health.data
+                ? `bigmand ${health.data.version} is running as you and keeps its data in ${health.data.state_dir}.`
+                : down
+                  ? "bigmand is not running, so the steps below cannot be checked or changed yet."
+                  : "Checking…"}
+            </p>
+            {down && (
+              <div>
+                <ActionButton variant="primary" onClick={() => void client.invalidateQueries()}>
+                  Start background checks
+                </ActionButton>
+              </div>
+            )}
+          </Item>
+
+          <Item title="Malware scanning" done={down ? null : scanning}>
+            <p className="m-0 max-w-[56ch] text-ink-muted">
+              {down || clamav === undefined
+                ? "Checked once background checks are running."
+                : !clamav
+                ? "Install ClamAV below to scan files against known-malware signatures."
+                : signatures
+                  ? `ClamAV is installed. Signatures are ${signatureAge(signatures.updated, nowSeconds())}${scanning ? "." : "; update them from Protect > Scans."}`
+                  : "ClamAV is installed but has no signatures yet; update them from Protect > Scans."}
+            </p>
+          </Item>
+
+          <Item title="Optional tools" done={null}>
+            <p className="m-0 max-w-[56ch] text-ink-muted">
+              Installed from your distribution&apos;s repositories with administrator approval through polkit.
+              Each one only adds the checks that need it.
+            </p>
+            <Tools disabled={down} />
+          </Item>
+
+          <Item title="Background services" done={null}>
+            <p className="m-0 max-w-[56ch] text-ink-muted">
+              Per-user units for the canary and startup monitor, a daily Downloads scan and daily signature updates.
+              They follow your login session; nothing system-wide is enabled.
+            </p>
+            <div className="flex gap-2">
+              <ActionDialog action={{ kind: "services", remove: false }} label="Install services…" disabled={down} />
+              <ActionDialog action={{ kind: "services", remove: true }} label="Remove services…" variant="quiet" disabled={down} />
+            </div>
+          </Item>
+
+          <Item title="Browser extension" done={null}>
+            <p className="m-0 max-w-[56ch] text-ink-muted">
+              Lets the Chromium extension send downloads and installer links to Bigman. Load the extension unpacked,
+              then paste its ID from the Extensions page.
+            </p>
+            <div className="flex max-w-md flex-col gap-2">
+              <TextField label="Extension ID" value={extension} onChange={(v) => setExtension(v.trim())} mono hint="32 letters from a to p." />
+              <div>
+                <ActionDialog action={{ kind: "register_native_host", extension_id: extension }} label="Connect…" disabled={down || !validExtension} />
+              </div>
+            </div>
+          </Item>
+
+          <Item title="Appearance" done={null}>
+            <Select
+              label="Theme"
+              value={theme}
+              options={THEMES}
+              onChange={(value) => {
+                setTheme(value);
+                applyTheme(value);
+              }}
+            />
+          </Item>
+
+          <Item title="Your data" done={null}>
+            <p className="m-0 max-w-[56ch] text-ink-muted">
+              Reports stay on this computer in a private folder (mode 0700) and leave it only when you export one.
+              A report can contain local paths, file hashes and the source of scripts you inspected. Bigman sends no
+              telemetry; only checks you start that say so (advisories, HTTPS installer fetches) use the network.
+            </p>
+          </Item>
+        </ul>
       </div>
     </>
   );

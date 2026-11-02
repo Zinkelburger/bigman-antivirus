@@ -10,7 +10,6 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
-      - run: sudo apt-get update && sudo apt-get install -y libxkbcommon-dev libwayland-dev
       - run: cargo fmt --check
       - run: cargo clippy --locked --all-targets -- -D warnings
       - run: cargo test --locked
@@ -20,6 +19,7 @@ jobs:
       - run: python3 tests/cli_integration.py target/debug/bigman
       - run: python3 tests/canary_onboarding.py target/debug/bigman
       - run: python3 tests/cli_golden.py target/debug/bigman
+      - run: python3 tests/daemon_integration.py target/debug
   deny:
     runs-on: ubuntu-latest
     steps:

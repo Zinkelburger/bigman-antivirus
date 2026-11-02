@@ -24,6 +24,8 @@ export function useGlobalKeys(): void {
       if (tab) {
         event.preventDefault();
         useShell.getState().setTab(tab);
+        // Move focus to the new page's heading so screen readers announce it.
+        requestAnimationFrame(() => document.querySelector<HTMLElement>("main h1")?.focus());
       } else if (event.key === "/") {
         const field = document.querySelector<HTMLInputElement>("main [data-search-field]");
         if (field) {

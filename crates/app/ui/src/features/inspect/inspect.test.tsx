@@ -1,0 +1,38 @@
+import { screen, within } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+import { renderWithDaemon } from "@/test-utils";
+import { InspectPage } from "./InspectPage";
+
+describe("Inspect", () => {
+  it("inspects an installer, highlights matched lines and previews a rehearsal", async () => {
+    const { user } = renderWithDaemon(<InspectPage />);
+    await user.type(await screen.findByLabelText("File, folder or HTTPS URL"), "/home/sam/Downloads/install-tool.sh");
+    await user.click(screen.getByRole("button", { name: "Inspect" }));
+    const result = await screen.findByRole("region", { name: "Result" });
+    expect(within(result).getByText("Findings to review")).toBeInTheDocument();
+    const script = within(result).getByRole("region", { name: "The script" });
+    expect(within(script).getByText("shell.execute-download")).toBeInTheDocument();
+    expect(within(script).getByText("shell.privilege")).toBeInTheDocument();
+    await user.click(within(result).getByRole("button", { name: "Rehearse in the offline sandbox…" }));
+    const dialog = await screen.findByRole("dialog", { name: "Rehearse the installer" });
+    expect(await within(dialog).findByText(/does not install anything/)).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Run in the sandbox" })).toBeDisabled();
+  });
+
+  it("reopens a past inspection with its full evidence, not the history summary", async () => {
+    const { user } = renderWithDaemon(<InspectPage />);
+    await user.click(await screen.findByRole("row", { name: /install-tool\.sh/ }));
+    const panel = await screen.findByRole("dialog", { name: "Installer inspection" });
+    expect(await within(panel).findByRole("region", { name: "The script" })).toBeInTheDocument();
+    expect(within(panel).getByRole("button", { name: "Export report…" })).toBeInTheDocument();
+  });
+
+  it("routes a folder to the package inspector", async () => {
+    const { user } = renderWithDaemon(<InspectPage />);
+    await user.type(await screen.findByLabelText("File, folder or HTTPS URL"), "/home/sam/Projects/example-app");
+    await user.click(screen.getByRole("button", { name: "Inspect" }));
+    const result = await screen.findByRole("region", { name: "Result" });
+    expect(within(result).getByRole("heading", { name: "Package scripts" })).toBeInTheDocument();
+    expect(within(result).getByRole("button", { name: "Disable automatic install scripts…" })).toBeInTheDocument();
+  });
+});

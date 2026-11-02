@@ -6,6 +6,7 @@ pub mod inspect;
 pub mod integrations;
 pub mod packages;
 pub mod pdf;
+pub mod route;
 pub mod scan;
 pub mod setup;
 pub mod shell;

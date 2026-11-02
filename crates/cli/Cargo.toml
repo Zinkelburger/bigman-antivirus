@@ -17,7 +17,4 @@ bigman-native-host.workspace = true
 anyhow.workspace = true
 clap.workspace = true
 ctrlc.workspace = true
-eframe.workspace = true
-egui.workspace = true
-rfd.workspace = true
 serde_json.workspace = true

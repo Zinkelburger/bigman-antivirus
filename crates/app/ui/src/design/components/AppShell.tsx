@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
+import { ActionDialogHost } from "../action";
 import { useDrilldown } from "../drilldown";
 import { Drilldown } from "./Drilldown";
 
@@ -89,6 +90,7 @@ export function AppShell<T extends string>({ tabs, active, onSelect, statusStrip
             </main>
           </div>
           <Drilldown />
+          <ActionDialogHost />
         </div>
         <footer
           role="status"

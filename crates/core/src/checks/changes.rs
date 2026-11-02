@@ -2,7 +2,7 @@ use crate::{
     model::{now, Report, Severity},
     store::{digest, home, read_file, Store, MAX_INPUT},
 };
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, fs, path::PathBuf};
 #[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -143,6 +143,19 @@ pub fn changes(store: &Store) -> Result<Report> {
     }
     Ok(r)
 }
+/// Puts back the baseline that the last acceptance replaced.
+pub fn restore_previous_baseline(store: &Store) -> Result<()> {
+    let _lock = store.lock("baseline.lock")?;
+    let previous: Baseline = store
+        .read("baseline-previous.json")
+        .context("There is no earlier baseline to restore")?;
+    store.write("baseline.json", &previous)?;
+    std::fs::remove_file(store.root.join("baseline-previous.json"))?;
+    Ok(())
+}
+pub fn has_previous_baseline(store: &Store) -> bool {
+    store.root.join("baseline-previous.json").exists()
+}
 pub fn accept_reviewed_baseline(store: &Store, id: &str) -> Result<Report> {
     let _lock = store.lock("baseline.lock")?;
     let original = store.report(id)?;
@@ -154,6 +167,11 @@ pub fn accept_reviewed_baseline(store: &Store, id: &str) -> Result<Report> {
         || original.sha256 != Some(digest(&serde_json::to_vec(&current.entries)?))
     {
         bail!("Startup inventory changed or became unreadable after review; compare it again before accepting");
+    }
+    // Keep the baseline being replaced so the acceptance can be undone.
+    if store.root.join("baseline.json").exists() {
+        let previous: Baseline = store.read("baseline.json")?;
+        store.write("baseline-previous.json", &previous)?;
     }
     store.write("baseline.json", &current)?;
     let mut r = Report::new("Baseline accepted", "Reviewed startup inventory");

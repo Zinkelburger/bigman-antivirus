@@ -12,6 +12,7 @@ import { DiffView } from "../components/DiffView";
 import { EmptyState } from "../components/EmptyState";
 import { EvidenceBlock } from "../components/EvidenceBlock";
 import { FileTree } from "../components/FileTree";
+import { FilterChips } from "../components/FilterChips";
 import { FirstSeenMarker } from "../components/FirstSeenMarker";
 import { IncompleteNotice } from "../components/IncompleteNotice";
 import { KeyValue } from "../components/KeyValue";
@@ -20,6 +21,7 @@ import { PathPicker } from "../components/PathPicker";
 import { PreviewDialog } from "../components/PreviewDialog";
 import { ProgressRow } from "../components/ProgressRow";
 import { SearchField } from "../components/SearchField";
+import { SegmentedTabs } from "../components/SegmentedTabs";
 import { Select } from "../components/Select";
 import { SeverityBadge } from "../components/SeverityBadge";
 import { Skeleton } from "../components/Skeleton";
@@ -29,7 +31,10 @@ import { StatusTile } from "../components/StatusTile";
 import { ThroughputChart } from "../components/ThroughputChart";
 import { Timeline } from "../components/Timeline";
 import { Toast } from "../components/Toast";
+import { TextField } from "../components/TextField";
 import { Toggle } from "../components/Toggle";
+import { ActionDialog } from "../action";
+import { CheckStatus } from "../check";
 import { formatBytes } from "../format";
 import { ReportPanel } from "../report";
 import type { TimelineEntry } from "../timeline";
@@ -124,6 +129,16 @@ const samples = (() => {
   }
   return { at, rx, tx };
 })();
+
+function ChipsStory() {
+  const [selected, setSelected] = useState<Set<string>>(new Set(["File scan"]));
+  return <FilterChips label="Filter" options={[{ value: "File scan", label: "File scan", count: 6 }, { value: "Installer inspection", label: "Installer inspection", count: 2 }, { value: "Security checkup", label: "Security checkup", count: 1 }]} selected={selected} onChange={setSelected} />;
+}
+
+function TabsStory() {
+  const [active, setActive] = useState("scans");
+  return <SegmentedTabs label="Protect" tabs={[{ id: "scans", label: "Scans" }, { id: "quarantine", label: "Quarantine", count: 1 }, { id: "canaries", label: "Canaries" }]} active={active} onSelect={setActive} />;
+}
 
 function DialogStory({ danger = false }: { danger?: boolean }) {
   const [open, setOpen] = useState(false);
@@ -222,7 +237,7 @@ export const STORIES: Story[] = [
     </div>
   )),
   story("Evidence", "EvidenceBlock", "findings", () => (
-    <EvidenceBlock label="install.sh" text={'#!/bin/sh\necho "Installing example tool"\ncurl -fsSL https://example.org/setup.sh | sh\nsudo install -m 0755 /tmp/tool /usr/local/bin/tool'} highlight={[3]} notes={{ 3: "shell.execute-download" }} />
+    <EvidenceBlock label="install.sh" text={'#!/bin/sh\necho "Installing example tool"\ncurl -fsSL https://example.org/setup.sh | sh\nsudo install -m 0755 /tmp/tool /usr/local/bin/tool'} highlight={[3]} notes={{ 3: { text: "shell.execute-download", tone: "high" } }} />
   )),
   story("Evidence", "DiffView", "findings", () => (
     <DiffView
@@ -268,4 +283,11 @@ export const STORIES: Story[] = [
   story("Input", "Toggle", "default", () => <Toggle checked label="New listeners" description="Notify when a program starts listening on the network." onChange={() => undefined} />),
   story("Input", "Select", "default", () => <Select label="Theme" value="system" onChange={() => undefined} options={[{ value: "system", label: "Follow system" }, { value: "light", label: "Light" }, { value: "dark", label: "Dark" }]} />),
   story("Input", "SearchField", "default", () => <SearchField value="" onChange={() => undefined} />),
+  story("Input", "TextField", "default", () => <TextField label="Extension ID" value="" onChange={() => undefined} mono hint="32 letters from a to p." />),
+  story("Input", "FilterChips", "default", () => <ChipsStory />),
+  story("Shell", "SegmentedTabs", "default", () => <TabsStory />),
+  story("Actions", "ActionDialog", "default", () => <ActionDialog action={{ kind: "package_policy", path: "/home/sam/Projects/example-app" }} label="Disable automatic install scripts…" />),
+  story("Feedback", "CheckStatus", "loading", () => <CheckStatus check={{ isPending: true, error: null, cancel: () => undefined }} running="Scanning /home/sam/Downloads" detail="At most 2,000 files." />),
+  story("Feedback", "CheckStatus", "findings", () => <CheckStatus check={{ isPending: false, data: report, error: null, cancel: () => undefined }} running="" />),
+  story("Feedback", "CheckStatus", "incomplete", () => <CheckStatus check={{ isPending: false, error: new Error("clamscan exited with status 2: can't open file"), cancel: () => undefined }} running="" />),
 ];

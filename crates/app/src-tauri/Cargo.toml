@@ -19,6 +19,7 @@ bigman-core.workspace = true
 anyhow.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+rfd = { version = "0.15", default-features = false, features = ["xdg-portal", "tokio"] }
 tauri = { version = "2.12", features = ["tray-icon", "image-png"] }
 tauri-plugin-notification = "2.8"
 tauri-plugin-opener = "2.7"

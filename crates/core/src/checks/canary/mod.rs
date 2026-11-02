@@ -47,6 +47,23 @@ pub struct ReadReceipt {
     pub monitor_pid: u32,
     pub created: u64,
 }
+/// Registered decoys, the monitor heartbeat and the suggested path for a new one.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct CanaryState {
+    pub canaries: Vec<Canary>,
+    pub monitor: Option<Health>,
+    pub default_path: PathBuf,
+}
+
+pub fn state(store: &Store) -> Result<CanaryState> {
+    Ok(CanaryState {
+        canaries: list(store)?,
+        monitor: setup::health(store),
+        default_path: setup::default_path(),
+    })
+}
+
 pub fn list(store: &Store) -> Result<Vec<Canary>> {
     if !store.root.join("canaries.json").exists() {
         return Ok(vec![]);

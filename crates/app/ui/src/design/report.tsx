@@ -9,9 +9,9 @@ import { DataTable } from "./components/DataTable";
 import { EvidenceBlock } from "./components/EvidenceBlock";
 import { KeyValue } from "./components/KeyValue";
 import { maxSeverity, SEVERITY_RANK, SeverityBadge } from "./components/SeverityBadge";
-import { StatusLine } from "./components/StatusLine";
+import { ReportFollowUp } from "./report-actions";
 import { useDrilldown } from "./drilldown";
-import { formatTime, plural } from "./format";
+import { ago, formatTime, plural } from "./format";
 import type { Occurrence } from "./timeline";
 
 export type ReportResult = "Findings to review" | "No findings from these checks" | "Incomplete";
@@ -25,6 +25,28 @@ export function reportStatus(report: Report): ReportResult {
 /** Severity of a report as a whole: its most severe finding. */
 export function reportSeverity(report: Report) {
   return maxSeverity(report.findings.map((f) => f.severity));
+}
+
+/** Plain names for report kinds, for headings and lists. */
+const KIND_TITLE: Record<string, string> = {
+  "Persistence changes": "Startup files",
+  "Package script inventory": "Package scripts",
+  "Restricted installer rehearsal": "Installer rehearsal",
+  "Security checkup": "Checkup",
+  "lynis integration": "Lynis audit",
+  "osquery integration": "osquery process list",
+  "osv integration": "Dependency advisories",
+  "Canary verification": "Canary test",
+  "Local canary setup": "Canary setup",
+};
+
+export function reportTitle(kind: string): string {
+  return KIND_TITLE[kind] ?? kind;
+}
+
+/** A canary report that proved detection works. */
+export function verifiesDetection(report: Report): boolean {
+  return report.findings.some((f) => f.rule === "canary.verified");
 }
 
 const KIND_ICON: Record<string, LucideIcon> = {
@@ -49,10 +71,24 @@ function outcome(report: Report): string {
   const result = reportStatus(report);
   if (result === "Incomplete") return "incomplete";
   if (result === "No findings from these checks") return "no findings";
-  return `${plural(report.findings.filter((f) => f.severity !== "info").length, "finding")} to review`;
+  const count = report.summary?.to_review ?? report.findings.filter((f) => f.severity !== "info").length;
+  return `${plural(count, "finding")} to review`;
 }
 
-/** One report as a life-list occurrence: the same check of the same thing folds together. */
+/**
+ * What folding groups by: the same check of the same thing with the same kind of
+ * result. A run with findings never folds into later clean runs, so it stays seen.
+ */
+function outcomeClass(report: Report): string {
+  const result = reportStatus(report);
+  return result === "Findings to review" ? (reportSeverity(report) ?? "info") : result;
+}
+
+export function reportKey(report: Report): string {
+  return `${report.kind}\u0000${report.subject}\u0000${outcomeClass(report)}`;
+}
+
+/** One report as a life-list occurrence. */
 export function reportOccurrence(report: Report, seenBefore: number): Occurrence {
   const verb = KIND_VERB[report.kind];
   const what =
@@ -64,13 +100,13 @@ export function reportOccurrence(report: Report, seenBefore: number): Occurrence
           ? report.kind === "Persistence changes"
             ? verb
             : `${verb} ${report.subject}`
-          : `${report.kind}: ${report.subject}`;
+          : `${reportTitle(report.kind)}: ${report.subject}`;
   return {
     id: report.id,
-    key: `${report.kind}\u0000${report.subject}`,
+    key: reportKey(report),
     at: report.created,
     summary: `${what} · ${outcome(report)}`,
-    source: report.kind,
+    source: reportTitle(report.kind),
     icon: KIND_ICON[report.kind] ?? ListChecks,
     severity: reportSeverity(report) ?? "info",
     seenBefore,
@@ -85,7 +121,7 @@ export function reportOccurrences(reports: readonly Report[]): Occurrence[] {
   const seen = new Map<string, number>();
   const oldestFirst = [...reports].sort((a, b) => a.created - b.created);
   return oldestFirst.map((r) => {
-    const key = `${r.kind}\u0000${r.subject}`;
+    const key = reportKey(r);
     const before = seen.get(key) ?? 0;
     seen.set(key, before + 1);
     return reportOccurrence(r, before);
@@ -126,7 +162,7 @@ export function FindingEvidence({ finding }: { finding: Finding }) {
       <EvidenceBlock text={finding.evidence} label="Evidence" />
       <section>
         <h3 className="m-0 mb-1 text-small font-semibold text-ink-muted">What you can do</h3>
-        <p className="m-0 max-w-[65ch] text-ink">{finding.action}</p>
+        <p className="m-0 max-w-[56ch] text-ink">{finding.action}</p>
       </section>
       <KeyValue items={[{ label: "Rule", value: finding.rule, mono: true }]} />
     </div>
@@ -141,13 +177,18 @@ export function ReportPanel({ report, now }: { report: Report; now: number }) {
     <div className="flex flex-col gap-4">
       <KeyValue
         items={[
-          { label: "Result", value: status },
+          { label: "Result", value: verifiesDetection(report) && status !== "Incomplete" ? "Detection verified" : status },
           { label: "Checked", value: report.subject, mono: true },
-          { label: "Ran at", value: formatTime(report.created) },
+          { label: "Ran at", value: `${formatTime(report.created)}, ${ago(report.created, now)}` },
           ...(report.sha256 ? [{ label: "SHA-256", value: report.sha256, mono: true }] : []),
         ]}
       />
-      {status === "No findings from these checks" && <StatusLine ranAt={report.created} now={now} />}
+      {verifiesDetection(report) && (
+        <p className="m-0 flex items-center gap-2 text-ink">
+          <span aria-hidden className="size-2 shrink-0 rounded-full bg-calm" />
+          Local read detection verified: a real read produced a fresh receipt from the monitor.
+        </p>
+      )}
       {findings.length > 0 ? (
         <DataTable
           label={status === "Findings to review" ? "Findings" : "Notes"}
@@ -164,6 +205,7 @@ export function ReportPanel({ report, now }: { report: Report; now: number }) {
           <p className="m-0 text-body text-ink-muted">No findings were recorded, and some items were not checked.</p>
         )
       )}
+      <ReportFollowUp report={report} />
       <CoverageList coverage={report.coverage} errors={report.errors} />
     </div>
   );

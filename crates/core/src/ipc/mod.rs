@@ -6,9 +6,12 @@
 pub mod client;
 
 use crate::{
+    actions::{Action, ActionOutcome, ActionPlan},
     checks::{
-        canary::Health as MonitorHealth,
+        canary::{CanaryState, Health as MonitorHealth},
         doctor::{SignatureState, ToolState},
+        scan::{Quarantined, ScanItem},
+        setup::ToolGroup,
     },
     model::Report,
 };
@@ -36,6 +39,60 @@ pub enum Request {
     History {
         limit: u32,
     },
+    /// One saved report with its full evidence.
+    Report {
+        id: String,
+    },
+    // Checks. Each saves and returns a report; closing the connection cancels it.
+    Scan {
+        path: PathBuf,
+    },
+    UpdateSignatures,
+    Pdf {
+        path: PathBuf,
+    },
+    /// Any file, folder or HTTPS URL, with the inspector chosen from the target.
+    InspectAny {
+        target: String,
+    },
+    /// An installer script by local path or HTTPS URL.
+    Inspect {
+        target: String,
+    },
+    Packages {
+        path: PathBuf,
+    },
+    Changes,
+    /// `lynis`, `osv` (project path) or `osquery`.
+    Audit {
+        tool: String,
+        path: PathBuf,
+    },
+    Yara {
+        rules: PathBuf,
+        target: PathBuf,
+    },
+    CanaryTest {
+        id: String,
+    },
+    // Inventories.
+    ScanItems {
+        report: String,
+    },
+    Quarantined,
+    Canaries,
+    ToolGroups,
+    /// Opens a desktop tool; currently only `firewall` (OpenSnitch).
+    OpenTool {
+        tool: String,
+    },
+    // State changes: preview first, then apply.
+    Preview {
+        action: Action,
+    },
+    Apply {
+        action: Action,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -46,6 +103,12 @@ pub enum Response {
     Status(Box<ProtectionStatus>),
     Report(Box<Report>),
     History(Vec<Report>),
+    ScanItems(Vec<ScanItem>),
+    Quarantined(Vec<Quarantined>),
+    Canaries(Box<CanaryState>),
+    ToolGroups(Vec<ToolGroup>),
+    Plan(Box<ActionPlan>),
+    Done(Box<ActionOutcome>),
     Error(ErrorBody),
 }
 
@@ -67,6 +130,8 @@ pub struct ProtectionStatus {
     /// The canary monitor's latest heartbeat, when it is fresh.
     pub monitor: Option<MonitorHealth>,
     pub last_scan: Option<Report>,
+    /// The folder scans and the browser extension default to.
+    pub downloads: PathBuf,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]

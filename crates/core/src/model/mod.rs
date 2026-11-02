@@ -35,6 +35,21 @@ pub struct Report {
     pub coverage: Coverage,
     pub errors: Vec<String>,
     pub details: String,
+    /// Present only on history summaries, which are shortened: open the report by
+    /// id for full evidence.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub summary: Option<SummaryCounts>,
+}
+
+/// The real counts behind a shortened history summary.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[ts(export)]
+pub struct SummaryCounts {
+    pub findings: u32,
+    /// Findings at Review or High severity.
+    pub to_review: u32,
+    pub errors: u32,
 }
 
 pub fn now() -> u64 {
@@ -67,6 +82,7 @@ impl Report {
             coverage: Coverage::default(),
             errors: vec![],
             details: String::new(),
+            summary: None,
         }
     }
     pub fn add(
