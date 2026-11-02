@@ -20,6 +20,8 @@ export type { NetworkSnapshot } from "./generated/NetworkSnapshot";
 export type { NotificationSettings } from "./generated/NotificationSettings";
 export type { ProtectionStatus } from "./generated/ProtectionStatus";
 export type { Quarantined } from "./generated/Quarantined";
+export type { Receipt } from "./generated/Receipt";
+export type { ReceiptScript } from "./generated/ReceiptScript";
 export type { Report } from "./generated/Report";
 export type { RuleInfo } from "./generated/RuleInfo";
 export type { Request } from "./generated/Request";

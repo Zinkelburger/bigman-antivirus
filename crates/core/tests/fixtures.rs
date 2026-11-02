@@ -5,6 +5,10 @@
 //!   rule is used somewhere;
 //! - `docs/rules.md` matches the registry.
 use bigman_core::{
+    checks::receipt,
+    platform::{Attribution, PackageDb, PackageScript, Transaction},
+};
+use bigman_core::{
     checks::{
         canary, changes, denials, doctor, inspect, integrations, network, packages, pdf, scan,
         shell,
@@ -35,6 +39,78 @@ struct Expected {
 
 fn rules_fired(report: &Report) -> BTreeSet<String> {
     report.findings.iter().map(|f| f.rule.clone()).collect()
+}
+
+/// A package database answering from a fixture: files and scripts per package.
+#[derive(Deserialize)]
+struct FixtureDb {
+    #[serde(default)]
+    files: std::collections::BTreeMap<String, Vec<PathBuf>>,
+    #[serde(default)]
+    scripts: std::collections::BTreeMap<String, Vec<PackageScript>>,
+}
+
+impl PackageDb for FixtureDb {
+    fn manager(&self) -> &'static str {
+        "fixture"
+    }
+    fn attribute(
+        &self,
+        _: &[PathBuf],
+        _: &runner::Cancel,
+    ) -> anyhow::Result<std::collections::BTreeMap<PathBuf, Attribution>> {
+        Ok(Default::default())
+    }
+    fn files(&self, package: &str, _: &runner::Cancel) -> anyhow::Result<Vec<PathBuf>> {
+        Ok(self.files.get(package).cloned().unwrap_or_default())
+    }
+    fn scripts(&self, package: &str, _: &runner::Cancel) -> anyhow::Result<Vec<PackageScript>> {
+        Ok(self.scripts.get(package).cloned().unwrap_or_default())
+    }
+}
+
+/// A receipt fixture: the transaction, what the database holds, earlier hook
+/// digests, files to create setuid, and what started listening afterwards.
+#[derive(Deserialize)]
+struct ReceiptFixture {
+    transaction: Transaction,
+    #[serde(flatten)]
+    db: FixtureDb,
+    #[serde(default)]
+    previous_hooks: std::collections::BTreeMap<String, String>,
+    #[serde(default)]
+    setuid: Vec<String>,
+    #[serde(default)]
+    after: Option<Vec<String>>,
+}
+
+fn receipt_rules(input: &Path) -> BTreeSet<String> {
+    let mut f: ReceiptFixture = serde_json::from_str(&fs::read_to_string(input).unwrap()).unwrap();
+    // setuid bits do not survive git; create those files here.
+    let dir = tempfile::tempdir().unwrap();
+    for (name, files) in f.db.files.iter_mut() {
+        for file in f.setuid.iter().filter(|s| *s == name) {
+            let path = dir.path().join(file);
+            fs::write(&path, "").unwrap();
+            fs::set_permissions(&path, std::os::unix::fs::PermissionsExt::from_mode(0o4755))
+                .unwrap();
+            files.push(path);
+        }
+    }
+    let hooks = f.previous_hooks;
+    let lookup =
+        move |package: &str, phase: &str| hooks.get(&format!("{package}/{phase}")).cloned();
+    let mut r = receipt::build(
+        "fixture".into(),
+        &f.transaction,
+        &f.db,
+        &receipt::History { hook: &lookup },
+        &runner::cancel(),
+    );
+    if let Some(after) = f.after {
+        receipt::attach_after(&mut r, after);
+    }
+    r.findings.iter().map(|f| f.rule.clone()).collect()
 }
 
 /// Runs one fixture through the check its driver names and returns what fired.
@@ -93,6 +169,7 @@ fn run(dir: &Path, expected: &Expected) -> BTreeSet<String> {
                 network::listener_findings(&mut r, &socket);
             }
         }
+        "receipt" => return receipt_rules(&input),
         "denial" => {
             for line in text().lines() {
                 denials::finding(&mut r, &denials::parse(line).expect("a denial record"));

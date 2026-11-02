@@ -1,0 +1,8 @@
+{
+  "driver": "receipt",
+  "fires": [
+    "receipt.file.privileged"
+  ],
+  "about": "A package that ships a setuid helper.",
+  "input": "input.json"
+}

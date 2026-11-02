@@ -1,0 +1,8 @@
+{
+  "driver": "receipt",
+  "fires": [
+    "receipt.hook.changed"
+  ],
+  "about": "An update whose post-install script differs from the earlier receipt's.",
+  "input": "input.json"
+}

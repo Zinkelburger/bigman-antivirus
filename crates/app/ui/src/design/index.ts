@@ -53,6 +53,7 @@ export { CheckStatus } from "./check";
 export { DaemonGate } from "./daemon-gate";
 export { ReportById } from "./report-by-id";
 export { EventPanel, eventOccurrence, sourceLabel } from "./events";
+export { ReceiptById, ReceiptPanel } from "./receipt";
 export { heldIn } from "./report-actions";
 export { LastResult } from "./last-result";
 export { SourceGapLine, SourceRemedy } from "./source-gap";

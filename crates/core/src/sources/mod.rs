@@ -12,7 +12,7 @@ mod throughput;
 pub use connections::Connections;
 pub use denials::Denials;
 pub use listeners::Listeners;
-pub use packages::Packages;
+pub use packages::{transaction_summary, Packages};
 pub use reports::Reports;
 pub use snapshot::{network_snapshot, ConnectionRow, ListenerRow, NetworkSnapshot};
 pub use throughput::Throughput;
@@ -106,7 +106,10 @@ pub fn linux_sources(stop: crate::runner::Cancel) -> Vec<Box<dyn Source>> {
         Box::<Reports>::default(),
     ];
     if let Some(history) = linux::package_history() {
-        sources.push(Box::new(Packages::new(history)));
+        sources.push(Box::new(Packages::new(
+            history,
+            crate::platform::packagedb::package_db(),
+        )));
     }
     sources
 }

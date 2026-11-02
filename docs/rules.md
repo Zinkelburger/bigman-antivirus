@@ -37,6 +37,13 @@ Every finding Bigman shows comes from one of these rules. Each has a synthetic f
 | `persistence.metadata` | Review | A startup file changed permissions or owner | HI-01, HI-05, HI-19 |
 | `persistence.removed` | Review | A startup file was removed | HI-01, HI-02, HI-03, HI-04, HI-05 |
 | `persistence.initial` | Info | Startup file recorded for the first baseline | HI-01, HI-02, HI-03, HI-04, HI-05 |
+| `receipt.hook.sensitive_path` | Review | An install script writes to a startup or authentication path | DP-09, DP-11, HI-05 |
+| `receipt.hook.download` | High | An install script downloads something | DP-09, DP-11, DP-18 |
+| `receipt.hook.obfuscation` | Review | An install script contains encoded or hidden code | DP-01, DP-09, DP-11 |
+| `receipt.hook.changed` | Review | An install script changed in an update | DP-01, DP-09 |
+| `receipt.file.privileged` | Review | A package installed a program with raised privileges | HI-17, HI-18 |
+| `receipt.sensitive_package` | Info | A package that controls authentication, networking or boot changed | DP-01, DP-06 |
+| `receipt.after.listener` | Review | A program started listening right after a package change | NE-01, DP-09 |
 | `canary.event` | High | A decoy file was opened or changed | CR-22 |
 | `canary.verified` | Info | Local read detection verified | CR-22 |
 | `canary.notifications-unavailable` | Info | Desktop pop-ups are not available |  |
@@ -297,6 +304,62 @@ What you can do: Check whether an update or your own change explains it.
 There is no baseline yet, so every startup file is listed for review.
 
 What you can do: Review the list, then accept it as the baseline to compare future changes against.
+
+## `receipt.hook.sensitive_path`
+
+**An install script writes to a startup or authentication path** (Review)
+
+A package's install script writes to a path that decides what runs at login or boot, or how you authenticate (profile.d, PAM, sudoers, cron, systemd, udev, the loader, SSH, home directories).
+
+What you can do: Read the line. Packages rarely need to change these paths from a script; if you did not expect it, reinstall from your distribution's repository or remove the package.
+
+## `receipt.hook.download`
+
+**An install script downloads something** (High)
+
+A package's install script calls curl, wget or a similar tool. Distribution packages ship their files, so a download at install time runs code nobody reviewed.
+
+What you can do: Find out what it downloads before trusting the package.
+
+## `receipt.hook.obfuscation`
+
+**An install script contains encoded or hidden code** (Review)
+
+A package's install script uses base64 decoding, eval, a long encoded blob, escaped bytes or invisible Unicode, which hide what it does.
+
+What you can do: Decode the line by hand, never by running it, and check what it does.
+
+## `receipt.hook.changed`
+
+**An install script changed in an update** (Review)
+
+A package's install script differs from the one recorded in an earlier receipt for the same package.
+
+What you can do: Read what the script does now; a changed hook in an ordinary update is worth a look.
+
+## `receipt.file.privileged`
+
+**A package installed a program with raised privileges** (Review)
+
+An installed or updated package ships a file with the setuid or setgid bit or file capabilities, so it runs with more rights than the user who starts it.
+
+What you can do: Check this is expected for the package.
+
+## `receipt.sensitive_package`
+
+**A package that controls authentication, networking or boot changed** (Info)
+
+One of the packages that decide how this computer authenticates, connects or boots (openssh, sudo, PAM, systemd, glibc, xz, curl, OpenSSL, the kernel, shells) was installed or updated.
+
+What you can do: Nothing to do when the update came from your distribution; it is listed so the change is easy to find later.
+
+## `receipt.after.listener`
+
+**A program started listening right after a package change** (Review)
+
+Within a minute of a package transaction, a program began accepting network connections.
+
+What you can do: Check whether the package is meant to run a server, and who can reach it (Network > Listening programs).
 
 ## `canary.event`
 

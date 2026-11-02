@@ -149,6 +149,11 @@ export function useEvents(since: number, sources: SourceId[] = [], limit = 20_00
   });
 }
 
+/** One install receipt; it changes once, when its after-effects are attached. */
+export function useReceipt(id: string) {
+  return useQuery({ queryKey: ["receipt", id], queryFn: () => call({ type: "receipt", id }, "receipt"), staleTime: 60_000 });
+}
+
 /** What arrived since Activity was last marked as seen; kept current by pushes. */
 export function useUnread() {
   return useQuery({

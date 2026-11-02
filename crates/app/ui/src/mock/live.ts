@@ -1,7 +1,7 @@
 // Synthetic live data for browser dev mode and tests: timeline events, throughput
 // with one collection gap, the current sockets and source health. Invented, and
 // shaped like what bigmand's sources produce.
-import type { Event, Finding, ListenerRow, NetworkSnapshot, Report, Sample, SampleSeries, Socket, SourceStatus } from "@/ipc";
+import type { Event, Finding, ListenerRow, NetworkSnapshot, Receipt, Report, Sample, SampleSeries, Socket, SourceStatus } from "@/ipc";
 import rules from "@/ipc/generated/rules.json";
 import { NOW } from "./fixtures";
 
@@ -20,7 +20,7 @@ type Seed = Omit<Event, "id" | "rule" | "link" | "first_at" | "seen_before"> &
 const SEEDS: Seed[] = [
   { at: minutes(3), source: "listener", key: "listener:dockerd:0.0.0.0:2375", severity: "high", rule: "net.listener.docker_api", summary: "The container API is reachable on port 2375", evidence: "tcp listen 0.0.0.0:2375\ndockerd (pid 1893) /usr/bin/dockerd" },
   { at: minutes(9), source: "network", key: "net:curl", severity: "info", summary: "curl made its first network connection, to 93.184.215.14:443", evidence: "curl (pid 40211) /usr/bin/curl\n192.168.1.20:51344 → 93.184.215.14:443" },
-  { at: minutes(26), source: "receipt", key: "transaction:dnf:412", severity: "info", summary: "dnf installed nix and nix-libs", evidence: "dnf install nix\nInstall nix 2.24.9-1.fc44\nInstall nix-libs 2.24.9-1.fc44" },
+  { at: minutes(26), source: "receipt", key: "transaction:dnf:412", severity: "review", rule: "receipt.hook.sensitive_path", summary: "dnf installed nix and nix-libs · 1 finding to review", evidence: "dnf install nix\nInstall nix 2.24.9-1.fc44\nInstall nix-libs 2.24.9-1.fc44", link: { kind: "receipt", id: "rc-412" } },
   { at: minutes(31), source: "denial", key: "denial:selinux:firefox:read:dir:ssh_home_t", severity: "info", rule: "denial.selinux", summary: "firefox, confined by the mozilla policy, tried to read .ssh (dir) and was stopped.", evidence: 'avc:  denied  { read } for  pid=4242 comm="firefox" name=".ssh" dev="dm-0" ino=1234 scontext=unconfined_u:unconfined_r:mozilla_t:s0 tcontext=unconfined_u:object_r:ssh_home_t:s0 tclass=dir permissive=0', seen_before: 13, first_at: days(30) },
   { at: minutes(64), source: "network", key: "net:slack:35.82.187.x:443", severity: "info", summary: "slack connected to a new address range, 35.82.187.x port 443", evidence: "slack (pid 3301) /usr/lib/slack/slack\n192.168.1.20:49822 → 35.82.187.142:443" },
   { at: minutes(130), source: "listener", key: "listener:beam.smp:0.0.0.0:4000", severity: "review", rule: "net.listener.wildcard", summary: "beam.smp listens on every network interface, port 4000", evidence: "tcp listen 0.0.0.0:4000\nbeam.smp (pid 2210) /usr/lib64/erlang/erts-15.2/bin/beam.smp" },
@@ -34,6 +34,56 @@ const REPORT_SENTENCE: Record<string, (r: Report) => string> = {
   "PDF triage": (r) => `Read the PDF ${r.subject}`,
   "Installer inspection": (r) => `Inspected ${r.subject}`,
   "Persistence changes": () => "Compared startup files",
+};
+
+const NIX_SCRIPT = [
+  "if [ $1 -eq 1 ]; then",
+  "  groupadd -r nixbld 2>/dev/null || :",
+  "  ln -sf /nix/var/nix/profiles/default/etc/profile.d/nix.sh /etc/profile.d/nix.sh",
+  "fi",
+].join("\n");
+
+/** The receipt behind "dnf installed nix and nix-libs", as core's builder makes it. */
+export const RECEIPTS: Record<string, Receipt> = {
+  "rc-412": {
+    id: "rc-412",
+    at: minutes(26),
+    manager: "dnf",
+    transaction: "412",
+    command: "dnf install nix",
+    packages: [
+      { name: "nix", version: "2.24.9-1.fc44", kind: "install" },
+      { name: "nix-libs", version: "2.24.9-1.fc44", kind: "install" },
+    ],
+    files: [
+      { path: "/usr/bin/nix", package: "nix", category: "binaries", privilege: null },
+      { path: "/usr/bin/nix-daemon", package: "nix", category: "binaries", privilege: null },
+      { path: "/usr/lib/systemd/system/nix-daemon.service", package: "nix", category: "systemd", privilege: null },
+      { path: "/usr/lib/systemd/system/nix-daemon.socket", package: "nix", category: "systemd", privilege: null },
+      { path: "/etc/nix/nix.conf", package: "nix", category: "/etc", privilege: null },
+      { path: "/usr/lib64/libnixstore.so.2.24.9", package: "nix-libs", category: "libraries", privilege: null },
+      { path: "/usr/lib64/libnixutil.so.2.24.9", package: "nix-libs", category: "libraries", privilege: null },
+    ],
+    scripts: [{ package: "nix", phase: "postinstall", interpreter: "/bin/sh", text: NIX_SCRIPT, changed: false }],
+    hits: [{ script: 0, line: 3, rule: "receipt.hook.sensitive_path", severity: "review" }],
+    services: ["/usr/lib/systemd/system/nix-daemon.service", "/usr/lib/systemd/system/nix-daemon.socket"],
+    after: { checked: true, listeners: [] },
+    findings: [
+      {
+        rule: "receipt.hook.sensitive_path",
+        severity: "review",
+        summary: "An install script writes to a startup or authentication path",
+        evidence: "nix postinstall script, line 3: ln -sf /nix/var/nix/profiles/default/etc/profile.d/nix.sh /etc/profile.d/nix.sh",
+        action: "Read the line. Packages rarely need to change these paths from a script; if you did not expect it, reinstall from your distribution's repository or remove the package.",
+      },
+    ],
+    coverage: {
+      checked: ["Package database (rpm)"],
+      notes: ["Built after the transaction from the package database: the files and install scripts of each installed or updated package. Bigman did not see the transaction run, and old package versions are not compared yet."],
+      skipped: [],
+    },
+    score: 1,
+  },
 };
 
 /** A saved report as the reports source enters it (core sources/reports.rs). */

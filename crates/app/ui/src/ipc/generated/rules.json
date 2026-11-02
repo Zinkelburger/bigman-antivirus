@@ -345,6 +345,86 @@
     ]
   },
   {
+    "id": "receipt.hook.sensitive_path",
+    "severity": "review",
+    "title": "An install script writes to a startup or authentication path",
+    "explanation": "A package's install script writes to a path that decides what runs at login or boot, or how you authenticate (profile.d, PAM, sudoers, cron, systemd, udev, the loader, SSH, home directories).",
+    "remediation": "Read the line. Packages rarely need to change these paths from a script; if you did not expect it, reinstall from your distribution's repository or remove the package.",
+    "threats": [
+      "DP-09",
+      "DP-11",
+      "HI-05"
+    ]
+  },
+  {
+    "id": "receipt.hook.download",
+    "severity": "high",
+    "title": "An install script downloads something",
+    "explanation": "A package's install script calls curl, wget or a similar tool. Distribution packages ship their files, so a download at install time runs code nobody reviewed.",
+    "remediation": "Find out what it downloads before trusting the package.",
+    "threats": [
+      "DP-09",
+      "DP-11",
+      "DP-18"
+    ]
+  },
+  {
+    "id": "receipt.hook.obfuscation",
+    "severity": "review",
+    "title": "An install script contains encoded or hidden code",
+    "explanation": "A package's install script uses base64 decoding, eval, a long encoded blob, escaped bytes or invisible Unicode, which hide what it does.",
+    "remediation": "Decode the line by hand, never by running it, and check what it does.",
+    "threats": [
+      "DP-01",
+      "DP-09",
+      "DP-11"
+    ]
+  },
+  {
+    "id": "receipt.hook.changed",
+    "severity": "review",
+    "title": "An install script changed in an update",
+    "explanation": "A package's install script differs from the one recorded in an earlier receipt for the same package.",
+    "remediation": "Read what the script does now; a changed hook in an ordinary update is worth a look.",
+    "threats": [
+      "DP-01",
+      "DP-09"
+    ]
+  },
+  {
+    "id": "receipt.file.privileged",
+    "severity": "review",
+    "title": "A package installed a program with raised privileges",
+    "explanation": "An installed or updated package ships a file with the setuid or setgid bit or file capabilities, so it runs with more rights than the user who starts it.",
+    "remediation": "Check this is expected for the package.",
+    "threats": [
+      "HI-17",
+      "HI-18"
+    ]
+  },
+  {
+    "id": "receipt.sensitive_package",
+    "severity": "info",
+    "title": "A package that controls authentication, networking or boot changed",
+    "explanation": "One of the packages that decide how this computer authenticates, connects or boots (openssh, sudo, PAM, systemd, glibc, xz, curl, OpenSSL, the kernel, shells) was installed or updated.",
+    "remediation": "Nothing to do when the update came from your distribution; it is listed so the change is easy to find later.",
+    "threats": [
+      "DP-01",
+      "DP-06"
+    ]
+  },
+  {
+    "id": "receipt.after.listener",
+    "severity": "review",
+    "title": "A program started listening right after a package change",
+    "explanation": "Within a minute of a package transaction, a program began accepting network connections.",
+    "remediation": "Check whether the package is meant to run a server, and who can reach it (Network > Listening programs).",
+    "threats": [
+      "NE-01",
+      "DP-09"
+    ]
+  },
+  {
     "id": "canary.event",
     "severity": "high",
     "title": "A decoy file was opened or changed",

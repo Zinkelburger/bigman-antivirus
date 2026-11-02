@@ -113,6 +113,10 @@ impl Daemon {
                     limit: limit.min(20_000),
                 })?),
                 Request::Unread => Response::Unread(self.timeline.db.unread()?),
+                Request::Receipt { id } => match self.timeline.db.receipt(&id)? {
+                    Some(r) => Response::Receipt(Box::new(r)),
+                    None => error(format!("No receipt {id}")),
+                },
                 Request::MarkSeen { through } => {
                     self.timeline.db.mark_seen(through)?;
                     self.timeline.publish_unread();

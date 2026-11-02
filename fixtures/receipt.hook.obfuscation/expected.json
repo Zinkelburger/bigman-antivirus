@@ -1,0 +1,8 @@
+{
+  "driver": "receipt",
+  "fires": [
+    "receipt.hook.obfuscation"
+  ],
+  "about": "A hook that decodes and runs a base64 payload; the decoded text would be the real script.",
+  "input": "input.json"
+}

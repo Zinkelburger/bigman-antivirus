@@ -14,9 +14,9 @@
 | DP-06 | Distribution infrastructure or signing-host compromise | High (rare) | Gap | Feed-driven advisories; key fingerprint inventory with change alerts |
 | DP-07 | Tampered ISO or installer on an official download site | High | Partial (ClamAV scan of the file) | Checksum plus signature verification helper for ISOs and downloads |
 | DP-08 | Fake or trojanized vendor `.deb`/`.rpm` downloads | High | Partial (ClamAV, browser link checks) | Static `.deb`/`.rpm` inspection before install |
-| DP-09 | Root-run maintainer scripts and RPM scriptlets | High | Gap (only shell scripts and npm today) | Extract and lint `preinst/postinst/%post/.install` without installing |
+| DP-09 | Root-run maintainer scripts and RPM scriptlets | High | Partial | Extract and lint `preinst/postinst/%post/.install` without installing |
 | DP-10 | Abandoned third-party repos whose domains expire | High | Gap | Repo domain inventory; flag NXDOMAIN, unreachable or newly re-registered hosts |
-| DP-11 | Malicious or hijacked AUR packages (PKGBUILD and orphan adoption) | High on Arch | Gap | PKGBUILD/`.install` static inspection; AUR-package inventory with feed match |
+| DP-11 | Malicious or hijacked AUR packages (PKGBUILD and orphan adoption) | High on Arch | Partial | PKGBUILD/`.install` static inspection; AUR-package inventory with feed match |
 | DP-12 | Personal repos: PPA, COPR, OBS home projects | Medium | Gap | Inventory personal repos and warn when they replace distro packages |
 | DP-13 | Scam and impersonation apps in app stores (Snap Store wallets, miners) | High for crypto users | Gap | Snap/Flatpak inventory with publisher and verification status |
 | DP-14 | Store publisher account takeover via expired publisher domain | Medium | Gap | Highlight long-dormant snaps that suddenly update; feed-driven removal notices |
@@ -224,7 +224,7 @@
   - Arch: read `PKGBUILD` and the `.install` file before building. For built packages, `bsdtar -xOf pkg.pkg.tar.zst .INSTALL`, and `pacman -Qip` for metadata.
   - Already installed: `/var/lib/dpkg/info/<pkg>.{preinst,postinst,prerm,postrm}`, `rpm -q --scripts <pkg>`, `/var/lib/pacman/local/<pkg>/install`, `/usr/share/libalpm/hooks/` and `/etc/pacman.d/hooks/`.
   - Suspicious content: network fetch, `systemctl enable` of units not in the package, writing to `~` of real users, adding repos or keys, `chmod +s`, base64 or eval blobs, disabling SELinux/AppArmor, or edits to `/etc/ld.so.preload`.
-- **Bigman today:** Gap. The existing `shell.*` rules would fire on extracted script text, but nothing extracts them. `package.lifecycle` covers npm only.
+- **Bigman today:** Partial. Every package transaction (dnf5 history, pacman or dpkg log) gets an install receipt with each installed package's scripts verbatim; `receipt.hook.sensitive_path`, `receipt.hook.download`, `receipt.hook.obfuscation` and `receipt.hook.changed` mark lines and changes. Receipts are built after the transaction; the pre-transaction preview hooks are opt-in from Setup.
 - **Proposed mitigation / detection:**
   - Reuse the `shell.*` rule engine on extracted maintainer scripts, with new rule IDs `pkg.maintainer-script` (Info: present) and `pkg.maintainer-script.<capability>` (Review), mirroring `package.lifecycle`.
   - Add `bigman audit installed-scripts` to scan `/var/lib/dpkg/info/*.{pre,post}*`, `/var/lib/pacman/local/*/install` and RPM scripts via `rpm -qa --scripts`. List installed non-distro packages whose scripts reach network or persistence capabilities. Rootless.
@@ -265,7 +265,7 @@
   - For each, compare installed version and maintainer with the AUR RPC metadata and the published affected-package lists.
   - Check whether the AUR maintainer changed recently (adoption), whether the PKGBUILD `source=` points to a personal GitHub repo or paste site rather than the upstream project, and whether a `-bin` package's sources differ from the upstream's official release URLs.
   - Check the helper's configuration (for example yay/paru settings that skip diff review).
-- **Bigman today:** Gap.
+- **Bigman today:** Partial. pacman `.install` scripts of installed packages are read into receipts and triaged by the `receipt.hook.*` rules. PKGBUILDs and AUR helpers are not inspected yet.
 - **Proposed mitigation / detection:**
   - `bigman packages` gains a PKGBUILD mode that statically parses the `source=`, `sha256sums=`, `install=` and `pkgver` fields (no `makepkg`, no sourcing bash) and runs `shell.*` rules on `prepare/build/package` function bodies and the `.install` file.
   - New rules: `aur.source-not-upstream` (Review), `aur.skip-checksum` (`SKIP` for non-VCS sources), `aur.install-script`.

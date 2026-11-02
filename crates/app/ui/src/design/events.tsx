@@ -21,6 +21,7 @@ import { KeyValue } from "./components/KeyValue";
 import { SeverityBadge } from "./components/SeverityBadge";
 import { formatDate, formatTime, plural } from "./format";
 import { AboutRule } from "./report";
+import { ReceiptById } from "./receipt";
 import { ReportById } from "./report-by-id";
 import type { Occurrence } from "./timeline";
 
@@ -77,6 +78,7 @@ export function eventOccurrence(e: Event): Occurrence {
 export function EventPanel({ event }: { event: Event }) {
   const rule = useRules().data?.find((r) => r.id === event.rule);
   if (event.link?.kind === "report") return <ReportById id={event.link.id} />;
+  if (event.link?.kind === "receipt") return <ReceiptById id={event.link.id} />;
   return (
     <div className="flex flex-col gap-4">
       {/* The panel title is the entry's sentence; the badge says how it is rated. */}

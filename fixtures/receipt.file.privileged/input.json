@@ -1,0 +1,21 @@
+{
+  "transaction": {
+    "id": "1",
+    "at": 1793300000,
+    "manager": "pacman",
+    "command": "pacman -S vpnhelper",
+    "changes": [
+      {
+        "name": "vpnhelper",
+        "version": "1.0-1",
+        "kind": "install"
+      }
+    ]
+  },
+  "files": {
+    "vpnhelper": []
+  },
+  "setuid": [
+    "vpnhelper"
+  ]
+}

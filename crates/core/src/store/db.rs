@@ -291,6 +291,27 @@ impl Db {
         Ok(())
     }
 
+    /// Stores (or replaces, when after-effects are attached) one install receipt.
+    pub fn save_receipt(&self, r: &crate::checks::receipt::Receipt) -> Result<()> {
+        self.lock().execute(
+            "INSERT INTO receipts (id, at, body) VALUES (?1, ?2, ?3)
+             ON CONFLICT(id) DO UPDATE SET body = excluded.body",
+            params![r.id, r.at as i64, serde_json::to_string(r)?],
+        )?;
+        Ok(())
+    }
+
+    pub fn receipt(&self, id: &str) -> Result<Option<crate::checks::receipt::Receipt>> {
+        let body: Option<String> = self
+            .lock()
+            .query_row("SELECT body FROM receipts WHERE id = ?1", [id], |r| {
+                r.get(0)
+            })
+            .optional()?;
+        body.map(|b| serde_json::from_str(&b).context("A stored receipt could not be read"))
+            .transpose()
+    }
+
     pub fn setting(&self, key: &str) -> Result<Option<String>> {
         Ok(self
             .lock()

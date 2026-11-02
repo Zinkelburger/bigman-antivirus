@@ -1,0 +1,30 @@
+{
+  "transaction": {
+    "id": "1",
+    "at": 1793300000,
+    "manager": "pacman",
+    "command": "pacman -S helper",
+    "changes": [
+      {
+        "name": "helper",
+        "version": "1.0-1",
+        "kind": "install"
+      }
+    ]
+  },
+  "files": {
+    "helper": [
+      "/usr/bin/helper"
+    ]
+  },
+  "scripts": {
+    "helper": [
+      {
+        "package": "helper",
+        "phase": "install",
+        "interpreter": "/bin/sh",
+        "text": "post_install() {\n  wget -q https://example.org/helper-agent -O /usr/local/bin/helper-agent\n}"
+      }
+    ]
+  }
+}

@@ -10,6 +10,7 @@ use crate::{
     checks::{
         canary::{CanaryState, Health as MonitorHealth},
         doctor::{SignatureState, ToolState},
+        receipt::Receipt,
         scan::{Quarantined, ScanItem},
         setup::ToolGroup,
     },
@@ -100,6 +101,10 @@ pub enum Request {
         limit: u32,
     },
     Unread,
+    /// One install receipt, by the id an event links to.
+    Receipt {
+        id: String,
+    },
     /// Marks entries up to `through` (from `Unread`) as seen.
     MarkSeen {
         through: i64,
@@ -148,6 +153,7 @@ pub enum Response {
     Rules(Vec<RuleInfo>),
     Events(Vec<Event>),
     Unread(Unread),
+    Receipt(Box<Receipt>),
     Samples(SampleSeries),
     Network(Box<NetworkSnapshot>),
     Sources(Vec<SourceStatus>),

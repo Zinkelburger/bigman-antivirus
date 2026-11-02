@@ -132,6 +132,8 @@ enum DaemonCommands {
     Network,
     /// What each live source can and cannot read.
     Sources,
+    /// One install receipt: what a package transaction installed and ran.
+    Receipt { id: String },
 }
 #[derive(Subcommand)]
 enum CanaryCommands {
@@ -528,6 +530,43 @@ fn daemon_live(command: DaemonCommands, json: bool) -> Result<()> {
             }
             for note in &net.coverage.notes {
                 println!("{note}");
+            }
+            Ok(())
+        }
+        DaemonCommands::Receipt { id } => {
+            let ipc::Response::Receipt(r) = daemon_request(ipc::Request::Receipt { id })? else {
+                bail!("Unexpected daemon response");
+            };
+            if json {
+                println!("{}", serde_json::to_string_pretty(&r)?);
+                return Ok(());
+            }
+            println!(
+                "{} transaction {} · {}",
+                r.manager, r.transaction, r.command
+            );
+            for p in &r.packages {
+                println!("  {:?} {} {}", p.kind, p.name, p.version);
+            }
+            println!(
+                "{} files, {} install scripts, {} services or autostart entries, {} suspicious lines",
+                r.files.len(),
+                r.scripts.len(),
+                r.services.len(),
+                r.hits.len()
+            );
+            for f in &r.findings {
+                println!(
+                    "[{:?}] {} ({})
+  {}",
+                    f.severity,
+                    f.summary,
+                    f.rule,
+                    f.evidence.replace('\n', "\n  ")
+                );
+            }
+            if !r.after.checked {
+                println!("What started afterwards is checked a minute after the transaction.");
             }
             Ok(())
         }

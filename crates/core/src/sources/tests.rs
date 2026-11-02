@@ -1,7 +1,7 @@
 //! Each source against a fake platform: what it reports, and what it stays quiet about.
 use super::*;
 use crate::{
-    model::{Event, Link, Report, Severity, SourceId},
+    model::{Event, Link, Observation, Report, Severity, SourceId},
     platform::{
         ChangeKind, InterfaceCounters, Journal, JournalRecord, NetworkCounters, PackageChange,
         PackageHistory, ProcessInfo, ProcessSockets, Protocol, Socket, Transaction,
@@ -274,7 +274,7 @@ fn packages_resume_from_their_cursor_and_look_back_one_week_at_first() {
     let w = world();
     let now = 100 * 86_400;
     let fake = Shared::default();
-    let mut source = Packages::new(Box::new(fake.clone()));
+    let mut source = Packages::new(Box::new(fake.clone()), None);
     fake.set(vec![
         transaction("1", now - 30 * 86_400, &["vim"], ChangeKind::Install),
         transaction("2", now - 3600, &["nix", "nix-libs"], ChangeKind::Install),
@@ -384,4 +384,99 @@ fn every_saved_report_enters_the_timeline_once() {
         run(&w, &mut Reports::default(), now).unwrap().0.is_empty(),
         "a restart does not repeat them"
     );
+}
+
+/// A package database with one hook that writes to /etc/profile.d.
+struct HookDb;
+impl crate::platform::PackageDb for HookDb {
+    fn manager(&self) -> &'static str {
+        "rpm"
+    }
+    fn attribute(
+        &self,
+        _: &[std::path::PathBuf],
+        _: &crate::runner::Cancel,
+    ) -> anyhow::Result<std::collections::BTreeMap<std::path::PathBuf, crate::platform::Attribution>>
+    {
+        Ok(Default::default())
+    }
+    fn files(&self, _: &str, _: &crate::runner::Cancel) -> anyhow::Result<Vec<std::path::PathBuf>> {
+        Ok(vec!["/usr/bin/tool".into()])
+    }
+    fn scripts(
+        &self,
+        package: &str,
+        _: &crate::runner::Cancel,
+    ) -> anyhow::Result<Vec<crate::platform::PackageScript>> {
+        Ok(vec![crate::platform::PackageScript {
+            package: package.into(),
+            phase: "postinstall".into(),
+            interpreter: "/bin/sh".into(),
+            text: "echo 'export TOOL=1' > /etc/profile.d/tool.sh".into(),
+        }])
+    }
+}
+
+#[test]
+fn new_transactions_get_a_receipt_with_what_started_listening_afterwards() {
+    let w = world();
+    let now = 100 * 86_400;
+    let fake = Shared::default();
+    let mut source = Packages::new(Box::new(fake.clone()), Some(Box::new(HookDb)));
+    fake.set(vec![transaction(
+        "1",
+        now - 3600,
+        &["vim"],
+        ChangeKind::Install,
+    )]);
+    let (events, _) = run(&w, &mut source, now).unwrap();
+    assert_eq!(
+        events[0].link, None,
+        "the first run's backfill has no receipt"
+    );
+
+    fake.set(vec![
+        transaction("1", now - 3600, &["vim"], ChangeKind::Install),
+        transaction("2", now + 5, &["tool"], ChangeKind::Install),
+    ]);
+    let (events, _) = run(&w, &mut source, now + 10).unwrap();
+    assert_eq!(
+        events[0].summary,
+        "dnf installed tool · 1 finding to review"
+    );
+    assert_eq!(
+        events[0].rule.as_deref(),
+        Some("receipt.hook.sensitive_path")
+    );
+    let Some(Link::Receipt { id }) = events[0].link.clone() else {
+        panic!("a receipt link")
+    };
+
+    // Something starts listening half a minute later; the receipt picks it up after the minute.
+    w.db.record(&Observation {
+        at: now + 40,
+        source: SourceId::Listener,
+        key: "listener:tool:0.0.0.0:9000".into(),
+        rule: None,
+        severity: Severity::Info,
+        summary: "tool started listening on port 9000, every network interface".into(),
+        evidence: String::new(),
+        link: None,
+    })
+    .unwrap();
+    run(&w, &mut source, now + 30).unwrap();
+    assert!(
+        !w.db.receipt(&id).unwrap().unwrap().after.checked,
+        "not before the minute is up"
+    );
+    run(&w, &mut source, now + 80).unwrap();
+    let r = w.db.receipt(&id).unwrap().unwrap();
+    assert_eq!(
+        r.after.listeners,
+        ["tool started listening on port 9000, every network interface"]
+    );
+    assert!(r
+        .findings
+        .iter()
+        .any(|f| f.rule == "receipt.after.listener"));
 }

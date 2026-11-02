@@ -1,0 +1,20 @@
+{
+  "transaction": {
+    "id": "1",
+    "at": 1793300000,
+    "manager": "pacman",
+    "command": "pacman -S openssh",
+    "changes": [
+      {
+        "name": "openssh",
+        "version": "1.0-1",
+        "kind": "upgrade"
+      }
+    ]
+  },
+  "files": {
+    "openssh": [
+      "/usr/bin/ssh"
+    ]
+  }
+}

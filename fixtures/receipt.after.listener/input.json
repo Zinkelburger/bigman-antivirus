@@ -1,0 +1,23 @@
+{
+  "transaction": {
+    "id": "1",
+    "at": 1793300000,
+    "manager": "pacman",
+    "command": "pacman -S mediaserver",
+    "changes": [
+      {
+        "name": "mediaserver",
+        "version": "1.0-1",
+        "kind": "install"
+      }
+    ]
+  },
+  "files": {
+    "mediaserver": [
+      "/usr/bin/mediaserver"
+    ]
+  },
+  "after": [
+    "mediaserver started listening on port 8096, every network interface"
+  ]
+}

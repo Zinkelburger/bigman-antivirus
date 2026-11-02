@@ -1,0 +1,8 @@
+{
+  "driver": "receipt",
+  "fires": [
+    "receipt.after.listener"
+  ],
+  "about": "A package whose service started listening within a minute.",
+  "input": "input.json"
+}

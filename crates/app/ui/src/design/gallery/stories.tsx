@@ -36,6 +36,8 @@ import { Toggle } from "../components/Toggle";
 import { ActionDialog } from "../action";
 import { CheckStatus } from "../check";
 import { formatBytes } from "../format";
+import { RECEIPTS } from "@/mock/live";
+import { ReceiptPanel } from "../receipt";
 import { ReportPanel } from "../report";
 import type { TimelineEntry } from "../timeline";
 import trayAttention from "../tray/tray-attention.svg";
@@ -234,6 +236,16 @@ export const STORIES: Story[] = [
   story("Data", "Drilldown", "incomplete", () => (
     <div className="max-w-[560px] rounded-panel border border-rule bg-surface p-4">
       <ReportPanel report={{ ...report, findings: [], coverage, errors: ["clamscan exited with status 2: can't open file"] }} now={NOW} />
+    </div>
+  )),
+  story("Data", "Receipt", "findings", () => (
+    <div className="max-w-[560px] rounded-panel border border-rule bg-surface p-4">
+      {RECEIPTS["rc-412"] && <ReceiptPanel receipt={RECEIPTS["rc-412"]} />}
+    </div>
+  )),
+  story("Data", "Receipt", "no findings", () => (
+    <div className="max-w-[560px] rounded-panel border border-rule bg-surface p-4">
+      {RECEIPTS["rc-412"] && <ReceiptPanel receipt={{ ...RECEIPTS["rc-412"], findings: [], hits: [], after: { checked: false, listeners: [] } }} />}
     </div>
   )),
   story("Evidence", "EvidenceBlock", "findings", () => (

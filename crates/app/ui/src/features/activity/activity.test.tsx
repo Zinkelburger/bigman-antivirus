@@ -92,3 +92,16 @@ describe("Activity timeline", () => {
     expect(rendered).toBeLessThan(120);
   });
 });
+
+describe("Install receipts", () => {
+  it("opens a package transaction to its receipt, scripts and marked line", async () => {
+    const { user } = renderWithDaemon(<ActivityPage />);
+    await user.click(await screen.findByRole("option", { name: /dnf installed nix and nix-libs/ }));
+    const panel = await screen.findByRole("dialog", { name: /dnf installed nix and nix-libs/ });
+    expect(await within(panel).findByText("Findings to review: 1 finding.")).toBeInTheDocument();
+    expect(within(panel).getByText("1 script, 1 marked line")).toBeInTheDocument();
+    await user.click(within(panel).getByRole("button", { name: "Install scripts" }));
+    const scripts = await screen.findByRole("dialog", { name: "Install scripts" });
+    expect(within(scripts).getByText("receipt.hook.sensitive_path")).toBeInTheDocument();
+  });
+});

@@ -8,6 +8,7 @@ pub mod integrations;
 pub mod network;
 pub mod packages;
 pub mod pdf;
+pub mod receipt;
 pub mod route;
 pub mod scan;
 pub mod setup;

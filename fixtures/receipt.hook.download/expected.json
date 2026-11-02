@@ -1,0 +1,8 @@
+{
+  "driver": "receipt",
+  "fires": [
+    "receipt.hook.download"
+  ],
+  "about": "A post-install hook that fetches a binary.",
+  "input": "input.json"
+}

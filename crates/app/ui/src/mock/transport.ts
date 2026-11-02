@@ -19,7 +19,7 @@ import {
 } from "@/ipc";
 import rules from "@/ipc/generated/rules.json";
 import { checkup, history, NOW, report, scanWithFinding, statusScenarios } from "./fixtures";
-import { INTERFACES, networkSnapshot, reportEvent, sampleAt, samplesFor, seedEvents, sourceStatuses } from "./live";
+import { INTERFACES, networkSnapshot, RECEIPTS, reportEvent, sampleAt, samplesFor, seedEvents, sourceStatuses } from "./live";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const id = () => crypto.randomUUID();
@@ -238,6 +238,10 @@ class MockDaemon {
       case "open_tool": return { type: "done", value: { message: "Opened.", report: null, undo: null } };
       case "events": return { type: "events", value: this.events.filter((e) => e.at >= request.since && (request.until === null || e.at <= request.until) && (request.sources.length === 0 || request.sources.includes(e.source))).slice(-request.limit).reverse() };
       case "unread": return { type: "unread", value: this.unread() };
+      case "receipt": {
+        const found = RECEIPTS[request.id];
+        return found ? { type: "receipt", value: found } : { type: "error", value: { message: `No receipt ${request.id}` } };
+      }
       case "mark_seen": {
         this.seenThrough = Math.max(0, request.through);
         const unread = this.unread();

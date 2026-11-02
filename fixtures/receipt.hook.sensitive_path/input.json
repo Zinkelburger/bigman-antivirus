@@ -1,0 +1,30 @@
+{
+  "transaction": {
+    "id": "1",
+    "at": 1793300000,
+    "manager": "pacman",
+    "command": "pacman -S tool",
+    "changes": [
+      {
+        "name": "tool",
+        "version": "1.0-1",
+        "kind": "install"
+      }
+    ]
+  },
+  "files": {
+    "tool": [
+      "/usr/bin/tool"
+    ]
+  },
+  "scripts": {
+    "tool": [
+      {
+        "package": "tool",
+        "phase": "install",
+        "interpreter": "/bin/sh",
+        "text": "post_install() {\n  echo 'export TOOL_HOME=/opt/tool' > /etc/profile.d/tool.sh\n}"
+      }
+    ]
+  }
+}

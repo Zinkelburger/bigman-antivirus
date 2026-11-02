@@ -1,0 +1,8 @@
+{
+  "driver": "receipt",
+  "fires": [
+    "receipt.sensitive_package"
+  ],
+  "about": "A routine openssh update from the distribution.",
+  "input": "input.json"
+}

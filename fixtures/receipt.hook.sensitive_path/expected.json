@@ -1,0 +1,8 @@
+{
+  "driver": "receipt",
+  "fires": [
+    "receipt.hook.sensitive_path"
+  ],
+  "about": "The plan's acceptance case: a pacman package whose .install script writes to /etc/profile.d.",
+  "input": "input.json"
+}

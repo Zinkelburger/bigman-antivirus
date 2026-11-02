@@ -1,0 +1,33 @@
+{
+  "transaction": {
+    "id": "1",
+    "at": 1793300000,
+    "manager": "pacman",
+    "command": "pacman -S editor",
+    "changes": [
+      {
+        "name": "editor",
+        "version": "1.0-1",
+        "kind": "upgrade"
+      }
+    ]
+  },
+  "files": {
+    "editor": [
+      "/usr/bin/editor"
+    ]
+  },
+  "scripts": {
+    "editor": [
+      {
+        "package": "editor",
+        "phase": "install",
+        "interpreter": "/bin/sh",
+        "text": "post_upgrade() {\n  update-desktop-database -q\n}"
+      }
+    ]
+  },
+  "previous_hooks": {
+    "editor/install": "0000000000000000000000000000000000000000000000000000000000000000"
+  }
+}
