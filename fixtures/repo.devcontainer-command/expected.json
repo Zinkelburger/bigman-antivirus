@@ -1,0 +1,8 @@
+{
+  "driver": "repo",
+  "fires": [
+    "repo.devcontainer-command"
+  ],
+  "about": "A devcontainer with a postCreateCommand only (Review).",
+  "input": "input.json"
+}

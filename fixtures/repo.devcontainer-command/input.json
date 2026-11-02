@@ -1,0 +1,5 @@
+{
+  "files": {
+    ".devcontainer/devcontainer.json": "{\"image\": \"mcr.microsoft.com/devcontainers/base\", \"postCreateCommand\": \"npm install\"}\n"
+  }
+}

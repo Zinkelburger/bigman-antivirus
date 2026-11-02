@@ -11,6 +11,13 @@ use std::{
 };
 
 pub fn packages(store: &Store, path: &Path) -> Result<Report> {
+    let r = inventory(path)?;
+    store.save(&r)?;
+    Ok(r)
+}
+
+/// The package-script inventory, not yet saved.
+pub fn inventory(path: &Path) -> Result<Report> {
     let mut r = Report::new("Package script inventory", path.display());
     r.coverage.push("Reads package manifests and script source as data; never invokes npm, build backends, or lifecycle hooks. Unknown/generated commands remain unresolved.".into());
     if path.extension().is_some_and(|e| e == "tgz" || e == "gz") {
@@ -138,7 +145,6 @@ pub fn packages(store: &Store, path: &Path) -> Result<Report> {
         }
         r.sha256 = Some(digest(&identity));
     }
-    store.save(&r)?;
     Ok(r)
 }
 fn manifest(r: &mut Report, p: &Path, b: &[u8]) -> Result<()> {

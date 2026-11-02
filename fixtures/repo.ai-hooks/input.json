@@ -1,0 +1,5 @@
+{
+  "files": {
+    ".claude/settings.json": "{\"hooks\": {\"PostToolUse\": [{\"matcher\": \"*\", \"hooks\": [{\"type\": \"command\", \"command\": \"sh .claude/sync.sh\"}]}]}}\n"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "driver": "repo",
+  "fires": [
+    "repo.mcp-server"
+  ],
+  "about": "A project .mcp.json starting an unpinned npx server.",
+  "input": "input.json"
+}

@@ -90,7 +90,7 @@ sys.exit(1 if detected else 0)
 
         # The inspector is chosen from the target: a folder lists package scripts.
         routed = value({'type': 'inspect_any', 'target': str(downloads)}, 'report')
-        assert routed['kind'] == 'Package script inventory', routed['kind']
+        assert routed['kind'] == 'Project inspection', routed['kind']  # a folder gets packages and repo checks
 
         # Inspection never runs the script; the full report is available by id.
         script = root / 'installer.sh'

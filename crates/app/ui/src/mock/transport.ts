@@ -224,7 +224,15 @@ class MockDaemon {
       case "inspect_any": {
         const t = request.target;
         if (t.endsWith(".pdf")) return this.handle({ type: "pdf", path: t }, token);
-        if (!t.startsWith("https://") && (t.endsWith(".tgz") || !/\.[a-z0-9]+$/i.test(t))) return this.handle({ type: "packages", path: t }, token);
+        if (t.endsWith(".tgz")) return this.handle({ type: "packages", path: t }, token);
+        // A folder: its package scripts plus what the tree could run when opened.
+        if (!t.startsWith("https://") && !/\.[a-z0-9]+$/i.test(t)) {
+          return r(await this.check(token, 900, () => report({ id: id(), created: now(), kind: "Project inspection", subject: t, coverage: { checked: ["Package manifests", "Referenced scripts", "7 configuration files"], notes: ["Reads package manifests and script source as data; never runs npm or lifecycle hooks.", "Reads the project's files as data: IDE tasks, direnv, devcontainers, git attributes and hooks, AI-tool settings, MCP servers, instruction files and CI workflows. Nothing in the project is run."], skipped: [] }, findings: [
+            { rule: "repo.autorun-task", severity: "review", summary: "Opening this folder in VS Code runs \"setup\"", evidence: `.vscode/tasks.json, line 4: "runOptions": {"runOn": "folderOpen"}\ncommand: node scripts/setup.js`, action: "Read the task before opening the folder in a trusted window; VS Code asks only once per folder." },
+            { rule: "package.lifecycle", severity: "review", summary: "fixture@1.0.0: postinstall", evidence: `${t}/package.json\nnode scripts/setup.js`, action: "Review referenced source. Installation approvals do not constrain later runtime behavior." },
+            { rule: "repo.workflow-unpinned", severity: "review", summary: "A workflow uses some-org/setup-tool@v3 by tag, not by commit", evidence: ".github/workflows/ci.yml, line 8: uses: some-org/setup-tool@v3", action: "A tag can be moved to different code. Pin third-party actions to a full commit SHA." },
+          ] }), "Project inspection", t));
+        }
         return this.handle({ type: "inspect", target: t }, token);
       }
       case "inspect": return r(await this.check(token, 900, () => report({ id: id(), created: now(), kind: "Installer inspection", subject: request.target, sha256: "4397ea1f9014f4ae085fb4f108db3aaa16f00d5711ff5070fb36d4117b18f87e", findings: [{ rule: "shell.execute-download", severity: "high", summary: "Downloads and executes code", evidence: "Line 4: curl -fsSL https://example.org/setup.sh | sh", action: "Save and inspect the exact downloaded bytes first." }, { rule: "shell.privilege", severity: "review", summary: "Requests elevated privileges", evidence: "Line 5: sudo install -m 0755 /tmp/tool /usr/local/bin/tool", action: "Check why this operation needs administrator access." }], coverage: { checked: ["Capability rules", "ShellCheck"], notes: ["Static capability rules only. No code was executed."], skipped: [] }, details: '#!/bin/sh\necho "Installing example tool"\ncurl -fsSL https://example.org/tool.tar.gz -o /tmp/tool.tar.gz\ncurl -fsSL https://example.org/setup.sh | sh\nsudo install -m 0755 /tmp/tool /usr/local/bin/tool' }), "Installer inspection", request.target));

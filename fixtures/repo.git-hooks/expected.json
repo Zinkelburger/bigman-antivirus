@@ -1,0 +1,8 @@
+{
+  "driver": "repo",
+  "fires": [
+    "repo.git-hooks"
+  ],
+  "about": "A shared .git/config with core.hooksPath into the project.",
+  "input": "input.json"
+}

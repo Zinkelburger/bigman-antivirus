@@ -50,6 +50,16 @@ Every finding Bigman shows comes from one of these rules. Each has a synthetic f
 | `advisory.reboot-required` | Review | A restart finishes installing updates | HI-23 |
 | `advisory.untracked-package` | Info | Packages outside the distribution's security data | DP-10, DP-11, DP-12 |
 | `advisory.unsupported-release` | Review | This release no longer receives security updates | DP-20 |
+| `repo.autorun-task` | Review | Opening the folder runs a task | SC-20, PH-10 |
+| `repo.envrc` | Review | direnv runs a script when you enter the folder | SC-20 |
+| `repo.devcontainer-command` | Review | The devcontainer runs commands | SC-20, PH-10 |
+| `repo.git-filter` | Review | The project names a git filter | SC-20 |
+| `repo.git-hooks` | Review | Git hooks point into the project | SC-20, PH-10 |
+| `repo.ai-hooks` | Review | AI tool settings in the project run commands | SC-21, CR-19 |
+| `repo.mcp-server` | Review | The project configures an MCP server | SC-21, SC-22 |
+| `repo.hidden-instructions` | High | An AI instruction file contains invisible characters | SC-21, CR-19 |
+| `repo.workflow-unpinned` | Review | A workflow uses an action by tag | SC-15 |
+| `repo.workflow-pull-request-target` | Review | A workflow uses pull_request_target | SC-16 |
 | `canary.event` | High | A decoy file was opened or changed | CR-22 |
 | `canary.verified` | Info | Local read detection verified | CR-22 |
 | `canary.notifications-unavailable` | Info | Desktop pop-ups are not available |  |
@@ -414,6 +424,86 @@ What you can do: Follow each project's own releases for security updates.
 The distribution's security data has nothing for this release, which usually means it has reached its end of life.
 
 What you can do: Upgrade to a supported release.
+
+## `repo.autorun-task`
+
+**Opening the folder runs a task** (Review)
+
+A VS Code task in the project is set to run when the folder opens (runOn: folderOpen).
+
+What you can do: Read the task before opening the folder in a trusted window.
+
+## `repo.envrc`
+
+**direnv runs a script when you enter the folder** (Review)
+
+The project has an .envrc, which direnv runs as a shell script in every shell that enters the folder once it is allowed.
+
+What you can do: Read it before running `direnv allow`.
+
+## `repo.devcontainer-command`
+
+**The devcontainer runs commands** (Review)
+
+The devcontainer configuration runs commands when the container is created or started. initializeCommand runs on this computer, not in the container, and is rated High.
+
+What you can do: Read the commands before reopening the folder in a container.
+
+## `repo.git-filter`
+
+**The project names a git filter** (Review)
+
+A .gitattributes entry names a filter driver, which runs a program on checkout or commit once your git configuration defines it.
+
+What you can do: Check that no setup step asks you to define a filter you have not read.
+
+## `repo.git-hooks`
+
+**Git hooks point into the project** (Review)
+
+This copy's .git/config sets core.hooksPath to a folder in the project, so its scripts run on every commit, checkout or merge.
+
+What you can do: Read the scripts, or remove core.hooksPath.
+
+## `repo.ai-hooks`
+
+**AI tool settings in the project run commands** (Review)
+
+Claude Code settings shipped with the project define hooks, which run shell commands while the tool works in the folder.
+
+What you can do: Read the hooks before trusting the project.
+
+## `repo.mcp-server`
+
+**The project configures an MCP server** (Review)
+
+A project MCP configuration starts a program that AI tools run with your permissions.
+
+What you can do: Check the package and pin its version before allowing it.
+
+## `repo.hidden-instructions`
+
+**An AI instruction file contains invisible characters** (High)
+
+An instruction file for AI coding tools (CLAUDE.md, AGENTS.md, .cursorrules and similar) contains zero-width, bidirectional or tag characters, which can carry instructions a reader never sees.
+
+What you can do: Show and remove the characters before an AI tool reads the file.
+
+## `repo.workflow-unpinned`
+
+**A workflow uses an action by tag** (Review)
+
+A GitHub Actions workflow refers to a third-party action by tag or branch, which its owner (or someone who takes over the account) can move to different code.
+
+What you can do: Pin third-party actions to a full commit SHA.
+
+## `repo.workflow-pull-request-target`
+
+**A workflow uses pull_request_target** (Review)
+
+pull_request_target runs with the repository's secrets and write access. Checking out the pull request's own code in it is rated High.
+
+What you can do: Never check out or run the pull request's code in a pull_request_target workflow.
 
 ## `canary.event`
 

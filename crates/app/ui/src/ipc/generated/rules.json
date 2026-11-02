@@ -492,6 +492,112 @@
     ]
   },
   {
+    "id": "repo.autorun-task",
+    "severity": "review",
+    "title": "Opening the folder runs a task",
+    "explanation": "A VS Code task in the project is set to run when the folder opens (runOn: folderOpen).",
+    "remediation": "Read the task before opening the folder in a trusted window.",
+    "threats": [
+      "SC-20",
+      "PH-10"
+    ]
+  },
+  {
+    "id": "repo.envrc",
+    "severity": "review",
+    "title": "direnv runs a script when you enter the folder",
+    "explanation": "The project has an .envrc, which direnv runs as a shell script in every shell that enters the folder once it is allowed.",
+    "remediation": "Read it before running `direnv allow`.",
+    "threats": [
+      "SC-20"
+    ]
+  },
+  {
+    "id": "repo.devcontainer-command",
+    "severity": "review",
+    "title": "The devcontainer runs commands",
+    "explanation": "The devcontainer configuration runs commands when the container is created or started. initializeCommand runs on this computer, not in the container, and is rated High.",
+    "remediation": "Read the commands before reopening the folder in a container.",
+    "threats": [
+      "SC-20",
+      "PH-10"
+    ]
+  },
+  {
+    "id": "repo.git-filter",
+    "severity": "review",
+    "title": "The project names a git filter",
+    "explanation": "A .gitattributes entry names a filter driver, which runs a program on checkout or commit once your git configuration defines it.",
+    "remediation": "Check that no setup step asks you to define a filter you have not read.",
+    "threats": [
+      "SC-20"
+    ]
+  },
+  {
+    "id": "repo.git-hooks",
+    "severity": "review",
+    "title": "Git hooks point into the project",
+    "explanation": "This copy's .git/config sets core.hooksPath to a folder in the project, so its scripts run on every commit, checkout or merge.",
+    "remediation": "Read the scripts, or remove core.hooksPath.",
+    "threats": [
+      "SC-20",
+      "PH-10"
+    ]
+  },
+  {
+    "id": "repo.ai-hooks",
+    "severity": "review",
+    "title": "AI tool settings in the project run commands",
+    "explanation": "Claude Code settings shipped with the project define hooks, which run shell commands while the tool works in the folder.",
+    "remediation": "Read the hooks before trusting the project.",
+    "threats": [
+      "SC-21",
+      "CR-19"
+    ]
+  },
+  {
+    "id": "repo.mcp-server",
+    "severity": "review",
+    "title": "The project configures an MCP server",
+    "explanation": "A project MCP configuration starts a program that AI tools run with your permissions.",
+    "remediation": "Check the package and pin its version before allowing it.",
+    "threats": [
+      "SC-21",
+      "SC-22"
+    ]
+  },
+  {
+    "id": "repo.hidden-instructions",
+    "severity": "high",
+    "title": "An AI instruction file contains invisible characters",
+    "explanation": "An instruction file for AI coding tools (CLAUDE.md, AGENTS.md, .cursorrules and similar) contains zero-width, bidirectional or tag characters, which can carry instructions a reader never sees.",
+    "remediation": "Show and remove the characters before an AI tool reads the file.",
+    "threats": [
+      "SC-21",
+      "CR-19"
+    ]
+  },
+  {
+    "id": "repo.workflow-unpinned",
+    "severity": "review",
+    "title": "A workflow uses an action by tag",
+    "explanation": "A GitHub Actions workflow refers to a third-party action by tag or branch, which its owner (or someone who takes over the account) can move to different code.",
+    "remediation": "Pin third-party actions to a full commit SHA.",
+    "threats": [
+      "SC-15"
+    ]
+  },
+  {
+    "id": "repo.workflow-pull-request-target",
+    "severity": "review",
+    "title": "A workflow uses pull_request_target",
+    "explanation": "pull_request_target runs with the repository's secrets and write access. Checking out the pull request's own code in it is rated High.",
+    "remediation": "Never check out or run the pull request's code in a pull_request_target workflow.",
+    "threats": [
+      "SC-16"
+    ]
+  },
+  {
     "id": "canary.event",
     "severity": "high",
     "title": "A decoy file was opened or changed",

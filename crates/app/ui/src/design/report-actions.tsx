@@ -101,6 +101,7 @@ export function ReportFollowUp({ report }: { report: Report }) {
           )}
         </>
       );
+    case "Project inspection":
     case "Package script inventory":
       return report.subject.endsWith(".tgz") || report.subject.endsWith(".gz") ? null : (
         <div>

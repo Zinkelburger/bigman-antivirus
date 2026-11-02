@@ -1,0 +1,8 @@
+{
+  "driver": "repo",
+  "fires": [
+    "repo.workflow-unpinned"
+  ],
+  "about": "A workflow using a third-party action by tag; a pinned and a local action are not flagged.",
+  "input": "input.json"
+}

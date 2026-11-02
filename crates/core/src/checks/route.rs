@@ -1,7 +1,7 @@
 //! Picks the inspector for a target from the target itself, so the user does not
 //! have to. Deterministic: URL scheme, file type and the first bytes, nothing else.
 use crate::{
-    checks::{inspect, packages, pdf},
+    checks::{inspect, packages, pdf, repo},
     model::Report,
     runner::Cancel,
     store::Store,
@@ -48,9 +48,24 @@ fn starts_with(path: &Path, magic: &[u8]) -> bool {
 pub fn inspect_any(store: &Store, target: &str, stop: &Cancel) -> Result<Report> {
     match choose(target) {
         Inspector::Installer => inspect::inspect(store, target, stop),
+        Inspector::Packages if Path::new(target).is_dir() => project(store, Path::new(target)),
         Inspector::Packages => packages::packages(store, Path::new(target)),
         Inspector::Pdf => pdf::scan_pdf(store, Path::new(target), stop),
     }
+}
+
+/// A project folder: its package scripts and what the tree could run on open.
+pub fn project(store: &Store, dir: &Path) -> Result<Report> {
+    let mut r = packages::inventory(dir)?;
+    let checked = repo::repo_check(dir)?;
+    r.kind = "Project inspection".into();
+    r.findings.extend(checked.findings);
+    r.findings.sort_by_key(|f| std::cmp::Reverse(f.severity));
+    r.coverage.checked.extend(checked.coverage.checked);
+    r.coverage.notes.extend(checked.coverage.notes);
+    r.coverage.skipped.extend(checked.coverage.skipped);
+    store.save(&r)?;
+    Ok(r)
 }
 
 #[cfg(test)]

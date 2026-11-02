@@ -66,6 +66,11 @@ pub enum Request {
     Packages {
         path: PathBuf,
     },
+    /// What a project folder could run on open: IDE tasks, direnv, devcontainers,
+    /// git hooks, AI-tool settings and CI workflows.
+    RepoCheck {
+        path: PathBuf,
+    },
     Changes,
     /// Pending security updates from the distribution's data (fetches public data).
     Advisories {

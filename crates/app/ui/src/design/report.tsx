@@ -46,6 +46,8 @@ export function reportSeverity(report: Report) {
 const KIND_TITLE: Record<string, string> = {
   "Persistence changes": "Startup files",
   "Security updates": "Security updates",
+  "Project inspection": "Project",
+  "Repository check": "Project",
   "Package script inventory": "Package scripts",
   "Restricted installer rehearsal": "Installer rehearsal",
   "Security checkup": "Checkup",

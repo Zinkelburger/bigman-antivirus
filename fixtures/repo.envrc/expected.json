@@ -1,0 +1,8 @@
+{
+  "driver": "repo",
+  "fires": [
+    "repo.envrc"
+  ],
+  "about": "An .envrc in the project root.",
+  "input": "input.json"
+}

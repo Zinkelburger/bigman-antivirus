@@ -1,0 +1,8 @@
+{
+  "driver": "repo",
+  "fires": [
+    "repo.hidden-instructions"
+  ],
+  "about": "A CLAUDE.md with a zero-width space inside an instruction.",
+  "input": "input.json"
+}

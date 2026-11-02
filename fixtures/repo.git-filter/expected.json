@@ -1,0 +1,8 @@
+{
+  "driver": "repo",
+  "fires": [
+    "repo.git-filter"
+  ],
+  "about": "A custom filter driver next to the LFS one, which is ignored.",
+  "input": "input.json"
+}

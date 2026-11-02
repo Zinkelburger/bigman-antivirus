@@ -1,0 +1,8 @@
+{
+  "driver": "repo",
+  "fires": [
+    "repo.workflow-pull-request-target"
+  ],
+  "about": "A pull_request_target workflow that does not check out the PR head (Review).",
+  "input": "input.json"
+}

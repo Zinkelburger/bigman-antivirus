@@ -12,6 +12,7 @@ pub mod packages;
 pub mod pdf;
 pub mod preview;
 pub mod receipt;
+pub mod repo;
 pub mod route;
 pub mod scan;
 pub mod setup;

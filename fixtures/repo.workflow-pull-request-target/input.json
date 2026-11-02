@@ -1,0 +1,5 @@
+{
+  "files": {
+    ".github/workflows/label.yml": "on: pull_request_target\njobs:\n  label:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo labelling\n"
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "files": {
+    ".mcp.json": "{\"mcpServers\": {\"helper\": {\"command\": \"npx\", \"args\": [\"-y\", \"mcp-helper\"]}}}\n"
+  }
+}

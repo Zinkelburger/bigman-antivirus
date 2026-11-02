@@ -27,12 +27,12 @@ describe("Inspect", () => {
     expect(within(panel).getByRole("button", { name: "Export report…" })).toBeInTheDocument();
   });
 
-  it("routes a folder to the package inspector", async () => {
+  it("routes a folder to the project inspector", async () => {
     const { user } = renderWithDaemon(<InspectPage />);
     await user.type(await screen.findByLabelText("File, folder or HTTPS URL"), "/home/sam/Projects/example-app");
     await user.click(screen.getByRole("button", { name: "Inspect" }));
     const result = await screen.findByRole("region", { name: "Result" });
-    expect(within(result).getByRole("heading", { name: /^Package scripts: / })).toBeInTheDocument();
+    expect(within(result).getByRole("heading", { name: /^Project: / })).toBeInTheDocument();
     expect(within(result).getByRole("button", { name: "Disable automatic install scripts…" })).toBeInTheDocument();
   });
 });

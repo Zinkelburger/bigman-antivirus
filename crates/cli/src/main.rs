@@ -66,6 +66,11 @@ enum Commands {
         #[arg(long)]
         accept_baseline: Option<String>,
     },
+    /// What a project folder could run on open: IDE tasks, direnv, devcontainers,
+    /// git hooks and filters, AI-tool settings, instruction files and CI workflows.
+    RepoCheck {
+        path: PathBuf,
+    },
     /// Pending security updates for installed packages, from your distribution's
     /// own security data (Fedora, Debian, Arch). Shows the update command; never runs it.
     Advisories {
@@ -281,6 +286,11 @@ fn run() -> Result<()> {
                 Some(id) => changes::accept_reviewed_baseline(&store, &id)?,
                 None => changes::changes(&store, &runner::cancel())?,
             };
+            store.save(&r)?;
+            Some(r)
+        }
+        Some(Commands::RepoCheck { path }) => {
+            let r = checks::repo::repo_check(&path)?;
             store.save(&r)?;
             Some(r)
         }

@@ -1,0 +1,8 @@
+{
+  "driver": "repo",
+  "fires": [
+    "repo.ai-hooks"
+  ],
+  "about": "Project Claude Code settings with a PostToolUse hook.",
+  "input": "input.json"
+}

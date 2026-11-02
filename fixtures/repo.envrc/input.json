@@ -1,0 +1,5 @@
+{
+  "files": {
+    ".envrc": "export PATH=$PWD/bin:$PATH\n"
+  }
+}

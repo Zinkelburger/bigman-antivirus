@@ -1,0 +1,8 @@
+{
+  "driver": "repo",
+  "fires": [
+    "repo.autorun-task"
+  ],
+  "about": "A tasks.json (with JSONC comments) that runs on folderOpen.",
+  "input": "input.json"
+}

@@ -74,6 +74,12 @@ impl Daemon {
                 Request::InspectAny { target } => report(route::inspect_any(store, &target, stop)),
                 Request::Inspect { target } => report(inspect::inspect(store, &target, stop)),
                 Request::Packages { path } => report(packages::packages(store, &path)),
+                Request::RepoCheck { path } => {
+                    report(bigman_core::checks::repo::repo_check(&path).and_then(|r| {
+                        store.save(&r)?;
+                        Ok(r)
+                    }))
+                }
                 Request::Advisories { refresh, offline } => {
                     report(bigman_core::checks::advisories::advisories(
                         store,

@@ -170,6 +170,20 @@ fn run(dir: &Path, expected: &Expected) -> BTreeSet<String> {
             }
         }
         "receipt" => return receipt_rules(&input),
+        "repo" => {
+            #[derive(Deserialize)]
+            struct Repo {
+                files: std::collections::BTreeMap<PathBuf, String>,
+                git_config: Option<String>,
+            }
+            let repo: Repo = serde_json::from_value(json()).unwrap();
+            let files: Vec<checks::repo::File> = repo
+                .files
+                .into_iter()
+                .map(|(path, text)| checks::repo::File { path, text })
+                .collect();
+            checks::repo::assess(&mut r, &files, repo.git_config.as_deref());
+        }
         "advisories" => {
             checks::advisories::assess(&mut r, &serde_json::from_value(json()).unwrap())
         }
