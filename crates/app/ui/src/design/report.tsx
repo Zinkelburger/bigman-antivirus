@@ -47,6 +47,7 @@ const KIND_TITLE: Record<string, string> = {
   "Persistence changes": "Startup files",
   "Security updates": "Security updates",
   "Project inspection": "Project",
+  "Lockfile check": "Lockfile",
   "Repository check": "Project",
   "Package script inventory": "Package scripts",
   "Restricted installer rehearsal": "Installer rehearsal",
