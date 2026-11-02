@@ -1,0 +1,8 @@
+{
+  "driver": "ssh-tunnel",
+  "fires": [
+    "ssh.tunnel.reverse"
+  ],
+  "about": "autossh started from an editor, forwarding a remote port to local port 22 with host-key checks off: the command-line shape Microsoft published for the 2026-10 Cursor extension backdoor, with a documentation address.",
+  "input": "input.json"
+}

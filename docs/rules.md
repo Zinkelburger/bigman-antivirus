@@ -28,6 +28,11 @@ Every finding Bigman shows comes from one of these rules. Each has a synthetic f
 | `clamav.stale` | Review | Malware signatures are out of date | DP-20 |
 | `tool.missing` | Info | An optional tool is not installed |  |
 | `monitor.stopped` | Review | Canary monitoring is not reporting | CR-22, HI-24 |
+| `monitor.gap` | Review | Monitoring was off while the computer was awake | HI-24, CR-22 |
+| `ssh.key.added` | High | A new SSH key can log in to your account | NE-05, HI-10, SC-19 |
+| `ssh.tunnel.reverse` | Review | SSH is forwarding connections back to this computer | NE-20, NE-14, SC-19 |
+| `ssh.login.remote` | Review | Someone logged in over the network | NE-03, NE-05, NE-20 |
+| `ssh.key.stray` | Review | An SSH private key is stored outside ~/.ssh | CR-03, NE-20 |
 | `git.plaintext-credentials` | Review | Git stores credentials in plain text | CR-01, CR-08 |
 | `persistence.change` | Review | A startup file changed | HI-01, HI-02, HI-03, HI-04, HI-05, HI-10 |
 | `persistence.owned_modified` | Review | A package's file was modified | HI-01, HI-22, DP-21, MW-08 |
@@ -229,9 +234,49 @@ What you can do: Install it from Setup if you want those checks.
 
 **Canary monitoring is not reporting** (Review)
 
-The canary monitor has not written a heartbeat in the last ten seconds, so reads of decoy files are not being noticed.
+The canary monitor has not written a heartbeat in the last ten seconds, so reads of decoy files are not being noticed. The background service also reports this live, once, when the heartbeat has been missing for a minute while the computer was awake.
 
 What you can do: Start monitoring from Protect > Canaries, or install the background services from Setup.
+
+## `monitor.gap`
+
+**Monitoring was off while the computer was awake** (Review)
+
+The canary monitor or Bigman's background service was not running for a while, so nothing was watching in that window. Suspended time does not count, and a reboot starts over. A background-service gap after a normal stop (logout, systemctl --user stop) is Info; one after a crash or kill is Review. Malware running as you can stop these processes, which is why the gap itself is shown.
+
+What you can do: If you did not stop monitoring, review Activity and the startup files for changes made in that window.
+
+## `ssh.key.added`
+
+**A new SSH key can log in to your account** (High)
+
+A key appeared in ~/.ssh/authorized_keys that was not there before. Whoever holds the matching private key can log in as you wherever sshd accepts it, without your password. The key's fingerprint and comment are shown, never the key itself; fingerprints published as indicators of compromise are named.
+
+What you can do: If you did not add it, remove its line, then check ~/.ssh, your crontab and startup files for anything added at the same time. Turn sshd off if you do not need remote logins.
+
+## `ssh.tunnel.reverse`
+
+**SSH is forwarding connections back to this computer** (Review)
+
+One of your ssh or autossh processes uses -R or RemoteForward, so connections to a port on another computer arrive here. Developers do this on purpose. It is High when it forwards to this computer's SSH server, turns off host-key checking, or was started from a code editor, as the October 2026 tampered Cursor extension did.
+
+What you can do: If you did not start it, stop the process, then look for what restarts it (crontab -l, ~/.config/systemd/user, autostart) and check ~/.ssh/authorized_keys.
+
+## `ssh.login.remote`
+
+**Someone logged in over the network** (Review)
+
+The login manager reports a session that came over the network, usually through sshd. It is High when it came from this computer's own address, which is how logins through a reverse tunnel arrive (or a deliberate ssh to localhost).
+
+What you can do: If this was not you, end the session with loginctl terminate-session, remove keys you do not recognise from ~/.ssh/authorized_keys, and change your password.
+
+## `ssh.key.stray`
+
+**An SSH private key is stored outside ~/.ssh** (Review)
+
+A file directly inside a temporary folder, ~/.config, ~/.cache or ~/.local/share starts like an SSH private key. Tools rarely keep keys there; droppers do, to authenticate a tunnel. Only the first line is read.
+
+What you can do: If no tool you use put it there, keep a copy for investigation, look for an ssh or autossh process using it, then delete it.
 
 ## `git.plaintext-credentials`
 

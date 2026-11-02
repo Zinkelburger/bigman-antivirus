@@ -10,11 +10,14 @@ use bigman_core::{
 };
 use bigman_core::{
     checks::{
-        canary, changes, denials, doctor, inspect, integrations, network, packages, pdf, scan,
-        shell,
+        canary, changes, denials, doctor, heartbeat, inspect, integrations, network, packages, pdf,
+        scan, shell, ssh,
     },
     model::Report,
-    platform::{linux::parse_proc_net, Protocol},
+    platform::{
+        linux::{parse_proc_net, parse_show_session},
+        Protocol,
+    },
     rules, runner,
     store::Store,
 };
@@ -173,6 +176,55 @@ fn run(dir: &Path, expected: &Expected) -> BTreeSet<String> {
         "denial" => {
             for line in text().lines() {
                 denials::finding(&mut r, &denials::parse(line).expect("a denial record"));
+            }
+        }
+        "ssh-keys" => {
+            for k in ssh::parse_authorized_keys(&text()) {
+                ssh::key_added_finding(&mut r, &input, &k);
+            }
+        }
+        "ssh-tunnel" => {
+            let v = json();
+            let strings = |key: &str| -> Vec<String> {
+                serde_json::from_value(v[key].clone()).unwrap_or_default()
+            };
+            let args = strings("args");
+            let tunnel = ssh::parse_tunnel(&args, None).expect("a reverse tunnel");
+            ssh::tunnel_finding(
+                &mut r,
+                &tunnel,
+                4242,
+                &args.join(" "),
+                &strings("started_by"),
+            );
+        }
+        "ssh-login" => {
+            for s in parse_show_session(&text()).into_iter().filter(|s| s.remote) {
+                ssh::remote_login_finding(
+                    &mut r,
+                    &s.user,
+                    s.remote_host.as_deref(),
+                    &s.service,
+                    s.tty.as_deref(),
+                );
+            }
+        }
+        "ssh-stray-key" => {
+            let head = text().replace(
+                "{BEGIN}",
+                &format!("-----BEGIN {} PRIVATE KEY-----", "OPENSSH"),
+            );
+            if ssh::is_ssh_private_key(head.as_bytes()) {
+                ssh::stray_key_finding(&mut r, &input, head.len() as u64, 0o600);
+            }
+        }
+        "heartbeat" => {
+            let ticks: Vec<heartbeat::Tick> = serde_json::from_value(json()).unwrap();
+            let mut tracker = heartbeat::Tracker::default();
+            for t in &ticks {
+                for e in tracker.step(t) {
+                    heartbeat::finding(&mut r, &e);
+                }
             }
         }
         "lynis" => integrations::lynis_findings(&mut r, &text()),

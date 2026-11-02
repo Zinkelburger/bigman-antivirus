@@ -1,0 +1,17 @@
+Id=2
+Name=sam
+TTY=tty2
+Remote=no
+RemoteHost=
+RemoteUser=
+Service=gdm-password
+Class=user
+
+Id=7
+Name=sam
+TTY=pts/3
+Remote=yes
+RemoteHost=198.51.100.23
+RemoteUser=
+Service=sshd
+Class=user

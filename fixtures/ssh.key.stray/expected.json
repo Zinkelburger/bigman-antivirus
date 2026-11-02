@@ -1,0 +1,8 @@
+{
+  "driver": "ssh-stray-key",
+  "fires": [
+    "ssh.key.stray"
+  ],
+  "about": "A hidden file named like the 2026-10 tunnel key (.stk_ plus ten hex characters) whose first line is an OpenSSH private-key header. The header is written at test time from {BEGIN} so no key-shaped text is committed.",
+  "input": ".stk_0123456789"
+}

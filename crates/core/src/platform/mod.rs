@@ -174,3 +174,49 @@ pub trait Journal: Send + Sync {
 pub trait Notifier: Send + Sync {
     fn notify(&self, summary: &str, body: &str);
 }
+
+/// One of your own processes, as /proc shows it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProcessEntry {
+    pub pid: u32,
+    pub ppid: u32,
+    /// The kernel's short name (`comm`).
+    pub name: String,
+    pub exe: Option<PathBuf>,
+    /// The command line, one argument per entry.
+    pub args: Vec<String>,
+}
+
+pub trait Processes: Send + Sync {
+    /// Your own processes. Other users' command lines are not read.
+    fn processes(&self) -> Result<Vec<ProcessEntry>>;
+}
+
+/// One login session as the login manager (systemd-logind) reports it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LoginSession {
+    pub id: String,
+    pub user: String,
+    /// The PAM service that opened it, e.g. "sshd", "gdm-password", "systemd-user".
+    pub service: String,
+    /// Whether the session came over the network.
+    pub remote: bool,
+    pub remote_host: Option<String>,
+    pub remote_user: Option<String>,
+    pub tty: Option<String>,
+    /// "user", "greeter", "manager", "background" ...
+    pub class: String,
+}
+
+pub trait Sessions: Send + Sync {
+    /// Every current login session on the machine, for every user.
+    fn sessions(&self) -> Result<Vec<LoginSession>>;
+}
+
+/// What tells awake time from suspended time and one boot from the next.
+pub trait Clock: Send + Sync {
+    /// Changes on every boot.
+    fn boot_id(&self) -> Option<String>;
+    /// Seconds spent suspended since boot.
+    fn asleep_secs(&self) -> u64;
+}

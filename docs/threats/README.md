@@ -16,9 +16,9 @@ The prioritised plan built from these files is in [research/roadmap.md](../resea
 | [04 Host integrity and hardening audit](./04-host-integrity-and-hardening-audit.md) | HI- | 25 | 0 | 16 | 9 |
 | [05 Malware families and detection](./05-malware-families-and-detection.md) | MW- | 24 | 0 | 14 | 10 |
 | [06 Credential and secret protection](./06-credential-and-secret-protection.md) | CR- | 22 | 0 | 4 | 18 |
-| [07 Network exposure and remote access](./07-network-exposure-and-remote-access.md) | NE- | 22 | 0 | 10 | 12 |
+| [07 Network exposure and remote access](./07-network-exposure-and-remote-access.md) | NE- | 22 | 0 | 12 | 10 |
 | [08 Desktop and sandboxing](./08-desktop-and-sandboxing.md) | DS- | 21 | 0 | 7 | 14 |
-| **Total** | | **181** | **1** | **73** | **107** |
+| **Total** | | **181** | **1** | **75** | **105** |
 
 "Partial" usually means an existing workflow (ClamAV scans, `bigman inspect`, the startup baseline, the canary or the browser extension) catches some indicators but not the threat as a whole.
 
@@ -27,6 +27,7 @@ The prioritised plan built from these files is in [research/roadmap.md](../resea
 - [Linux antivirus landscape and papers](../research/linux-av-landscape-and-papers.md): 41 tools and products with licences and integrate/borrow/avoid advice, 28 papers, and Bigman's market position.
 - [Vulnerability intelligence and feeds](../research/vulnerability-intelligence-and-feeds.md): distro advisory data sources, version-comparison rules, the `bigman advisories` design, and the weekly threat-intel review prompt.
 - [feeds.opml](../research/feeds.opml): 45 RSS/Atom feeds, each fetched and confirmed working on 2026-10-29. Import it into any feed reader.
+- [Reference archive](../references/README.md): a text copy and a Wayback Machine snapshot of every page cited here, so the evidence survives if a page is removed.
 
 ## Themes that recur across files
 

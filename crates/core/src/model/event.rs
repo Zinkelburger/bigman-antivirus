@@ -20,6 +20,8 @@ pub enum SourceId {
     Advisory,
     Extension,
     Import,
+    /// SSH keys, tunnels and network logins.
+    Ssh,
 }
 
 impl SourceId {
@@ -37,6 +39,7 @@ impl SourceId {
             SourceId::Advisory => "advisory",
             SourceId::Extension => "extension",
             SourceId::Import => "import",
+            SourceId::Ssh => "ssh",
         }
     }
     pub fn parse(s: &str) -> Option<SourceId> {
@@ -44,7 +47,7 @@ impl SourceId {
     }
 }
 
-pub const ALL_SOURCES: [SourceId; 12] = [
+pub const ALL_SOURCES: [SourceId; 13] = [
     SourceId::Network,
     SourceId::Listener,
     SourceId::Receipt,
@@ -57,6 +60,7 @@ pub const ALL_SOURCES: [SourceId; 12] = [
     SourceId::Advisory,
     SourceId::Extension,
     SourceId::Import,
+    SourceId::Ssh,
 ];
 
 /// Where an event's evidence lives.

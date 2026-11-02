@@ -8,9 +8,9 @@
 |---|---|---|---|---|
 | NE-01 | Unexpected listening services and wildcard (0.0.0.0 / [::]) binds | High | Partial | Parse `ss`/`/proc/net/*` into findings with owner UID, unit, binary path and owning package; flag wildcard binds |
 | NE-02 | Weak SSH server configuration (password auth, root login, forwarding) | High | Gap | `ssh.config.*` audit of effective `sshd -T` output via an explicit, one-shot polkit read |
-| NE-03 | SSH brute force, password spraying and credential stuffing | Medium (High if password auth on) | Gap | Rootless journald summary of failed and accepted logins, grouped by source and user |
+| NE-03 | SSH brute force, password spraying and credential stuffing | Medium (High if password auth on) | Partial (network logins) | Rootless journald summary of failed and accepted logins, grouped by source and user |
 | NE-04 | Vulnerable SSH daemons (regreSSHion, 2025 OpenSSH CVEs, Terrapin, Erlang/OTP SSH) | High | Gap | Feed-driven advisory keyed on the installed package version and the distro's fixed version |
-| NE-05 | Unrecognised SSH keys and risky forwarding and agent settings | High | Partial | Already baselines `~/.ssh/authorized_keys`; add `AuthorizedKeysFile` and `sshd_config.d` drift and a forwarding audit |
+| NE-05 | Unrecognised SSH keys and risky forwarding and agent settings | High | Partial (live key watch) | Already baselines `~/.ssh/authorized_keys`; add `AuthorizedKeysFile` and `sshd_config.d` drift and a forwarding audit |
 | NE-06 | Docker Engine API exposed on TCP (2375/2376) | Critical | Partial | `docker.api.tcp` from listeners, daemon flags, `daemon.json` and unit drop-ins |
 | NE-07 | Docker/Podman published ports bypassing ufw/firewalld | High | Gap | `docker.publish.wildcard` from `docker-proxy` or `rootlessport` command lines plus a firewall-backend explanation |
 | NE-08 | Unauthenticated data stores (Redis, Elasticsearch, MongoDB, PostgreSQL trust, MySQL) | High | Gap | Port and owner-package match plus a read-only config lint (`bind`, `protected-mode`, `requirepass`, `xpack.security`) |
@@ -25,7 +25,7 @@
 | NE-17 | cups-browsed IPP chain (CVE-2024-47176 and related) and CUPS DDoS reflection | High (if active) | Gap | `cups.browsed-active` plus `BrowseRemoteProtocols` lint, cross-checked with UDP 631 |
 | NE-18 | Router UPnP/NAT-PMP port mappings and router-level exposure | Medium | Gap | Guidance view, plus an optional read-only UPnP IGD port-mapping listing behind an explicit user action |
 | NE-19 | VPN/WireGuard configuration hygiene (keys, hooks, AllowedIPs, leaks) | Medium | Gap | Metadata-only audit: file modes, presence of `PostUp`/`PreUp` hooks, `SaveConfig`, full-tunnel and DNS settings |
-| NE-20 | Unexpected tunnels and remote-access agents (ngrok, cloudflared, Tailscale Funnel, VNC/RDP) | High | Gap | Known-binary and known-unit inventory plus outbound tunnel endpoints, as "review" findings |
+| NE-20 | Unexpected tunnels and remote-access agents (ngrok, cloudflared, Tailscale Funnel, VNC/RDP) | High | Partial (`ssh -R`) | Known-binary and known-unit inventory plus outbound tunnel endpoints, as "review" findings |
 | NE-21 | Default, reused or unchanged service credentials (CCDC's top lesson) | High | Gap | Guidance-first checklist; detect the presence of known default-credential configs without reading secrets |
 | NE-22 | Legacy RPC, file-sharing and remote-desktop daemons (rpcbind, NFS, Samba, Telnet, VNC) on a desktop | Medium | Partial | Named-service rules in the listener review: "not normally needed on a workstation" |
 
@@ -93,7 +93,7 @@
   - `lastb` (root) and `last`.
   - Patterns: "Failed password", "Invalid user", "Connection closed by authenticating user", "Accepted password/publickey for USER from IP", and "maximum authentication attempts exceeded".
   - Suspicious states: many sources against one user; one source against many users; any `Accepted password` when password auth was meant to be off; or an accepted login from a source that previously only failed.
-- **Bigman today:** Gap.
+- **Bigman today:** Partial. `ssh.login.remote` reports every network login logind knows about, for any user, within five seconds (High when it comes from loopback, the reverse-tunnel signature). Failed attempts and brute-force volume still need the journal.
 - **Proposed mitigation / detection:**
   - A CLI check plus monitor, `bigman network auth-summary`. Read the journal rootless when the user belongs to `wheel`, `adm` or `systemd-journal` (journalctl(1) says these groups can read all journal files). Otherwise say "incomplete: no permission to read system journal".
   - Parse with fixed regexes, never by shelling out to grep.
@@ -139,13 +139,13 @@
 
 ### NE-05 Unrecognised SSH keys and risky forwarding and agent settings
 - **What it is:** An extra key in `authorized_keys` (for the user or for root) gives silent, password-free re-entry, and is the first thing many Linux bots and CCDC red teams add. Agent forwarding to an untrusted host lets that host use your keys while you are connected. A changed `AuthorizedKeysFile` or `AuthorizedKeysCommand` can move key lookup somewhere nobody watches.
-- **Real-world examples:** PumaBot (Darktrace, 2025) and Qubitstrike (Cado/Darktrace, 2023) both add attacker SSH keys. The CCDC blue-team manual lists sweeping for `authorized_keys` and `id_rsa` files across the filesystem as a first action.
+- **Real-world examples:** PumaBot (Darktrace, 2025) and Qubitstrike (Cado/Darktrace, 2023) both add attacker SSH keys. The CCDC blue-team manual lists sweeping for `authorized_keys` and `id_rsa` files across the filesystem as a first action. In 2026-10 a tampered editor extension appended a key with the comment `svc-telemetry` (fingerprint `SHA256:0Z6R+DF64Do2nwQic8a7kkfDLNNk4IiK+2U2Rci4htk`) and kept it even on hosts where its tunnel failed, so the key is the durable artifact to watch: https://www.microsoft.com/en-us/security/blog/2026/10/30/inside-malicious-claude-code-branded-cursor-extension-persistent-ssh-backdoor/
 - **What a defender inspects (indicators):**
   - `~/.ssh/authorized_keys` for every user with a login shell (root needed for other users).
   - Effective `authorizedkeysfile`, `authorizedkeyscommand` and `trustedusercakeys` (via `sshd -T`).
   - Key options (`command=`, `from=`, `restrict`).
   - `~/.ssh/config` entries with `ForwardAgent yes` on `Host *`.
-- **Bigman today:** Partial. `bigman changes` baselines the current user's `~/.ssh/authorized_keys`. It does not cover other users, root, a non-default `AuthorizedKeysFile`, or `~/.ssh/config`. Account-wide coverage belongs to [host integrity](./04-host-integrity-and-hardening-audit.md), and key protection to [credentials](./06-credential-and-secret-protection.md).
+- **Bigman today:** Partial. bigmand rereads `~/.ssh/authorized_keys` and `authorized_keys2` every two seconds and reports each new key as `ssh.key.added` (High) with its fingerprint, comment and options, naming fingerprints published as indicators. `bigman changes` also baselines the file. Neither covers other users, root or a non-default `AuthorizedKeysFile`. Account-wide coverage belongs to [host integrity](./04-host-integrity-and-hardening-audit.md), and key protection to [credentials](./06-credential-and-secret-protection.md).
 - **Proposed mitigation / detection:**
   - Extend the baseline to `~/.ssh/config` and `/etc/ssh/sshd_config.d/` (names and hashes only, readable via the admin read in NE-02).
   - Add `ssh.client.forwardagent-wildcard` for `ForwardAgent yes` under `Host *`.
@@ -524,11 +524,12 @@
 - **Real-world examples:**
   - MITRE T1219 "Remote Access Tools" and T1572 "Protocol Tunneling" catalogue adversary use of such tools.
   - Ollama's FAQ itself documents exposing the server via ngrok or Cloudflare Tunnel, showing how routinely dev servers get tunnelled.
+  - 2026-10: a tampered Cursor extension ran `autossh`/`ssh -N -R '*:0:localhost:22'` with `StrictHostKeyChecking=no`, a throwaway known-hosts file, keepalives and a 60-second retry loop. The tunnel reaches out, so the workstation never opens an inbound port, and logins through it reach sshd from loopback. The tunnel key sat in a hidden temp file named `.stk_` plus ten hex characters. https://www.microsoft.com/en-us/security/blog/2026/10/30/inside-malicious-claude-code-branded-cursor-extension-persistent-ssh-backdoor/
 - **What a defender inspects (indicators):**
   - Processes and units named `ngrok`, `cloudflared`, `tailscaled` with Funnel enabled (`tailscale funnel status`), `frpc`, `ssh` with `-R`, `x11vnc`, `xrdp`, `gnome-remote-desktop`, `rustdesk`, `anydesk` or `teamviewerd`.
   - Their autostart entries (`~/.config/autostart`, user and system units).
   - Long-lived outbound connections to tunnel providers.
-- **Bigman today:** Gap. Autostart and systemd directories are baselined by `bigman changes`, so a new unit would show as a change, but nothing names it as remote access.
+- **Bigman today:** Partial. `ssh.tunnel.reverse` reports your own ssh and autossh processes using `-R` or `RemoteForward` within three seconds: Review by default, High when forwarding to local port 22, with host-key checks off, or started from a code editor. `ssh.key.stray` finds private keys left directly in temp and config folders. ngrok, cloudflared, Funnel and remote-desktop agents are not covered yet, and forwards configured only in `~/.ssh/config` are not seen. Autostart and systemd directories are baselined by `bigman changes`.
 - **Proposed mitigation / detection:** `remote.tunnel-agent` and `remote.desktop-agent` (Review): a shipped list of binary names and unit names, plus `ssh -R` argv detection for the user's own processes. Show the publishing target when it can be read without secrets (for example `cloudflared` argv `--url http://localhost:8080`).
 - **Test case idea:** Fixture process list with argv `cloudflared tunnel --url http://localhost:3000` and `ssh -N -R 8080:localhost:80 host.example`. Assert both findings. A plain `ssh host.example` should produce none.
 - **References:**

@@ -3,18 +3,22 @@
 //! source is one module here and its fixtures; the UI renders any Event.
 mod connections;
 mod denials;
+mod heartbeat;
 mod listeners;
 mod packages;
 mod reports;
 mod snapshot;
+mod ssh;
 mod throughput;
 
 pub use connections::Connections;
 pub use denials::Denials;
+pub use heartbeat::{Heartbeat, DAEMON_STOPPED};
 pub use listeners::Listeners;
 pub use packages::{transaction_summary, Packages};
 pub use reports::Reports;
 pub use snapshot::{network_snapshot, ConnectionRow, ListenerRow, NetworkSnapshot};
+pub use ssh::{AuthorizedKeys, RemoteLogins, StrayKeys, Tunnels};
 pub use throughput::Throughput;
 
 use crate::{
@@ -75,6 +79,11 @@ pub fn label(name: &str) -> &'static str {
         "packages" => "Package installs and updates",
         "denials" => "SELinux and AppArmor denials",
         "reports" => "Checks you run",
+        "ssh_keys" => "SSH keys that can log in",
+        "ssh_tunnels" => "SSH tunnels back to this computer",
+        "ssh_logins" => "Network logins",
+        "ssh_stray_keys" => "SSH private keys outside ~/.ssh",
+        "heartbeat" => "Gaps in Bigman's monitoring",
         _ => "Other",
     }
 }
@@ -102,8 +111,18 @@ pub fn linux_sources(stop: crate::runner::Cancel) -> Vec<Box<dyn Source>> {
         Box::new(Throughput::new(Box::new(linux::SysNetCounters))),
         Box::new(Connections::new(Box::new(linux::ProcSockets))),
         Box::new(Listeners::new(Box::new(linux::ProcSockets))),
-        Box::new(Denials::new(Box::new(linux::Journalctl { stop }))),
+        Box::new(Denials::new(Box::new(linux::Journalctl {
+            stop: stop.clone(),
+        }))),
         Box::<Reports>::default(),
+        Box::new(AuthorizedKeys::for_home()),
+        Box::new(Tunnels::new(Box::new(linux::ProcList))),
+        Box::new(RemoteLogins::new(
+            Box::new(linux::Loginctl { stop: stop.clone() }),
+            Box::new(linux::KernelClock),
+        )),
+        Box::new(StrayKeys::default_dirs()),
+        Box::new(Heartbeat::new(Box::new(linux::KernelClock))),
     ];
     if let Some(history) = linux::package_history() {
         sources.push(Box::new(Packages::new(

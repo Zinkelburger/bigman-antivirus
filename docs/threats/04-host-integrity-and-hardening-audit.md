@@ -133,6 +133,7 @@ Each entry adds two fields to the standard template. **Normal state** describes 
 - **Real-world examples:**
   - Kinsing uses crontab to re-download scripts every minute. Exaramel for Linux, GoldMax (`@reboot`) and NKAbuse also use cron ([ATT&CK T1053.003](https://attack.mitre.org/techniques/T1053/003/)).
   - Skidmap (2019) cron-based miner: https://www.trendmicro.com/en_us/research/19/i/skidmap-linux-malware-uses-rootkit-capabilities-to-hide-cryptocurrency-mining-payload.html
+  - 2026-10: a tampered Cursor extension persisted on Linux with a user crontab `@reboot` entry that relaunched scripts in `~/.config/.smt` and `~/.config/.smtk`. The user spool is unreadable without root, so only `crontab -l` shows it rootlessly. https://www.microsoft.com/en-us/security/blog/2026/10/30/inside-malicious-claude-code-branded-cursor-extension-persistent-ssh-backdoor/
 - **What a defender inspects (indicators):**
   - Own table: `crontab -l`. Other users: `sudo ls -la /var/spool/cron/ /var/spool/cron/crontabs/` (location varies by distro).
   - `ls -la /etc/cron.d /etc/cron.hourly /etc/cron.daily /etc/cron.weekly /etc/cron.monthly`, `cat /etc/crontab /etc/anacrontab`
@@ -320,6 +321,7 @@ Each entry adds two fields to the standard template. **Normal state** describes 
 - **Real-world examples:**
   - Salt Typhoon added authorized keys under root and other users on compromised infrastructure.
   - TeamTNT, Skidmap and Earth Lusca also plant keys ([ATT&CK T1098.004](https://attack.mitre.org/techniques/T1098/004/)).
+  - 2026-10: a tampered Cursor extension appended a `svc-telemetry` key to the user's `authorized_keys` and tried to enable sshd. https://www.microsoft.com/en-us/security/blog/2026/10/30/inside-malicious-claude-code-branded-cursor-extension-persistent-ssh-backdoor/
   - Cross-reference: [network exposure](./07-network-exposure-and-remote-access.md) for sshd exposure and CVE-2024-6387.
 - **What a defender inspects (indicators):**
   - `ssh-keygen -lf ~/.ssh/authorized_keys` gives one fingerprint per key. Compare against known keys.
@@ -784,7 +786,7 @@ A note on the 2026 "page-cache write" bugs (Copy Fail, CVE-2026-46300, CVE-2026-
   - Lynis: ACCT-9628/9630/9632/9634 (auditd), LOGG-2136 (journald), FINT-4314/4315/4316 (AIDE), FINT-4350 (FIM present), TOOL-5126/5128 (OSSEC/Wazuh)
   - CIS Ubuntu 24.04: 6.1.1.1 (journald active), 6.1.2.4 (journald Storage), 6.2.1.3 (audit early-boot processes), 6.3.1/6.3.2 (AIDE installed and run regularly)
   - osquery: `osquery-monitoring` pack
-- **Bigman today:** Partial. `doctor` reports tool availability (including lynis and osqueryi), ClamAV freshness and the canary monitor heartbeat. It does not check auditd, journald persistence or AIDE.
+- **Bigman today:** Partial. `doctor` reports tool availability (including lynis and osqueryi), ClamAV freshness and the canary monitor heartbeat. bigmand also records gaps: `monitor.stopped` when the heartbeat has been missing for a minute while the computer was awake, and `monitor.gap` when the monitor or bigmand itself comes back after being off (suspend excluded; a crash or kill of bigmand is Review, a normal stop Info). It does not check auditd, journald persistence or AIDE.
 - **Proposed mitigation / detection:**
   - Extend `doctor` with rootless reads: auditd unit state, journald storage directory and boot list, and AIDE timer and file presence.
   - Rules: `logging.audit-inactive` (Info on distros without default auditd; Review where it was previously active), `logging.journal-volatile` (Info) and `logging.boot-gap` (Review).

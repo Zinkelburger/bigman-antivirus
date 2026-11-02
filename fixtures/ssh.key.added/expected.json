@@ -1,0 +1,8 @@
+{
+  "driver": "ssh-keys",
+  "fires": [
+    "ssh.key.added"
+  ],
+  "about": "An authorized_keys file with one key, shaped like the svc-telemetry key the October 2026 tampered Cursor extension appended (a freshly generated fixture key, not the real one).",
+  "input": "authorized_keys"
+}

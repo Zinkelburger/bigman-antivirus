@@ -223,11 +223,69 @@
     "id": "monitor.stopped",
     "severity": "review",
     "title": "Canary monitoring is not reporting",
-    "explanation": "The canary monitor has not written a heartbeat in the last ten seconds, so reads of decoy files are not being noticed.",
+    "explanation": "The canary monitor has not written a heartbeat in the last ten seconds, so reads of decoy files are not being noticed. The background service also reports this live, once, when the heartbeat has been missing for a minute while the computer was awake.",
     "remediation": "Start monitoring from Protect > Canaries, or install the background services from Setup.",
     "threats": [
       "CR-22",
       "HI-24"
+    ]
+  },
+  {
+    "id": "monitor.gap",
+    "severity": "review",
+    "title": "Monitoring was off while the computer was awake",
+    "explanation": "The canary monitor or Bigman's background service was not running for a while, so nothing was watching in that window. Suspended time does not count, and a reboot starts over. A background-service gap after a normal stop (logout, systemctl --user stop) is Info; one after a crash or kill is Review. Malware running as you can stop these processes, which is why the gap itself is shown.",
+    "remediation": "If you did not stop monitoring, review Activity and the startup files for changes made in that window.",
+    "threats": [
+      "HI-24",
+      "CR-22"
+    ]
+  },
+  {
+    "id": "ssh.key.added",
+    "severity": "high",
+    "title": "A new SSH key can log in to your account",
+    "explanation": "A key appeared in ~/.ssh/authorized_keys that was not there before. Whoever holds the matching private key can log in as you wherever sshd accepts it, without your password. The key's fingerprint and comment are shown, never the key itself; fingerprints published as indicators of compromise are named.",
+    "remediation": "If you did not add it, remove its line, then check ~/.ssh, your crontab and startup files for anything added at the same time. Turn sshd off if you do not need remote logins.",
+    "threats": [
+      "NE-05",
+      "HI-10",
+      "SC-19"
+    ]
+  },
+  {
+    "id": "ssh.tunnel.reverse",
+    "severity": "review",
+    "title": "SSH is forwarding connections back to this computer",
+    "explanation": "One of your ssh or autossh processes uses -R or RemoteForward, so connections to a port on another computer arrive here. Developers do this on purpose. It is High when it forwards to this computer's SSH server, turns off host-key checking, or was started from a code editor, as the October 2026 tampered Cursor extension did.",
+    "remediation": "If you did not start it, stop the process, then look for what restarts it (crontab -l, ~/.config/systemd/user, autostart) and check ~/.ssh/authorized_keys.",
+    "threats": [
+      "NE-20",
+      "NE-14",
+      "SC-19"
+    ]
+  },
+  {
+    "id": "ssh.login.remote",
+    "severity": "review",
+    "title": "Someone logged in over the network",
+    "explanation": "The login manager reports a session that came over the network, usually through sshd. It is High when it came from this computer's own address, which is how logins through a reverse tunnel arrive (or a deliberate ssh to localhost).",
+    "remediation": "If this was not you, end the session with loginctl terminate-session, remove keys you do not recognise from ~/.ssh/authorized_keys, and change your password.",
+    "threats": [
+      "NE-03",
+      "NE-05",
+      "NE-20"
+    ]
+  },
+  {
+    "id": "ssh.key.stray",
+    "severity": "review",
+    "title": "An SSH private key is stored outside ~/.ssh",
+    "explanation": "A file directly inside a temporary folder, ~/.config, ~/.cache or ~/.local/share starts like an SSH private key. Tools rarely keep keys there; droppers do, to authenticate a tunnel. Only the first line is read.",
+    "remediation": "If no tool you use put it there, keep a copy for investigation, look for an ssh or autossh process using it, then delete it.",
+    "threats": [
+      "CR-03",
+      "NE-20"
     ]
   },
   {
