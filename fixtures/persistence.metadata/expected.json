@@ -1,0 +1,8 @@
+{
+  "driver": "changes",
+  "fires": [
+    "persistence.metadata"
+  ],
+  "about": "A user unit that became world-writable.",
+  "input": "input.json"
+}

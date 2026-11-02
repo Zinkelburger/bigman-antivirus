@@ -1,0 +1,47 @@
+{
+  "old": {
+    "format": 2,
+    "created": 1,
+    "entries": {
+      "/etc/pam.d/sudo": {
+        "hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "bytes": 24,
+        "mode": 33188,
+        "uid": 0,
+        "gid": 0,
+        "caps": null,
+        "category": "pam"
+      }
+    },
+    "errors": []
+  },
+  "current": {
+    "format": 2,
+    "created": 2,
+    "entries": {
+      "/etc/pam.d/sudo": {
+        "hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "bytes": 24,
+        "mode": 33188,
+        "uid": 0,
+        "gid": 0,
+        "caps": null,
+        "category": "pam"
+      }
+    },
+    "errors": []
+  },
+  "attribution": {
+    "/etc/pam.d/sudo": {
+      "package": "sudo-1.9.17-10.p2.fc44",
+      "config": true,
+      "state": {
+        "state": "modified",
+        "changes": [
+          "size",
+          "content"
+        ]
+      }
+    }
+  }
+}

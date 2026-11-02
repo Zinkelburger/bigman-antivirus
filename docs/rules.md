@@ -30,6 +30,11 @@ Every finding Bigman shows comes from one of these rules. Each has a synthetic f
 | `monitor.stopped` | Review | Canary monitoring is not reporting | CR-22, HI-24 |
 | `git.plaintext-credentials` | Review | Git stores credentials in plain text | CR-01, CR-08 |
 | `persistence.change` | Review | A startup file changed | HI-01, HI-02, HI-03, HI-04, HI-05, HI-10 |
+| `persistence.owned_modified` | Review | A package's file was modified | HI-01, HI-22, DP-21, MW-08 |
+| `persistence.sensitive_modified` | High | An authentication or loader file was modified | HI-08, HI-10, HI-22, MW-15 |
+| `persistence.package_update` | Info | A package updated a startup file | HI-01, HI-22 |
+| `persistence.privilege` | High | A startup file gained elevated privileges | HI-17, HI-18 |
+| `persistence.metadata` | Review | A startup file changed permissions or owner | HI-01, HI-05, HI-19 |
 | `persistence.removed` | Review | A startup file was removed | HI-01, HI-02, HI-03, HI-04, HI-05 |
 | `persistence.initial` | Info | Startup file recorded for the first baseline | HI-01, HI-02, HI-03, HI-04, HI-05 |
 | `canary.event` | High | A decoy file was opened or changed | CR-22 |
@@ -236,6 +241,46 @@ What you can do: Switch to your desktop keyring's credential helper and revoke t
 A file that starts programs for you (a systemd unit, autostart entry, shell profile, cron file) is new or different from the baseline you accepted.
 
 What you can do: Review the file and the package that owns it before accepting it into the baseline.
+
+## `persistence.owned_modified`
+
+**A package's file was modified** (Review)
+
+A startup or configuration file that a package installed no longer matches the package database. Configuration files are often edited on purpose; other files are not expected to change.
+
+What you can do: Check the change is one you or your administrator made; otherwise reinstall the package.
+
+## `persistence.sensitive_modified`
+
+**An authentication or loader file was modified** (High)
+
+A PAM, dynamic-loader or SSH file installed by a package no longer matches the package database. These files decide who can log in and what code every program loads.
+
+What you can do: Compare it with the package's version (rpm -V, dpkg --verify or pacman -Qkk) and restore it if you did not make the change.
+
+## `persistence.package_update`
+
+**A package updated a startup file** (Info)
+
+A startup or configuration file changed, and the package database shows it is exactly what the owning package installed.
+
+What you can do: Nothing to do; the update explains the change.
+
+## `persistence.privilege`
+
+**A startup file gained elevated privileges** (High)
+
+A startup or configuration file now has the setuid or setgid bit or file capabilities, which lets it run with more rights than the user who starts it.
+
+What you can do: Remove the setuid bit or capability unless you know why it is there.
+
+## `persistence.metadata`
+
+**A startup file changed permissions or owner** (Review)
+
+A startup or configuration file has the same content as before but a different mode or owner.
+
+What you can do: Check why before accepting the new baseline; a writable startup file lets other users change what runs for you.
 
 ## `persistence.removed`
 

@@ -1,15 +1,22 @@
 {
   "old": {
+    "format": 2,
     "created": 1,
     "entries": {
-      "/home/user/.config/autostart/old.desktop": {
+      "/home/user/.config/autostart/sync.desktop": {
         "hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-        "bytes": 24
+        "bytes": 24,
+        "mode": 33188,
+        "uid": 1000,
+        "gid": 1000,
+        "caps": null,
+        "category": "autostart"
       }
     },
     "errors": []
   },
   "current": {
+    "format": 2,
     "created": 2,
     "entries": {},
     "errors": []

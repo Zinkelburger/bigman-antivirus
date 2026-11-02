@@ -75,7 +75,7 @@ impl Daemon {
                 Request::Inspect { target } => report(inspect::inspect(store, &target, stop)),
                 Request::Packages { path } => report(packages::packages(store, &path)),
                 Request::Changes => {
-                    let r = changes::changes(store)?;
+                    let r = changes::changes(store, stop)?;
                     store.save(&r)?;
                     Response::Report(Box::new(r))
                 }

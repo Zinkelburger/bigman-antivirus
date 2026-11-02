@@ -1,0 +1,8 @@
+{
+  "driver": "changes",
+  "fires": [
+    "persistence.privilege"
+  ],
+  "about": "A cron script that gained the setuid bit; content unchanged, so this is the only finding.",
+  "input": "input.json"
+}

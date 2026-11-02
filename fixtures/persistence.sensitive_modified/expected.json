@@ -1,0 +1,8 @@
+{
+  "driver": "changes",
+  "fires": [
+    "persistence.sensitive_modified"
+  ],
+  "about": "The plan's acceptance case: /etc/pam.d/sudo, owned by sudo, differs from the package.",
+  "input": "input.json"
+}

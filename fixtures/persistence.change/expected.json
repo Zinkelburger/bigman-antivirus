@@ -3,6 +3,6 @@
   "fires": [
     "persistence.change"
   ],
-  "about": "A shell profile whose hash changed.",
+  "about": "A user shell profile whose content changed; no package owns it.",
   "input": "input.json"
 }

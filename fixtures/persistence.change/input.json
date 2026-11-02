@@ -1,22 +1,43 @@
 {
   "old": {
+    "format": 2,
     "created": 1,
     "entries": {
       "/home/user/.bashrc": {
         "hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-        "bytes": 24
+        "bytes": 24,
+        "mode": 33188,
+        "uid": 1000,
+        "gid": 1000,
+        "caps": null,
+        "category": "shell"
       }
     },
     "errors": []
   },
   "current": {
+    "format": 2,
     "created": 2,
     "entries": {
       "/home/user/.bashrc": {
         "hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-        "bytes": 24
+        "bytes": 24,
+        "mode": 33188,
+        "uid": 1000,
+        "gid": 1000,
+        "caps": null,
+        "category": "shell"
       }
     },
     "errors": []
+  },
+  "attribution": {
+    "/home/user/.bashrc": {
+      "package": null,
+      "config": false,
+      "state": {
+        "state": "unowned"
+      }
+    }
   }
 }

@@ -69,7 +69,9 @@ fn run(dir: &Path, expected: &Expected) -> BTreeSet<String> {
                 serde_json::from_value(value["old"].clone()).unwrap();
             let current: changes::Baseline =
                 serde_json::from_value(value["current"].clone()).unwrap();
-            changes::compare(&mut r, old.as_ref(), &current);
+            let attribution =
+                serde_json::from_value(value["attribution"].clone()).unwrap_or_default();
+            changes::compare(&mut r, old.as_ref(), &current, &attribution);
         }
         "canary" => {
             let mask = json()["mask"]

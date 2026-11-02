@@ -3,6 +3,6 @@
   "fires": [
     "persistence.initial"
   ],
-  "about": "No baseline yet.",
+  "about": "No baseline yet; the profile.d script matches its package.",
   "input": "input.json"
 }

@@ -252,7 +252,7 @@ fn run() -> Result<()> {
         Some(Commands::Changes { accept_baseline }) => {
             let r = match accept_baseline {
                 Some(id) => changes::accept_reviewed_baseline(&store, &id)?,
-                None => changes::changes(&store)?,
+                None => changes::changes(&store, &runner::cancel())?,
             };
             store.save(&r)?;
             Some(r)

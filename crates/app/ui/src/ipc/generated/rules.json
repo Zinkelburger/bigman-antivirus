@@ -257,6 +257,66 @@
     ]
   },
   {
+    "id": "persistence.owned_modified",
+    "severity": "review",
+    "title": "A package's file was modified",
+    "explanation": "A startup or configuration file that a package installed no longer matches the package database. Configuration files are often edited on purpose; other files are not expected to change.",
+    "remediation": "Check the change is one you or your administrator made; otherwise reinstall the package.",
+    "threats": [
+      "HI-01",
+      "HI-22",
+      "DP-21",
+      "MW-08"
+    ]
+  },
+  {
+    "id": "persistence.sensitive_modified",
+    "severity": "high",
+    "title": "An authentication or loader file was modified",
+    "explanation": "A PAM, dynamic-loader or SSH file installed by a package no longer matches the package database. These files decide who can log in and what code every program loads.",
+    "remediation": "Compare it with the package's version (rpm -V, dpkg --verify or pacman -Qkk) and restore it if you did not make the change.",
+    "threats": [
+      "HI-08",
+      "HI-10",
+      "HI-22",
+      "MW-15"
+    ]
+  },
+  {
+    "id": "persistence.package_update",
+    "severity": "info",
+    "title": "A package updated a startup file",
+    "explanation": "A startup or configuration file changed, and the package database shows it is exactly what the owning package installed.",
+    "remediation": "Nothing to do; the update explains the change.",
+    "threats": [
+      "HI-01",
+      "HI-22"
+    ]
+  },
+  {
+    "id": "persistence.privilege",
+    "severity": "high",
+    "title": "A startup file gained elevated privileges",
+    "explanation": "A startup or configuration file now has the setuid or setgid bit or file capabilities, which lets it run with more rights than the user who starts it.",
+    "remediation": "Remove the setuid bit or capability unless you know why it is there.",
+    "threats": [
+      "HI-17",
+      "HI-18"
+    ]
+  },
+  {
+    "id": "persistence.metadata",
+    "severity": "review",
+    "title": "A startup file changed permissions or owner",
+    "explanation": "A startup or configuration file has the same content as before but a different mode or owner.",
+    "remediation": "Check why before accepting the new baseline; a writable startup file lets other users change what runs for you.",
+    "threats": [
+      "HI-01",
+      "HI-05",
+      "HI-19"
+    ]
+  },
+  {
     "id": "persistence.removed",
     "severity": "review",
     "title": "A startup file was removed",

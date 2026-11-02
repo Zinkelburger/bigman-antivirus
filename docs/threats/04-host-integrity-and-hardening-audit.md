@@ -15,23 +15,23 @@
 | HI-03 | Cron and at jobs outside the baseline | High | Partial | Add `cron.{hourly,daily,weekly,monthly}`, anacrontab, own `crontab -l`, `atq`; privileged spool read |
 | HI-04 | XDG autostart and session-start hooks | High | Partial | Add `/etc/xdg/autostart`, `$XDG_CONFIG_DIRS`, X/KDE session scripts; show the `Exec=` line in findings |
 | HI-05 | Shell startup and environment files | High | Partial | Cover all bash/zsh/fish/profile/environment.d files; line-level diff with markers for preload/PATH/alias lines |
-| HI-06 | rc.local, SysV init scripts, MOTD scripts, network dispatcher hooks | Medium | Gap | Hash these dirs; flag any that are executable and not owned by a package |
-| HI-07 | udev rules that run programs | Medium | Gap | Baseline `/etc/udev/rules.d`, `/run/udev/rules.d`, `/usr/lib/udev/rules.d`; flag `RUN`/`PROGRAM` in unowned rules |
-| HI-08 | PAM stack and PAM module files | High | Gap | Baseline `/etc/pam.d`, `/etc/security`, module dirs; `rpm -V pam` / `dpkg --verify`; flag unowned `.so` files |
+| HI-06 | rc.local, SysV init scripts, MOTD scripts, network dispatcher hooks | Medium | Partial | Hash these dirs; flag any that are executable and not owned by a package |
+| HI-07 | udev rules that run programs | Medium | Partial | Baseline `/etc/udev/rules.d`, `/run/udev/rules.d`, `/usr/lib/udev/rules.d`; flag `RUN`/`PROGRAM` in unowned rules |
+| HI-08 | PAM stack and PAM module files | High | Partial | Baseline `/etc/pam.d`, `/etc/security`, module dirs; `rpm -V pam` / `dpkg --verify`; flag unowned `.so` files |
 | HI-09 | Dynamic linker configuration (preload, ld.so.conf.d, LD_* env) | High | Partial | Add `ld.so.conf(.d)`, `/etc/environment`; check own processes for LD_PRELOAD; static helper for cross-view reads |
 | HI-10 | SSH authorized keys, sshd configuration, per-user SSH hooks | High | Partial | Key-fingerprint diff, `~/.ssh/rc`, `authorized_keys2`, `~/.ssh/config`; privileged `sshd -T` |
-| HI-11 | Module autoload, modprobe directives, package-manager and kernel-install hooks | Medium | Gap | Baseline `modules-load.d`, `modprobe.d`, apt/dnf/pacman hook dirs, `kernel/postinst.d`, `install.d` |
+| HI-11 | Module autoload, modprobe directives, package-manager and kernel-install hooks | Medium | Partial | Baseline `modules-load.d`, `modprobe.d`, apt/dnf/pacman hook dirs, `kernel/postinst.d`, `install.d` |
 | HI-12 | Extra UID 0, duplicate IDs, new or shell-enabled system accounts | High | Gap | Rootless `/etc/passwd` and `/etc/group` parse plus diff (`host.uid0-extra`, `host.account-new`) |
 | HI-13 | Empty or unlocked passwords, `nullok` in PAM | Medium | Gap | Rootless `nullok` scan; privileged read of shadow status only (never hashes) |
 | HI-14 | sudoers and sudoers.d grants (NOPASSWD, !authenticate, broad ALL) | High | Gap | Opt-in privileged `visudo -c` and a parsed summary; baseline hashes |
 | HI-15 | polkit rules and implicit authorizations | Medium | Gap | Baseline `/usr/share/polkit-1/rules.d` (rootless) and `/etc/polkit-1/rules.d` (privileged); `pkaction` defaults diff |
 | HI-16 | Root-equivalent group membership (docker, disk, libvirt, lxd, wheel/sudo, input) | High | Gap | Rootless group audit with plain-language explanation of each group |
-| HI-17 | SUID/SGID files not owned by a package or with changed mode | Medium | Gap | Bounded `find -perm` inventory plus package ownership and mode verification |
-| HI-18 | File capabilities on unexpected binaries | Medium | Gap | `security.capability` xattr inventory compared with the package DB (`rpm -V` P flag) |
+| HI-17 | SUID/SGID files not owned by a package or with changed mode | Medium | Partial | Bounded `find -perm` inventory plus package ownership and mode verification |
+| HI-18 | File capabilities on unexpected binaries | Medium | Partial | `security.capability` xattr inventory compared with the package DB (`rpm -V` P flag) |
 | HI-19 | World-writable files and dirs, writable PATH entries, unowned files | Medium | Gap | PATH integrity check for user and root `secure_path`; world-writable without sticky; nosuid mounts |
 | HI-20 | Loaded kernel modules not owned by a package, unsigned or tainting | High | Gap | `/proc/modules` to `modinfo` to package owner; decode taint bits; signer inventory |
 | HI-21 | Secure Boot, lockdown, signature enforcement and boot chain state | Medium | Gap | Read SB/lockdown/cmdline; MOK list diff; `/boot` package verify; fwupd HSI if present |
-| HI-22 | Package-file verification (modified or unowned system files) | High | Gap | Scheduled `rpm -Va` / `dpkg --verify` / `pacman -Qkk` with the diff noise explained |
+| HI-22 | Package-file verification (modified or unowned system files) | High | Partial | Scheduled `rpm -Va` / `dpkg --verify` / `pacman -Qkk` with the diff noise explained |
 | HI-23 | Kernel and userspace patch status; well-known Linux LPE CVEs | High | Gap (Partial via optional Lynis) | Distro advisory query, running vs installed kernel, reboot-needed, KEV-driven checklist |
 | HI-24 | Audit, journal and integrity-tool health | Medium | Partial | Report auditd, journald persistence, AIDE DB age, and its own monitor heartbeat in `doctor` |
 | HI-25 | Kernel attack-surface sysctls and rarely used module blocklists | Medium | Gap | Read-only sysctl report with desktop trade-offs (user namespaces are needed by sandboxes) |
@@ -99,7 +99,7 @@ Each entry adds two fields to the standard template. **Normal state** describes 
   - osquery: `systemd_units`, `startup_items`
   - auditd (Neo23x0): `-w /etc/systemd/ -k systemd`, `-w /usr/lib/systemd -k systemd`
   - CIS/SSG: no control for unknown units; CIS only covers disabling services that are not needed.
-- **Bigman today:** Partial. `/etc/systemd/system` is hashed. Vendor and `/usr/local` unit dirs, `/run`, generator dirs and target content behind symlinks are not. The installer rule `shell.persistence` flags `systemctl enable` inside scripts.
+- **Bigman today:** Partial. `bigman changes` baselines `/etc/systemd/system` and `/etc/systemd/user` with content, mode, owner and file capabilities. Each new or changed file is attributed to its package (owned and matching, owned but modified, unowned). Vendor unit dirs, `/run`, generators and target contents are not covered.
 - **Proposed mitigation / detection:** In the CLI and monitor, extend `snapshot()` to every `systemd-analyze unit-paths` entry plus the `system-generators` and `user-generators` dirs. Resolve enablement symlinks and hash the target's contents. Store `systemd-delta` output in the report. For each new or changed file, run `rpm -qf`/`dpkg -S`, then `rpm -Vf`/`dpkg --verify` on the owner. A file that is package-owned and verifies clean is labelled "changed by package update". A file that is unowned, or package-owned but failing verification, gets a `persistence.unowned` / `persistence.modified-package-file` Review finding. All of this is rootless.
 - **Test case idea:** Point the snapshot at a tempdir prefix (refactor `snapshot()` to take a root prefix). Create `etc/systemd/system/benign-test.service` with `ExecStart=/bin/true`, then assert `persistence.change`. Add a fake package-owner resolver that returns "not owned" and assert `persistence.unowned`.
 - **References:** https://attack.mitre.org/techniques/T1543/002/ · https://attack.mitre.org/techniques/T1053/006/ · https://man7.org/linux/man-pages/man1/systemd-delta.1.html · https://www.freedesktop.org/software/systemd/man/latest/systemd.generator.html · https://www.freedesktop.org/software/systemd/man/latest/systemd-analyze.html
@@ -122,7 +122,7 @@ Each entry adds two fields to the standard template. **Normal state** describes 
   - Lynis: none (system services only)
   - osquery: `systemd_units` (system scope only); `startup_items`
   - auditd: per-user path watches need explicit rules.
-- **Bigman today:** Partial. `~/.config/systemd/user` is hashed. `~/.local/share/systemd/user`, `/etc/systemd/user` and linger state are not.
+- **Bigman today:** Partial. `~/.config/systemd/user` is baselined with metadata and attribution. `~/.local/share/systemd/user` and linger state are not.
 - **Proposed mitigation / detection:** In the monitor, add the missing user unit paths and the linger file list. Ship a manifest of Bigman's own units with their expected content hashes, so the initial inventory says "Bigman-owned" instead of asking the user to judge them. Add a `persistence.user-timer` finding that shows `OnCalendar`/`OnUnitActiveSec` and `ExecStart` in plain language.
 - **Test case idea:** Use a tempdir HOME containing `.local/share/systemd/user/echo.timer` and `echo.service` with `ExecStart=/bin/echo hi`. Assert a new entry is found. Add a fixture identical to `bigman-monitor.service` and assert it is labelled self-owned.
 - **References:** https://attack.mitre.org/software/S9043/ · https://attack.mitre.org/techniques/T1053/006/ · https://www.freedesktop.org/software/systemd/man/latest/systemd-analyze.html
@@ -146,7 +146,7 @@ Each entry adds two fields to the standard template. **Normal state** describes 
   - SSG: `file_permissions_crontab`, `file_permissions_cron_d`
   - osquery: `crontab` table and the incident-response pack `crontab` query
   - auditd (Neo23x0): `-k cron` watches on all cron and at paths
-- **Bigman today:** Partial. `/etc/crontab` and `/etc/cron.d` are hashed. `cron.{hourly,...}`, anacrontab, user spools and at jobs are not. The `shell.persistence` rule flags `crontab` in installer scripts.
+- **Bigman today:** Partial. `/etc/crontab`, `/etc/anacrontab`, `/etc/cron.d` and `cron.{hourly,daily,weekly,monthly}` are baselined, and so is your own crontab through `crontab -l`. Other users' spools and `at` jobs need the helper.
 - **Proposed mitigation / detection:**
   - Rootless: add `/etc/cron.{hourly,daily,weekly,monthly}` and `/etc/anacrontab`. Capture `crontab -l` and `atq` output for the current user as virtual baseline entries (hash of the output).
   - Optional privileged collector (see "Privileged read-only collector" under Open questions): list the spool directories as metadata plus hashes.
@@ -170,7 +170,7 @@ Each entry adds two fields to the standard template. **Normal state** describes 
   - Lynis: none
   - CIS: none
   - osquery: `startup_items` (coverage of XDG on Linux varies by version; verify)
-- **Bigman today:** Partial. `~/.config/autostart` is hashed. `/etc/xdg/autostart`, other `$XDG_CONFIG_DIRS` and X/KDE session scripts are not.
+- **Bigman today:** Partial. `~/.config/autostart` and `/etc/xdg/autostart` are baselined. Other `$XDG_CONFIG_DIRS` and X/KDE session scripts are not.
 - **Proposed mitigation / detection:** In the monitor, add these paths. Parse each `.desktop` file and put its `Exec=` and `Hidden=` values in the finding evidence, so the user sees what will run rather than only a hash. Add a rule `autostart.exec-interpreter` (Review) for `Exec=` lines starting `sh -c`, `bash -c`, `python -c` or `node -e`, reusing the `shell.dynamic` patterns from the analyzer.
 - **Test case idea:** Write `~/.config/autostart/test.desktop` in a temp HOME with `Exec=sh -c "echo benign"`. Assert both `persistence.change` and `autostart.exec-interpreter`.
 - **References:** https://attack.mitre.org/techniques/T1547/013/ · https://specifications.freedesktop.org/autostart-spec/latest/
@@ -195,7 +195,7 @@ Each entry adds two fields to the standard template. **Normal state** describes 
   - SSG: `accounts_root_path_dirs_no_write`
   - osquery: none (use `file` and `hash`)
   - auditd (Neo23x0): `-k shell_profiles` on `/etc/profile*`, `/etc/bashrc` and similar
-- **Bigman today:** Partial. `~/.bashrc`, `~/.zshrc` and `~/.profile` are hashed. Other user files and all system files are not. `shell.persistence` flags rc-file edits inside installer scripts.
+- **Bigman today:** Partial. User and system shell profiles (`~/.bashrc`, `~/.zshrc`, `~/.profile` and friends, `/etc/profile`, `/etc/profile.d`, `/etc/bashrc`, `/etc/environment`, `environment.d`) are baselined with attribution. fish and per-shell extras are not.
 - **Proposed mitigation / detection:**
   - In the CLI and monitor, cover the full list above.
   - Keep a private copy of each small rc file so changes can be shown as a line diff.
@@ -227,7 +227,7 @@ Each entry adds two fields to the standard template. **Normal state** describes 
   - Lynis: BOOT-5184 / BOOT-5263 (permissions of boot files and scripts)
   - CIS Ubuntu 24.04: 1.6.4 (access to `/etc/motd`), which covers file permissions only, not the scripts.
   - auditd (Neo23x0): `-w /etc/rc.local -k init`
-- **Bigman today:** Gap.
+- **Bigman today:** Partial. `/etc/rc.local`, `/etc/rc.d/rc.local`, `/etc/init.d` and `/etc/update-motd.d` are baselined. NetworkManager dispatcher hooks are not.
 - **Proposed mitigation / detection:** In the monitor, add the paths. Record the executable bit for `rc.local`, since whether it runs depends on that bit. Raise `persistence.unowned` on any of these files that has no package owner.
 - **Test case idea:** Create `etc/rc.local` in a tempdir prefix (mode 0755, contents `#!/bin/sh\nexit 0`). Assert a finding whose evidence says it is executable.
 - **References:** https://attack.mitre.org/techniques/T1037/004/ · https://attack.mitre.org/techniques/T1037/ · https://man7.org/linux/man-pages/man8/pam_motd.8.html
@@ -250,7 +250,7 @@ Each entry adds two fields to the standard template. **Normal state** describes 
   - CIS: none
   - osquery: none (use `file`)
   - auditd (Neo23x0): `-w /etc/udev/rules.d/ -k udev`
-- **Bigman today:** Gap.
+- **Bigman today:** Partial. `/etc/udev/rules.d` is baselined with attribution. `RUN+=` programs are not inspected and `/run/udev/rules.d` is not covered.
 - **Proposed mitigation / detection:** In the monitor, add the three rule directories. Rule `udev.run-unowned` (Review) fires when a rule file is not package-owned and contains `RUN`/`PROGRAM`, with the matching line as evidence.
 - **Test case idea:** Fixture `etc/udev/rules.d/99-benign.rules` containing `ACTION=="add", SUBSYSTEM=="test", RUN+="/bin/true"`. Assert the finding.
 - **References:** https://attack.mitre.org/techniques/T1546/017/ · https://man7.org/linux/man-pages/man8/udevadm.8.html · https://levelblue.com/blogs/strozfriedberg/unveiling-sedexp
@@ -275,7 +275,7 @@ Each entry adds two fields to the standard template. **Normal state** describes 
   - osquery: none dedicated
   - auditd (Neo23x0): `-w /etc/pam.d/ -k pam`, `-w /etc/security/ -k pam`
   - Wazuh/OSSEC: rootcheck and FIM defaults include PAM paths.
-- **Bigman today:** Gap.
+- **Bigman today:** Partial. `/etc/pam.d` is baselined; a file a package owns that no longer matches it is `persistence.sensitive_modified` (High). `/etc/security` and PAM module directories are not covered.
 - **Proposed mitigation / detection:**
   - Rootless CLI check `bigman audit host`: hash `/etc/pam.d`, `/etc/security` and the module dirs into the baseline.
   - For every module run `rpm -qf` and `rpm -Vf`. Rule `pam.module-unowned` is High, because unowned code inside the auth path is never normal. `pam.config-modified` is Review. Also run `authselect check` when it is available.
@@ -335,7 +335,7 @@ Each entry adds two fields to the standard template. **Normal state** describes 
   - SSG: `sshd_disable_root_login`, `sshd_disable_empty_passwords`, `file_permissions_sshd_config`
   - osquery: `authorized_keys`, `user_ssh_keys`, `sshd_config`, `ssh_configs`, and the `linux-ssh-investigation` pack
   - Falco incubating rule: "Adding ssh keys to authorized_keys"
-- **Bigman today:** Partial. The current user's `authorized_keys` is hashed as a whole file. There is no fingerprint diff, no `~/.ssh/rc`/`authorized_keys2`/`~/.ssh/config`, and no sshd config, which is unreadable rootless on Fedora.
+- **Bigman today:** Partial. `authorized_keys`, `~/.ssh/config`, `~/.ssh/rc`, `sshd_config`, `sshd_config.d` and `ssh_config.d` are baselined; a modified package-owned SSH file is High. There is no key-fingerprint diff yet.
 - **Proposed mitigation / detection:**
   - Parse `authorized_keys` line by line into (type, fingerprint, comment, options) and baseline the fingerprints. Rule `ssh.key-added` shows the new fingerprint, comment and any `command=`/`from=` options. Never show or store the full key blob in history.
   - Add `~/.ssh/rc`, `authorized_keys2` and `environment`.
@@ -362,7 +362,7 @@ Each entry adds two fields to the standard template. **Normal state** describes 
   - CIS Ubuntu 24.04: 1.1.1.x and 3.2.x ("module not available", which uses modprobe.d)
   - osquery: none dedicated
   - auditd (Neo23x0): `-k modprobe`, `-k software_mgmt`
-- **Bigman today:** Gap.
+- **Bigman today:** Partial. `/etc/modules-load.d`, `/etc/modprobe.d` and `/etc/modules` are baselined with attribution. Package-manager and kernel-install hooks are not.
 - **Proposed mitigation / detection:** In the monitor, add these directories. Rule `hook.unowned` (Review) for any unowned file. Rule `modprobe.install-command` lists `install` directives that run something other than `/bin/false` or `/bin/true`.
 - **Test case idea:** Fixture `etc/modprobe.d/zz-test.conf` containing `install dummy_test /bin/echo benign`. Assert `modprobe.install-command`.
 - **References:** https://attack.mitre.org/techniques/T1547/006/ · https://attack.mitre.org/techniques/T1546/016/ · https://github.com/Neo23x0/auditd
@@ -518,7 +518,7 @@ Each entry adds two fields to the standard template. **Normal state** describes 
   - osquery: `suid_bin` table and incident-response pack query `suid_bin`
   - Falco incubating rules: "Set Setuid or Setgid bit", "Non sudo setuid"
   - AIDE tracks mode.
-- **Bigman today:** Gap. The `shell.permissions` rule flags `chmod +s`/`777` in installer scripts only.
+- **Bigman today:** Partial. A baselined startup or configuration file that gains the setuid or setgid bit is `persistence.privilege` (High). There is no system-wide SUID inventory yet.
 - **Proposed mitigation / detection:** Rootless CLI `bigman audit host --suid`. Run a bounded walk of local filesystems (same entry and time limits style as `snapshot()`), resolve each file's package owner in a batch (`rpm -qf` accepts many paths), and verify mode against the DB. Rules:
   - `suid.unowned` (High)
   - `suid.mode-mismatch` (High)
@@ -544,7 +544,7 @@ Each entry adds two fields to the standard template. **Normal state** describes 
   - CIS: none
   - osquery: none dedicated (use `file` + extended attributes where supported; unverified)
   - AIDE and Samhain can track xattrs.
-- **Bigman today:** Gap.
+- **Bigman today:** Partial. File capabilities (`security.capability`) are recorded for baselined files, and newly present capabilities are High. Binaries outside the baseline are not inventoried.
 - **Proposed mitigation / detection:** Read the `security.capability` xattr directly in Rust during the same walk as HI-17, so `getcap` is not a dependency. Decode the capability bitmask. Rules:
   - `caps.unowned` (High)
   - `caps.dangerous-on-interpreter` (High)
@@ -674,7 +674,7 @@ Each entry adds two fields to the standard template. **Normal state** describes 
   - osquery: `rpm_package_files` / `deb_package_files` combined with `hash`
   - rkhunter: file properties check
   - AIDE, Tripwire OSS and Samhain: full FIM
-- **Bigman today:** Gap. The optional Lynis integration may surface Lynis PKGS suggestions as `lynis.finding`.
+- **Bigman today:** Partial. Package attribution reads the rpm database (digest, mode, owner, link target; `rpm -V` for non-SHA-256 packages), `dpkg --verify` or `pacman -Qkk` for the files `bigman changes` covers. A scheduled whole-system verification is not implemented.
 - **Proposed mitigation / detection:**
   - A scheduled user timer, similar to the existing daily scan timer, running `rpm -Va` / `dpkg --verify` / `pacman -Qkk` with a time bound, as the `runner` already enforces.
   - Normalise the output into a stable list, filter `c`/conffiles into a separate Info bucket, and diff against the previous run.

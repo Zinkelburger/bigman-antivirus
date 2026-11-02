@@ -147,14 +147,25 @@ fn undoable(outcome: ActionOutcome, undo: Action) -> ActionOutcome {
 /// The startup entries a persistence report would accept, one per line.
 fn baseline_entries(report: &Report) -> String {
     let label = |rule: &str| match rule {
-        "persistence.change" => "Changed",
+        "persistence.change" | "persistence.package_update" => "Changed",
+        "persistence.owned_modified" | "persistence.sensitive_modified" => {
+            "Differs from its package"
+        }
+        "persistence.privilege" => "Gained privileges",
+        "persistence.metadata" => "Permissions changed",
         "persistence.removed" => "Removed",
         "persistence.initial" => "Recorded",
         _ => "Entry",
     };
+    // A first inventory lists every entry once; the attribution notes repeat paths.
+    let initial = report
+        .findings
+        .iter()
+        .any(|f| f.rule == "persistence.initial");
     report
         .findings
         .iter()
+        .filter(|f| !initial || f.rule == "persistence.initial")
         .map(|f| {
             let path = f.evidence.lines().next().unwrap_or_default();
             format!("{}: {path}", label(&f.rule))
@@ -254,11 +265,8 @@ pub fn preview(action: &Action, store: &Store) -> Result<ActionPlan> {
             if r.kind != "Persistence changes" || !r.errors.is_empty() {
                 bail!("Choose a complete startup inventory report first");
             }
-            let changed = r
-                .findings
-                .iter()
-                .filter(|f| f.rule != "persistence.initial")
-                .count();
+            let recorded = r.findings.iter().filter(|f| f.rule == "persistence.initial").count();
+            let changed = if recorded > 0 { 0 } else { r.findings.len() };
             ActionPlan {
                 undo: Some(if store.root.join("baseline.json").exists() {
                     "Bigman keeps the baseline this replaces; Undo puts it back.".into()
@@ -272,7 +280,7 @@ pub fn preview(action: &Action, store: &Store) -> Result<ActionPlan> {
                         let entries = if changed == 1 { "the changed startup entry".to_string() } else { format!("the {changed} changed startup entries") };
                         format!("Treat {entries} below as expected from now on. Accept only if you know why it changed. Bigman refuses if anything changed since this report.")
                     } else {
-                        format!("Record these {} startup entries as the baseline to compare against. Bigman refuses if anything changed since this report.", r.findings.len())
+                        format!("Record these {recorded} startup entries as the baseline to compare against. Bigman refuses if anything changed since this report.")
                     },
                     baseline_entries(&r),
                 )
@@ -515,14 +523,14 @@ mod tests {
         let d = tempfile::tempdir().unwrap();
         let store = Store::open(Some(d.path().join("state"))).unwrap();
         let stop = crate::runner::cancel();
-        let first = changes::changes(&store).unwrap();
+        let first = changes::changes(&store, &crate::runner::cancel()).unwrap();
         store.save(&first).unwrap();
         let accept = Action::AcceptBaseline { report: first.id };
         assert!(
             apply(&accept, &store, &stop).unwrap().undo.is_none(),
             "nothing to undo to yet"
         );
-        let second = changes::changes(&store).unwrap();
+        let second = changes::changes(&store, &crate::runner::cancel()).unwrap();
         store.save(&second).unwrap();
         let outcome = apply(&Action::AcceptBaseline { report: second.id }, &store, &stop).unwrap();
         assert_eq!(outcome.undo, Some(Action::RestorePreviousBaseline));

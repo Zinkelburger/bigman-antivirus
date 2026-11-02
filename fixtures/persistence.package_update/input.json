@@ -1,0 +1,43 @@
+{
+  "old": {
+    "format": 2,
+    "created": 1,
+    "entries": {
+      "/etc/systemd/system/multi-user.target.wants/sshd.service": {
+        "hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "bytes": 24,
+        "mode": 41471,
+        "uid": 0,
+        "gid": 0,
+        "caps": null,
+        "category": "services"
+      }
+    },
+    "errors": []
+  },
+  "current": {
+    "format": 2,
+    "created": 2,
+    "entries": {
+      "/etc/systemd/system/multi-user.target.wants/sshd.service": {
+        "hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "bytes": 24,
+        "mode": 41471,
+        "uid": 0,
+        "gid": 0,
+        "caps": null,
+        "category": "services"
+      }
+    },
+    "errors": []
+  },
+  "attribution": {
+    "/etc/systemd/system/multi-user.target.wants/sshd.service": {
+      "package": "openssh-server-10.0p1-5.fc44",
+      "config": false,
+      "state": {
+        "state": "verified"
+      }
+    }
+  }
+}

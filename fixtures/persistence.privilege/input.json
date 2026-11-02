@@ -1,0 +1,34 @@
+{
+  "old": {
+    "format": 2,
+    "created": 1,
+    "entries": {
+      "/etc/cron.daily/backup": {
+        "hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "bytes": 24,
+        "mode": 33261,
+        "uid": 0,
+        "gid": 0,
+        "caps": null,
+        "category": "cron"
+      }
+    },
+    "errors": []
+  },
+  "current": {
+    "format": 2,
+    "created": 2,
+    "entries": {
+      "/etc/cron.daily/backup": {
+        "hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "bytes": 24,
+        "mode": 35309,
+        "uid": 0,
+        "gid": 0,
+        "caps": null,
+        "category": "cron"
+      }
+    },
+    "errors": []
+  }
+}

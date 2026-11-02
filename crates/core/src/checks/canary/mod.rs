@@ -399,7 +399,7 @@ pub fn watch(store: &Store, stop: &Cancel) -> Result<()> {
                 }
             }
             if persist.elapsed() > Duration::from_secs(300) {
-                let r = crate::checks::changes::changes(store)?;
+                let r = crate::checks::changes::changes(store, &crate::runner::cancel())?;
                 let fingerprint =
                     crate::store::digest(&serde_json::to_vec(&(&r.findings, &r.errors))?);
                 let previous = store

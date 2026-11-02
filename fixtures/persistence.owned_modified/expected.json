@@ -1,0 +1,8 @@
+{
+  "driver": "changes",
+  "fires": [
+    "persistence.owned_modified"
+  ],
+  "about": "/etc/hosts, a configuration file of setup, edited after install.",
+  "input": "input.json"
+}

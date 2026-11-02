@@ -1,13 +1,28 @@
 {
   "old": null,
   "current": {
+    "format": 2,
     "created": 2,
     "entries": {
-      "/home/user/.profile": {
-        "hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
-        "bytes": 24
+      "/etc/profile.d/lang.sh": {
+        "hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "bytes": 24,
+        "mode": 33188,
+        "uid": 0,
+        "gid": 0,
+        "caps": null,
+        "category": "shell"
       }
     },
     "errors": []
+  },
+  "attribution": {
+    "/etc/profile.d/lang.sh": {
+      "package": "setup-2.15.0-28.fc44",
+      "config": true,
+      "state": {
+        "state": "verified"
+      }
+    }
   }
 }

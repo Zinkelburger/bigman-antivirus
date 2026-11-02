@@ -1,0 +1,46 @@
+{
+  "old": {
+    "format": 2,
+    "created": 1,
+    "entries": {
+      "/etc/hosts": {
+        "hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "bytes": 24,
+        "mode": 33188,
+        "uid": 0,
+        "gid": 0,
+        "caps": null,
+        "category": "name_resolution"
+      }
+    },
+    "errors": []
+  },
+  "current": {
+    "format": 2,
+    "created": 2,
+    "entries": {
+      "/etc/hosts": {
+        "hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "bytes": 24,
+        "mode": 33188,
+        "uid": 0,
+        "gid": 0,
+        "caps": null,
+        "category": "name_resolution"
+      }
+    },
+    "errors": []
+  },
+  "attribution": {
+    "/etc/hosts": {
+      "package": "setup-2.15.0-28.fc44",
+      "config": true,
+      "state": {
+        "state": "modified",
+        "changes": [
+          "content"
+        ]
+      }
+    }
+  }
+}

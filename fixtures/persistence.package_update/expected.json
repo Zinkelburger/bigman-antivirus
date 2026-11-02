@@ -1,0 +1,8 @@
+{
+  "driver": "changes",
+  "fires": [
+    "persistence.package_update"
+  ],
+  "about": "A systemd unit replaced by its package's update, matching the package database.",
+  "input": "input.json"
+}
