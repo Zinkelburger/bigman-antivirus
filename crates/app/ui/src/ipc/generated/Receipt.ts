@@ -11,7 +11,11 @@ export type Receipt = { id: string, at: number, manager: string, transaction: st
 /**
  * systemd services and timers, and autostart entries, the packages ship.
  */
-services: Array<string>, after: AfterEffects, findings: Array<Finding>, coverage: Coverage, 
+services: Array<string>, 
+/**
+ * The repository each package comes from, when the package manager says.
+ */
+repositories: { [key in string]: string }, after: AfterEffects, findings: Array<Finding>, coverage: Coverage, 
 /**
  * High 3, Review 1 per finding; selects the reviewer mode (plan Part G).
  */

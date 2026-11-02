@@ -173,6 +173,35 @@ sys.exit(1 if detected else 0)
         names = {s['name'] for s in value({'type': 'sources'}, 'sources')}
         assert names >= {'throughput', 'connections', 'listeners', 'denials', 'reports'}, names
 
+        # The opt-in pre-transaction preview, as dnf's hook runs it: stage a package,
+        # preview, and the app (a subscriber here) answers Abort.
+        preview_env = dict(env, BIGMAN_PREVIEW_DIR=str(root / 'preview'))
+        fake_rpm = root / 'nix-2.24.9-1.fc44.x86_64.rpm'
+        fake_rpm.write_bytes(b'not really an rpm')
+        staged = subprocess.run([str(bin_dir / 'bigman'), 'receipt', '--stage', 'nix-0:2.24.9-1.fc44.x86_64', '@commandline', str(fake_rpm), 'I'], env=preview_env, capture_output=True, text=True, timeout=30)
+        assert staged.returncode == 0, staged.stderr
+        with socket.socket(socket.AF_UNIX) as sub:
+            sub.settimeout(30)
+            sub.connect(str(sock))
+            sub.sendall((json.dumps({'id': 901, 'request': {'type': 'subscribe', 'events': True, 'samples': False}}) + '\n').encode())
+            pushes = sub.makefile('rb')
+            json.loads(pushes.readline())
+            hook = subprocess.Popen([str(bin_dir / 'bigman'), 'receipt', '--preview', '--manager', 'dnf'], env=preview_env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            while True:
+                live = json.loads(pushes.readline())['response']['value']
+                if live['type'] == 'preview':
+                    break
+            preview = live['value']['receipt']
+            assert live['value']['deadline'] > time.time(), 'the push says when it goes ahead'
+            assert [p['name'] for p in preview['packages']] == ['nix'], preview['packages']
+            assert any(s['what'] == 'Files of nix' for s in preview['coverage']['skipped']), 'an unreadable archive is reported, not hidden'
+            assert value({'type': 'decide', 'id': preview['id'], 'proceed': False}, 'done')
+            out, err = hook.communicate(timeout=30)
+        assert hook.returncode == 1 and 'stop=' in out, (hook.returncode, out, err)
+        # With no daemon to ask, the transaction always continues.
+        alone = subprocess.run([str(bin_dir / 'bigman'), 'receipt', '--preview', '--manager', 'dnf'], env=dict(preview_env, BIGMAN_SOCKET=str(root / 'none.sock')), capture_output=True, text=True, timeout=30)
+        assert alone.returncode == 0, alone.stderr
+
         cli = lambda *args: subprocess.run([str(bin_dir / 'bigman'), '--json', 'daemon', *args], env=env, capture_output=True, text=True, timeout=30)
         listed = cli('events', '--source', 'scan')
         assert listed.returncode == 0, listed.stderr
@@ -180,7 +209,7 @@ sys.exit(1 if detected else 0)
         assert cli('sources').returncode == 0
         network = cli('network')
         assert network.returncode == 0 and 'listeners' in json.loads(network.stdout), network.stderr
-        print('PASS: scan, previewed quarantine and restore, nonexecuting inspection, package policy, reviewed baseline, verified canary, history, timeline, live push, unread and CLI over the daemon socket')
+        print('PASS: scan, previewed quarantine and restore, nonexecuting inspection, package policy, reviewed baseline, verified canary, history, timeline, live push, unread, receipt preview and CLI over the daemon socket')
     finally:
         daemon.terminate()
         daemon.wait(timeout=10)

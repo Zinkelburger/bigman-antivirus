@@ -3,16 +3,21 @@
 use crate::Daemon;
 use anyhow::Result;
 use bigman_core::{
-    ipc::Live,
-    model::{now, Event, SkipReason},
+    checks::{
+        preview::DECISION_SECS,
+        receipt::{self, Receipt},
+    },
+    ipc::{Decision, Live, Waiting},
+    model::{now, Event, Link, Observation, Severity, SkipReason, SourceId},
     notify::{Batch, NotificationSettings},
     platform::Notifier,
+    platform::Transaction,
     runner::Cancel,
     sources::{label, Ctx, Source, SourceStatus},
     store::{db::Db, Store},
 };
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, HashMap},
     sync::{
         atomic::Ordering,
         mpsc::{sync_channel, Receiver, SyncSender, TrySendError},
@@ -37,6 +42,11 @@ pub struct Timeline {
     subscribers: Mutex<Vec<Subscriber>>,
     statuses: Mutex<BTreeMap<&'static str, SourceStatus>>,
     batch: Mutex<Batch>,
+    /// Previewed transactions waiting for an answer, by receipt id.
+    decisions: Mutex<HashMap<String, (std::sync::mpsc::Sender<bool>, Waiting)>>,
+    notifier: Mutex<Option<Arc<dyn Notifier>>>,
+    /// How long a preview waits for an answer; tests shorten it.
+    pub decision_wait: Mutex<Duration>,
 }
 
 impl Timeline {
@@ -46,11 +56,20 @@ impl Timeline {
             subscribers: Mutex::default(),
             statuses: Mutex::default(),
             batch: Mutex::default(),
+            decisions: Mutex::default(),
+            notifier: Mutex::default(),
+            decision_wait: Mutex::new(Duration::from_secs(DECISION_SECS)),
         })
     }
 
     pub fn subscribe(&self, events: bool, samples: bool) -> Receiver<Live> {
         let (tx, rx) = sync_channel(BACKLOG);
+        // A window opened after a preview arrived still gets to answer it.
+        if events {
+            for (_, waiting) in self.decisions.lock().unwrap().values() {
+                let _ = tx.try_send(Live::Preview(Box::new(waiting.clone())));
+            }
+        }
         self.subscribers.lock().unwrap().push(Subscriber {
             events,
             samples,
@@ -62,7 +81,9 @@ impl Timeline {
     pub fn publish(&self, push: Live) {
         self.subscribers.lock().unwrap().retain(|s| {
             let wanted = match push {
-                Live::Event(_) | Live::Unread(_) => s.events,
+                Live::Event(_) | Live::Unread(_) | Live::Preview(_) | Live::PreviewDone(_) => {
+                    s.events
+                }
                 Live::Samples(_) => s.samples,
             };
             !wanted
@@ -76,6 +97,89 @@ impl Timeline {
     pub fn publish_unread(&self) {
         if let Ok(unread) = self.db.unread() {
             self.publish(Live::Unread(unread));
+        }
+    }
+
+    /// Shows a transaction's receipt before it runs and waits up to a minute for
+    /// the app's answer. Nobody answering, or the hook going away, continues.
+    pub fn preview(&self, r: Receipt, stop: &Cancel) -> Decision {
+        let (tx, rx) = std::sync::mpsc::channel();
+        let wait = *self.decision_wait.lock().unwrap();
+        let waiting = Waiting {
+            receipt: r.clone(),
+            deadline: now() + wait.as_secs(),
+        };
+        self.decisions
+            .lock()
+            .unwrap()
+            .insert(r.id.clone(), (tx, waiting.clone()));
+        let t = Transaction {
+            id: r.transaction.clone(),
+            at: r.at,
+            manager: r.manager.clone(),
+            command: r.command.clone(),
+            changes: r.packages.clone(),
+        };
+        let sentence = receipt::sentence(&r, &t);
+        let _ = self.db.save_receipt(&r);
+        self.publish(Live::Preview(Box::new(waiting)));
+        if let Some(n) = self.notifier.lock().unwrap().as_ref() {
+            n.notify(
+                "A package change is waiting",
+                &format!("{sentence}\nIt continues in a minute unless you stop it in Bigman."),
+            );
+        }
+        let deadline = std::time::Instant::now() + wait;
+        let answer = loop {
+            if stop.load(Ordering::Relaxed) {
+                break None;
+            }
+            match rx.recv_timeout(Duration::from_millis(250)) {
+                Ok(proceed) => break Some(proceed),
+                Err(_) if std::time::Instant::now() >= deadline => break None,
+                Err(_) => {}
+            }
+        };
+        self.decisions.lock().unwrap().remove(&r.id);
+        let decision = Decision {
+            id: r.id.clone(),
+            proceed: answer.unwrap_or(true),
+            by: if answer.is_some() { "you" } else { "timeout" }.into(),
+        };
+        self.publish(Live::PreviewDone(decision.clone()));
+        let outcome = match (decision.proceed, answer.is_some()) {
+            (false, _) => "stopped by you",
+            (true, true) => "continued by you",
+            (true, false) => "continued after a minute without an answer",
+        };
+        let worst = r.findings.iter().max_by_key(|f| f.severity);
+        let o = Observation {
+            at: now(),
+            source: SourceId::Receipt,
+            key: format!("preview:{}", r.id),
+            rule: worst.map(|f| f.rule.clone()),
+            severity: worst.map_or(Severity::Info, |f| f.severity),
+            summary: format!("Previewed before it ran: {sentence}; {outcome}"),
+            evidence: r.command.clone(),
+            link: Some(Link::Receipt { id: r.id.clone() }),
+        };
+        if let Ok(e) = self.db.record(&o) {
+            self.publish(Live::Event(e));
+            self.publish_unread();
+        }
+        decision
+    }
+
+    pub fn decide(&self, id: &str, proceed: bool) -> Result<()> {
+        let waiting = self
+            .decisions
+            .lock()
+            .unwrap()
+            .get(id)
+            .map(|(tx, _)| tx.clone());
+        match waiting {
+            Some(tx) if tx.send(proceed).is_ok() => Ok(()),
+            _ => anyhow::bail!("That transaction is no longer waiting; it went ahead after a minute or was answered elsewhere."),
         }
     }
 
@@ -186,6 +290,8 @@ pub fn start(
     notifier: Box<dyn Notifier>,
     stop: &Cancel,
 ) -> Vec<JoinHandle<()>> {
+    let notifier: Arc<dyn Notifier> = Arc::from(notifier);
+    *daemon.timeline.notifier.lock().unwrap() = Some(notifier.clone());
     let mut threads = vec![];
     for mut source in sources {
         daemon.timeline.set_status(source.name(), None, None);

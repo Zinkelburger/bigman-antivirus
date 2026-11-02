@@ -64,7 +64,7 @@ pub struct AfterEffects {
     pub listeners: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[ts(export)]
 pub struct Receipt {
     pub id: String,
@@ -78,6 +78,9 @@ pub struct Receipt {
     pub hits: Vec<ScriptHit>,
     /// systemd services and timers, and autostart entries, the packages ship.
     pub services: Vec<PathBuf>,
+    /// The repository each package comes from, when the package manager says.
+    #[serde(default)]
+    pub repositories: std::collections::BTreeMap<String, String>,
     pub after: AfterEffects,
     pub findings: Vec<Finding>,
     pub coverage: Coverage,
@@ -251,6 +254,7 @@ pub fn build(
         scripts: vec![],
         hits: vec![],
         services: vec![],
+        repositories: Default::default(),
         after: AfterEffects::default(),
         findings: vec![],
         coverage: Coverage::default(),

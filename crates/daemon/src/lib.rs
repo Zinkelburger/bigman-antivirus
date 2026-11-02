@@ -113,6 +113,22 @@ impl Daemon {
                     limit: limit.min(20_000),
                 })?),
                 Request::Unread => Response::Unread(self.timeline.db.unread()?),
+                Request::PreviewTransaction { receipt } => {
+                    Response::Decision(self.timeline.preview(*receipt, stop))
+                }
+                Request::Decide { id, proceed } => {
+                    self.timeline.decide(&id, proceed)?;
+                    Response::Done(Box::new(actions::ActionOutcome {
+                        message: if proceed {
+                            "The transaction continues."
+                        } else {
+                            "The transaction was stopped."
+                        }
+                        .into(),
+                        report: None,
+                        undo: None,
+                    }))
+                }
                 Request::Receipt { id } => match self.timeline.db.receipt(&id)? {
                     Some(r) => Response::Receipt(Box::new(r)),
                     None => error(format!("No receipt {id}")),
@@ -170,6 +186,7 @@ impl Daemon {
             monitor: canary::setup::health(&self.store),
             last_scan,
             downloads: setup::downloads(),
+            receipt_hook: bigman_core::checks::hooks::installed().map(|(_, path)| path),
         })
     }
 }

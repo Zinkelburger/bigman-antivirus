@@ -1,4 +1,4 @@
-import { AppShell, Toaster } from "@/design";
+import { AppShell, Toaster, TransactionPreviewHost } from "@/design";
 import { useLive, useUnread } from "@/ipc";
 import { ActivityPage } from "@/features/activity/ActivityPage";
 import { InspectPage } from "@/features/inspect/InspectPage";
@@ -34,6 +34,7 @@ export function App() {
       <AppShell tabs={tabs} active={tab} onSelect={setTab} statusStrip={<StatusStrip />}>
         <Page />
       </AppShell>
+      <TransactionPreviewHost />
       <Toaster />
     </>
   );

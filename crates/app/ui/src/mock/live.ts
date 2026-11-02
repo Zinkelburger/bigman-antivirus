@@ -67,6 +67,7 @@ export const RECEIPTS: Record<string, Receipt> = {
     scripts: [{ package: "nix", phase: "postinstall", interpreter: "/bin/sh", text: NIX_SCRIPT, changed: false }],
     hits: [{ script: 0, line: 3, rule: "receipt.hook.sensitive_path", severity: "review" }],
     services: ["/usr/lib/systemd/system/nix-daemon.service", "/usr/lib/systemd/system/nix-daemon.socket"],
+    repositories: {},
     after: { checked: true, listeners: [] },
     findings: [
       {

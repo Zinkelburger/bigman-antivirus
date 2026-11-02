@@ -102,6 +102,7 @@ describe("Install receipts", () => {
     expect(within(panel).getByText("1 script, 1 marked line")).toBeInTheDocument();
     await user.click(within(panel).getByRole("button", { name: "Install scripts" }));
     const scripts = await screen.findByRole("dialog", { name: "Install scripts" });
-    expect(within(scripts).getByText("receipt.hook.sensitive_path")).toBeInTheDocument();
+    // The marked line names the rule in words.
+    expect(within(scripts).getByText("An install script writes to a startup or authentication path")).toBeInTheDocument();
   });
 });

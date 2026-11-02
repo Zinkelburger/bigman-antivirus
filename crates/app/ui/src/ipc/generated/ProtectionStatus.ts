@@ -12,4 +12,8 @@ monitor: MonitorHealth | null, last_scan: Report | null,
 /**
  * The folder scans and the browser extension default to.
  */
-downloads: string, };
+downloads: string, 
+/**
+ * The package-manager hook that previews receipts, when it is installed.
+ */
+receipt_hook: string | null, };

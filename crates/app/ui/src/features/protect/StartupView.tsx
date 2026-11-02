@@ -9,9 +9,10 @@ export function StartupView() {
       {!compare.data && !compare.isPending && <LastResult report={last} empty="Startup files have not been compared yet." />}
       <section aria-label="Startup files" className="flex flex-col gap-3">
         <p className="m-0 max-w-[56ch] text-ink-muted">
-          Compare the files that start programs for you (systemd units, autostart entries, shell profiles, cron)
-          with the baseline you accepted. A baseline records what was there; it does not say those entries are
-          trustworthy.
+          Compare the files that start programs or decide how you log in (systemd units, autostart entries, shell
+          profiles, cron, PAM, the loader, SSH and more) with the baseline you accepted. Each change is checked
+          against the package that installed the file. A baseline records what was there; it does not say those
+          entries are trustworthy.
         </p>
         <div>
           <ActionButton variant="primary" disabled={compare.isPending} onClick={() => compare.mutate({ type: "changes" })}>

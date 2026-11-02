@@ -105,7 +105,9 @@ pub fn serve(socket: &Socket, daemon: Arc<Daemon>, stop: &Cancel) -> Result<()> 
     while !stop.load(Ordering::Relaxed) {
         match socket.listener.accept() {
             Ok((stream, _)) => {
-                if peer_uid(&stream).ok() != Some(own_uid) {
+                // Root may call in too: package-manager hooks run as root and ask the
+                // daemon of the user who started the transaction.
+                if !peer_uid(&stream).is_ok_and(|uid| uid == own_uid || uid == 0) {
                     continue;
                 }
                 stream.set_nonblocking(false)?;

@@ -60,6 +60,16 @@ fn drain(mut input: impl Read + AsRawFd, finished: Cancel) -> (Vec<u8>, bool) {
     (bytes, truncated)
 }
 pub fn run(cmd: &mut Command, seconds: u64, cancel: &Cancel) -> Result<Output> {
+    run_with_input(cmd, &[], seconds, cancel)
+}
+
+/// Like `run`, with `input` written to the command's standard input.
+pub fn run_with_input(
+    cmd: &mut Command,
+    input: &[u8],
+    seconds: u64,
+    cancel: &Cancel,
+) -> Result<Output> {
     if cancel.load(Ordering::Relaxed) {
         return Ok(Output {
             code: None,
@@ -69,11 +79,15 @@ pub fn run(cmd: &mut Command, seconds: u64, cancel: &Cancel) -> Result<Output> {
             truncated: false,
         });
     }
-    cmd.stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .env("LC_ALL", "C")
-        .process_group(0);
+    cmd.stdin(if input.is_empty() {
+        Stdio::null()
+    } else {
+        Stdio::piped()
+    })
+    .stdout(Stdio::piped())
+    .stderr(Stdio::piped())
+    .env("LC_ALL", "C")
+    .process_group(0);
     let mut child = cmd.spawn().with_context(|| {
         format!(
             "Cannot start {:?}; install the tool or check its configuration",
@@ -81,6 +95,14 @@ pub fn run(cmd: &mut Command, seconds: u64, cancel: &Cancel) -> Result<Output> {
         )
     })?;
     let pid = child.id() as i32;
+    if let Some(mut stdin) = child.stdin.take() {
+        let input = input.to_vec();
+        // A writer thread, so a command that never reads cannot block us.
+        std::thread::spawn(move || {
+            use std::io::Write;
+            let _ = stdin.write_all(&input);
+        });
+    }
     let stdout = child.stdout.take().unwrap();
     let stderr = child.stderr.take().unwrap();
     let finished = crate::runner::cancel();

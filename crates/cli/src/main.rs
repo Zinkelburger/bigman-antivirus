@@ -105,6 +105,20 @@ enum Commands {
     NativeInstall {
         extension_id: String,
     },
+    /// Called by the opt-in package-manager hooks (as root): preview a transaction's
+    /// receipt in Bigman before it runs. Every failure lets the transaction continue.
+    #[command(hide = true)]
+    Receipt {
+        /// dnf only: record one incoming package (full NEVRA, repo id, location, action).
+        #[arg(long, num_args = 4, value_names = ["NEVRA", "REPO", "LOCATION", "ACTION"])]
+        stage: Option<Vec<String>>,
+        /// Build the preview and wait for Continue or Abort.
+        #[arg(long)]
+        preview: bool,
+        /// dnf, apt or pacman.
+        #[arg(long)]
+        manager: Option<String>,
+    },
     /// Query the bigmand collector daemon.
     Daemon {
         #[command(subcommand)]
@@ -365,6 +379,22 @@ fn run() -> Result<()> {
             daemon_live(command, cli.json)?;
             None
         }
+        Some(Commands::Receipt {
+            stage,
+            preview,
+            manager,
+        }) => {
+            if let Some(stage) = stage {
+                preview_stage(&stage)?;
+            } else if preview {
+                let manager = manager
+                    .as_deref()
+                    .and_then(bigman_core::checks::preview::Manager::parse)
+                    .ok_or_else(|| anyhow::anyhow!("--manager must be dnf, apt or pacman"))?;
+                std::process::exit(receipt_preview(manager));
+            }
+            None
+        }
         Some(Commands::NativeInstall { extension_id }) => {
             for p in setup::native_manifest_paths() {
                 setup::write_native_manifest(&p, &extension_id)?;
@@ -589,4 +619,205 @@ fn daemon_live(command: DaemonCommands, json: bool) -> Result<()> {
             Ok(())
         }
     }
+}
+
+/// Where dnf's incoming packages are staged: root-only, or `BIGMAN_PREVIEW_DIR` in tests.
+fn stage_dir() -> std::path::PathBuf {
+    std::env::var_os("BIGMAN_PREVIEW_DIR").map_or_else(|| "/run/bigman-preview".into(), Into::into)
+}
+
+/// dnf stages incoming packages per transaction, keyed by the dnf process.
+fn stage_file() -> std::path::PathBuf {
+    stage_dir().join(format!("{}.list", std::os::unix::process::parent_id()))
+}
+
+fn preview_stage(fields: &[String]) -> Result<()> {
+    use std::{
+        io::Write,
+        os::unix::fs::{DirBuilderExt, OpenOptionsExt},
+    };
+    std::fs::DirBuilder::new()
+        .recursive(true)
+        .mode(0o700)
+        .create(stage_dir())?;
+    let mut f = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .mode(0o600)
+        .open(stage_file())?;
+    writeln!(f, "{}", fields.join(" "))?;
+    Ok(())
+}
+
+/// 0 to continue, 1 to stop the transaction. Anything that goes wrong continues.
+fn receipt_preview(manager: bigman_core::checks::preview::Manager) -> i32 {
+    match receipt_preview_inner(manager) {
+        Ok(true) => 0,
+        Ok(false) => {
+            // dnf5's actions plugin reads `stop=` from the action's output.
+            println!("stop=Stopped in Bigman's receipt preview");
+            eprintln!("Bigman: the transaction was stopped from the receipt preview.");
+            1
+        }
+        Err(e) => {
+            eprintln!("Bigman: no receipt preview this time ({e:#}); the transaction continues.");
+            0
+        }
+    }
+}
+
+fn incoming(
+    manager: bigman_core::checks::preview::Manager,
+) -> Result<Vec<bigman_core::checks::preview::Pending>> {
+    use bigman_core::checks::preview::{pacman_cached, parse_dnf_stage, Manager, Pending};
+    use bigman_core::platform::{ChangeKind, PackageChange};
+    use std::io::Read;
+    let stop = runner::cancel();
+    let ran = |program: &str, args: &[&str]| {
+        runner::run(std::process::Command::new(program).args(args), 30, &stop).ok()
+    };
+    Ok(match manager {
+        Manager::Dnf => {
+            let path = stage_file();
+            let text = std::fs::read_to_string(&path).unwrap_or_default();
+            let _ = std::fs::remove_file(&path);
+            text.lines()
+                .filter_map(|l| parse_dnf_stage(l, std::path::Path::new("/var/cache/libdnf5")))
+                .collect()
+        }
+        Manager::Apt => {
+            let mut stdin = String::new();
+            std::io::stdin().read_to_string(&mut stdin)?;
+            stdin
+                .lines()
+                .map(str::trim)
+                .filter(|l| l.ends_with(".deb"))
+                .filter_map(|path| {
+                    let fields = ran("dpkg-deb", &["-f", path, "Package", "Version"])?.stdout;
+                    let field = |name: &str| {
+                        fields
+                            .lines()
+                            .find_map(|l| l.strip_prefix(&format!("{name}: ")).map(str::to_string))
+                    };
+                    let name = field("Package")?;
+                    let installed = ran("dpkg-query", &["-W", "-f", "${Status}", &name])
+                        .is_some_and(|o| o.stdout.contains("installed"));
+                    Some(Pending {
+                        change: PackageChange {
+                            name,
+                            version: field("Version")?,
+                            kind: if installed {
+                                ChangeKind::Upgrade
+                            } else {
+                                ChangeKind::Install
+                            },
+                        },
+                        archive: Some(path.into()),
+                        repository: None,
+                    })
+                })
+                .collect()
+        }
+        Manager::Pacman => {
+            let mut stdin = String::new();
+            std::io::stdin().read_to_string(&mut stdin)?;
+            stdin
+                .split_whitespace()
+                .map(|name| {
+                    let archive =
+                        pacman_cached(std::path::Path::new("/var/cache/pacman/pkg"), name);
+                    let version = archive
+                        .as_ref()
+                        .and_then(|a| {
+                            a.file_name()?
+                                .to_string_lossy()
+                                .split(".pkg.tar")
+                                .next()
+                                .map(str::to_string)
+                        })
+                        .and_then(|stem| stem.strip_prefix(&format!("{name}-")).map(str::to_string))
+                        .unwrap_or_default();
+                    let installed = ran("pacman", &["-Q", name]).is_some_and(|o| o.ok());
+                    Pending {
+                        change: PackageChange {
+                            name: name.into(),
+                            version,
+                            kind: if installed {
+                                ChangeKind::Upgrade
+                            } else {
+                                ChangeKind::Install
+                            },
+                        },
+                        archive,
+                        repository: None,
+                    }
+                })
+                .collect()
+        }
+    })
+}
+
+/// Daemons to ask: the one of whoever ran sudo or pkexec, else every running one.
+fn preview_sockets() -> Vec<std::path::PathBuf> {
+    if let Some(socket) = std::env::var_os("BIGMAN_SOCKET") {
+        return vec![socket.into()];
+    }
+    if let Some(uid) = bigman_core::checks::preview::invoking_uid() {
+        return vec![std::path::Path::new("/run/user")
+            .join(uid.to_string())
+            .join("bigman/bigmand.sock")];
+    }
+    std::fs::read_dir("/run/user")
+        .map(|dirs| {
+            dirs.flatten()
+                .map(|d| d.path().join("bigman/bigmand.sock"))
+                .filter(|p| p.exists())
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn receipt_preview_inner(manager: bigman_core::checks::preview::Manager) -> Result<bool> {
+    let pending = incoming(manager)?;
+    if pending.is_empty() {
+        return Ok(true);
+    }
+    let command = std::fs::read(format!(
+        "/proc/{}/cmdline",
+        std::os::unix::process::parent_id()
+    ))
+    .map(|b| {
+        String::from_utf8_lossy(&b)
+            .replace('\0', " ")
+            .trim()
+            .to_string()
+    })
+    .unwrap_or_default();
+    let receipt =
+        bigman_core::checks::preview::build(manager, &pending, &command, &runner::cancel());
+    let mut announced = false;
+    for socket in preview_sockets() {
+        let Ok(mut client) = Client::connect_to(&socket) else {
+            continue;
+        };
+        // Said once, in the terminal where the package manager is waiting.
+        if !announced {
+            eprintln!(
+                "Bigman: showing this transaction's receipt; it continues in {} s unless you stop it in Bigman.",
+                bigman_core::checks::preview::DECISION_SECS
+            );
+            announced = true;
+        }
+        client.set_timeout(Some(std::time::Duration::from_secs(
+            bigman_core::checks::preview::DECISION_SECS + 15,
+        )))?;
+        if let ipc::Response::Decision(d) = client.request(ipc::Request::PreviewTransaction {
+            receipt: Box::new(receipt.clone()),
+        })? {
+            if !d.proceed {
+                return Ok(false);
+            }
+        }
+    }
+    Ok(true)
 }

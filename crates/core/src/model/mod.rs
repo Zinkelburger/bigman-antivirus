@@ -15,7 +15,7 @@ pub enum Severity {
     High,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[ts(export)]
 pub struct Finding {
     pub rule: String,

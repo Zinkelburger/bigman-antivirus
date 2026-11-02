@@ -1,4 +1,4 @@
-import { formatTime, nowSeconds, signatureAge } from "@/design";
+import { formatTime, nowSeconds, signatureAge, WaitingIndicator } from "@/design";
 import { DisconnectedError, useEvents, useHealth, useStatus } from "@/ipc";
 
 /** What is running, how old the signatures are, and when the last entry was made. */
@@ -20,6 +20,7 @@ export function StatusStrip() {
       {status.data && <span>{status.data.monitor ? "Canary tripwires watched" : "Canary tripwires off"}</span>}
       {status.data && <span>{signatures ? `Signatures ${signatureAge(signatures.updated, now)}` : "No signatures yet"}</span>}
       {last && <span>Last entry {formatTime(last.at)}</span>}
+      <WaitingIndicator />
     </>
   );
 }

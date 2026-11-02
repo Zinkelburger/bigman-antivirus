@@ -10,6 +10,13 @@ import { transport } from "./transport";
 const LIVE_WINDOW = 10 * 60;
 const RESUBSCRIBE_MS = 3_000;
 
+/** Where pushes about previewed transactions go; the design layer registers it. */
+let onPreview: ((live: Extract<Live, { type: "preview" | "preview_done" }>) => void) | null = null;
+
+export function setPreviewHandler(handler: typeof onPreview) {
+  onPreview = handler;
+}
+
 interface LiveSamples {
   samples: Sample[];
   add(samples: Sample[]): void;
@@ -45,6 +52,10 @@ function apply(client: QueryClient, live: Live) {
       break;
     case "samples":
       useLiveSamples.getState().add(live.value);
+      break;
+    case "preview":
+    case "preview_done":
+      onPreview?.(live);
       break;
   }
 }

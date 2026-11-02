@@ -217,6 +217,11 @@ export function useSetNotifications() {
   });
 }
 
+/** Answers a previewed package transaction. */
+export function decide(id: string, proceed: boolean) {
+  return call({ type: "decide", id, proceed }, "done");
+}
+
 export function useOpenTool() {
   return useMutation({ mutationFn: (tool: string) => call({ type: "open_tool", tool }, "done") });
 }

@@ -38,3 +38,16 @@ describe("Setup notifications", () => {
     expect(await screen.findByText(/not collected \(no permission to read\)/)).toBeInTheDocument();
   });
 });
+
+describe("Setup receipt preview", () => {
+  it("previews the hook file before installing it, and offers to turn it off after", async () => {
+    const { user } = renderWithDaemon(<SetupPage />);
+    await user.click(await screen.findByRole("button", { name: "Turn on…" }));
+    const dialog = await screen.findByRole("dialog", { name: "Preview package changes before they happen" });
+    expect(await within(dialog).findByText(/pre_transaction:::raise_error=1:\/usr\/bin\/bigman receipt --preview --manager dnf/)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Install the hook" }));
+    expect(await within(dialog).findByText(/Installed the hook/)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Close" }));
+    expect(await screen.findByRole("button", { name: "Turn off…" })).toBeInTheDocument();
+  });
+});

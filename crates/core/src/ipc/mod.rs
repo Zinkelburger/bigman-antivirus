@@ -101,6 +101,16 @@ pub enum Request {
         limit: u32,
     },
     Unread,
+    /// From a package-manager hook (as root): the receipt of a transaction about to
+    /// run. Answered within `preview::DECISION_SECS` with whether to continue.
+    PreviewTransaction {
+        receipt: Box<Receipt>,
+    },
+    /// The app's answer to a pushed preview.
+    Decide {
+        id: String,
+        proceed: bool,
+    },
     /// One install receipt, by the id an event links to.
     Receipt {
         id: String,
@@ -154,6 +164,7 @@ pub enum Response {
     Events(Vec<Event>),
     Unread(Unread),
     Receipt(Box<Receipt>),
+    Decision(Decision),
     Samples(SampleSeries),
     Network(Box<NetworkSnapshot>),
     Sources(Vec<SourceStatus>),
@@ -172,6 +183,29 @@ pub enum Live {
     Event(Event),
     Samples(Vec<Sample>),
     Unread(Unread),
+    /// A transaction waiting to be stopped or let through.
+    Preview(Box<Waiting>),
+    /// A waiting preview was answered or timed out, here or elsewhere.
+    PreviewDone(Decision),
+}
+
+/// A previewed transaction and when it goes ahead without an answer.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
+#[ts(export)]
+pub struct Waiting {
+    pub receipt: Receipt,
+    /// Unix seconds.
+    pub deadline: u64,
+}
+
+/// Whether a previewed transaction goes ahead, and who decided.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[ts(export)]
+pub struct Decision {
+    pub id: String,
+    pub proceed: bool,
+    /// "you", or "timeout" when nobody answered within a minute.
+    pub by: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
@@ -194,6 +228,8 @@ pub struct ProtectionStatus {
     pub last_scan: Option<Report>,
     /// The folder scans and the browser extension default to.
     pub downloads: PathBuf,
+    /// The package-manager hook that previews receipts, when it is installed.
+    pub receipt_hook: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]

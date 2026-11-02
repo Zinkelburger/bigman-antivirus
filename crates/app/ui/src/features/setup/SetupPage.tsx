@@ -242,6 +242,21 @@ export function SetupPage() {
             </div>
           </Item>
 
+          <Item title="Preview package changes" done={null}>
+            <p className="m-0 max-w-[56ch] text-ink-muted">
+              {status.data?.receipt_hook
+                ? `On: ${status.data.receipt_hook} makes your package manager show each transaction's receipt here first, with Continue and Abort. It goes ahead on its own after a minute.`
+                : "Every transaction already gets a receipt afterwards. With this hook your package manager also shows the receipt here before anything is installed, with Continue and Abort, and goes ahead on its own after a minute so unattended upgrades never wait. Needs Bigman installed system-wide, because the package manager runs the hook as root."}
+            </p>
+            <div>
+              {status.data?.receipt_hook ? (
+                <ActionDialog action={{ kind: "receipt_hook", remove: true }} label="Turn off…" variant="quiet" disabled={down} />
+              ) : (
+                <ActionDialog action={{ kind: "receipt_hook", remove: false }} label="Turn on…" disabled={down} />
+              )}
+            </div>
+          </Item>
+
           <Item title="What is collected" done={null}>
             <p className="m-0 max-w-[56ch] text-ink-muted">
               Each source reads as you, without administrator access. A source that cannot read says so here and in

@@ -440,6 +440,14 @@ The answer to "the package manager just ran and I have no idea what happened".
 
 Acceptance: a fixture pacman transaction with a package containing a `.install` script that writes to `/etc/profile.d` produces a receipt whose summary shows one hook and one suspicious line, and whose code level highlights that line with rule `receipt.hook.sensitive_path`.
 
+As built in milestone 5 (`core/src/checks/receipt.rs`, `preview.rs`, `hooks.rs`):
+
+- Passive receipts are built from the installed-package database right after the packages source sees a transaction, not from old and new package files in the cache, so there is no version-to-version diff yet: `receipt.hook.changed` compares each script with the one recorded in the previous receipt for the same package. The first run's backfill of the past week is listed without receipts, because the database shows today's files rather than what those transactions installed.
+- Implemented rules: `receipt.hook.sensitive_path`, `receipt.hook.download`, `receipt.hook.obfuscation`, `receipt.hook.changed`, `receipt.file.privileged`, `receipt.sensitive_package`, `receipt.after.listener`. Still to come: new dependency, release tarball versus VCS tag, build-system and binary test files in one release, ifunc or constructor usage, new packager key, and the PKGBUILD or spec `DiffView`.
+- dnf5's actions plugin gives no local path for a downloaded package, so the dnf hook stages each incoming package (`${pkg.full_nevra} ${pkg.repo_id} ${pkg.location} ${pkg.action}`) and the final `pre_transaction` action finds the archives in `/var/cache/libdnf5/<repo>-*/packages`. Setup installs `libdnf5-plugin-actions` when it is missing. apt's `DPkg::Pre-Install-Pkgs` passes `.deb` paths; pacman's `NeedsTargets` passes names, found in `/var/cache/pacman/pkg`.
+- The hook runs Bigman as root, so Setup refuses to install it unless the `bigman` binary and every directory above it are root-owned and not writable by others. The daemon accepts connections from root as well as its own user; root can already do anything as that user.
+- Every failure in the preview path (no daemon, unreadable archive, timeout) lets the transaction continue.
+
 ---
 
 ## Part G. The AI reviewer

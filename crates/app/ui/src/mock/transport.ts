@@ -42,6 +42,7 @@ class MockDaemon {
   seenThrough: number;
   notifications: NotificationSettings = { findings: true, new_connections: false, new_listeners: false, packages: false, denials: false, paused_until: null };
   subscribers = new Set<(live: Live) => void>();
+  hook = false;
 
   constructor(
     readonly scenario: string,
@@ -124,6 +125,9 @@ class MockDaemon {
   plan(action: Action): ActionPlan {
     const plan = (title: string, verb: string, summary: string, details: string, undo: string | null = null, careful = false): ActionPlan => ({ title, verb, summary, details, undo, careful });
     switch (action.kind) {
+      case "receipt_hook": return action.remove
+        ? plan("Stop previewing package changes", "Remove the hook", "Delete /etc/dnf/libdnf5-plugins/actions.d/bigman-preview.actions. dnf stops asking Bigman before a transaction; receipts afterwards continue.", "pkexec /bin/sh -c \"rm -f '/etc/dnf/libdnf5-plugins/actions.d/bigman-preview.actions'\"", "Turn the preview on again from Setup.")
+        : plan("Preview package changes before they happen", "Install the hook", "Add a hook so dnf shows each transaction's receipt in Bigman first, with Continue and Abort. It continues on its own after a minute, so unattended upgrades never wait, and it continues whenever Bigman is not running or cannot read a package. Administrator approval is asked for by polkit.", "/etc/dnf/libdnf5-plugins/actions.d/bigman-preview.actions\n\n# Bigman install-receipt preview (opt-in from Bigman's Setup). Delete this file to turn it off.\npre_transaction:*:in::/usr/bin/bigman receipt --stage ${pkg.full_nevra} ${pkg.repo_id} ${pkg.location} ${pkg.action}\npre_transaction:::raise_error=1:/usr/bin/bigman receipt --preview --manager dnf", "Undo removes the hook file again.");
       case "journal_access": return action.remove
         ? plan("Stop reading the system journal", "Leave the group", "Remove your account from systemd-journal. Bigman stops collecting denials from your next login.", "pkexec gpasswd -d sam systemd-journal", "Join the group again from Setup.")
         : plan("Read SELinux and AppArmor denials", "Join the group", "Add your account to systemd-journal, the group that may read the system journal. Bigman then turns denials into plain sentences in Activity. Your account can also read other system logs; nothing gains write access. Administrator approval is asked for by polkit, and it takes effect at your next login.", "pkexec usermod -aG systemd-journal sam", "Undo removes you from the group again.");
@@ -182,6 +186,7 @@ class MockDaemon {
       case "accept_baseline": return done("Baseline saved.", null, { kind: "restore_previous_baseline" });
       case "restore_previous_baseline": return done("The previous baseline is back.");
       case "services": return done(action.remove ? "User services removed" : "The collector daemon, monitoring, daily scan and definition updates are enabled.", null, action.remove ? null : { kind: "services", remove: true });
+      case "receipt_hook": this.hook = !action.remove; return done(action.remove ? "Removed the hook. dnf no longer asks Bigman before a transaction." : "Installed the hook. Before each transaction dnf now shows the receipt in Bigman and waits up to a minute for Continue or Abort.", null, action.remove ? null : { kind: "receipt_hook", remove: true });
       case "journal_access": return done(action.remove ? "You are no longer in systemd-journal." : "You are now in systemd-journal. Log out and back in; denials are collected from then on.", null, action.remove ? null : { kind: "journal_access", remove: true });
       case "package_policy": return done(`Updated ${action.path}/.npmrc. npm and pnpm no longer run lifecycle scripts during install there.`);
       default: return done("Done.");
@@ -195,7 +200,7 @@ class MockDaemon {
       case "status": {
         const value = statusScenarios[this.scenario] ?? statusScenarios.findings;
         if (!value) throw new Error("missing fixture");
-        return { type: "status", value: { ...value, monitor: this.monitor ? value.monitor : null } };
+        return { type: "status", value: { ...value, monitor: this.monitor ? value.monitor : null, receipt_hook: this.hook ? "/etc/dnf/libdnf5-plugins/actions.d/bigman-preview.actions" : null } };
       }
       case "doctor": return r(await this.check(token, 1_200, checkup, "Security checkup", "Local Linux workstation"));
       case "history": return { type: "history", value: this.reports.slice(0, request.limit).map((x) => this.summarize(x)) };
@@ -219,7 +224,11 @@ class MockDaemon {
       }
       case "inspect": return r(await this.check(token, 900, () => report({ id: id(), created: now(), kind: "Installer inspection", subject: request.target, sha256: "4397ea1f9014f4ae085fb4f108db3aaa16f00d5711ff5070fb36d4117b18f87e", findings: [{ rule: "shell.execute-download", severity: "high", summary: "Downloads and executes code", evidence: "Line 4: curl -fsSL https://example.org/setup.sh | sh", action: "Save and inspect the exact downloaded bytes first." }, { rule: "shell.privilege", severity: "review", summary: "Requests elevated privileges", evidence: "Line 5: sudo install -m 0755 /tmp/tool /usr/local/bin/tool", action: "Check why this operation needs administrator access." }], coverage: { checked: ["Capability rules", "ShellCheck"], notes: ["Static capability rules only. No code was executed."], skipped: [] }, details: '#!/bin/sh\necho "Installing example tool"\ncurl -fsSL https://example.org/tool.tar.gz -o /tmp/tool.tar.gz\ncurl -fsSL https://example.org/setup.sh | sh\nsudo install -m 0755 /tmp/tool /usr/local/bin/tool' }), "Installer inspection", request.target));
       case "packages": return r(await this.check(token, 700, () => report({ id: id(), created: now(), kind: "Package script inventory", subject: request.path, coverage: { checked: ["Package manifests", "Referenced scripts"], notes: ["Reads package manifests and script source as data; never runs npm or lifecycle hooks."], skipped: [] }, findings: [{ rule: "package.lifecycle", severity: "review", summary: "fixture@1.0.0: postinstall", evidence: `${request.path}/package.json\nnode scripts/setup.js`, action: "Review referenced source. Installation approvals do not constrain later runtime behavior." }] }), "Package script inventory", request.path));
-      case "changes": return r(await this.check(token, 600, () => report({ id: id(), created: now(), kind: "Persistence changes", subject: "Selected startup configuration", coverage: { checked: ["Startup files"], notes: ["Baseline means previously observed, not trusted."], skipped: [] }, findings: [{ rule: "persistence.change", severity: "review", summary: "Startup entry changed", evidence: "/home/sam/.bashrc\nSHA-256 30273a0ee8c676cd83d1f725ca2eb628d92715e22a92b8fec73cf30834f7a3a2", action: "Review the file and its owning package before accepting a new baseline." }], sha256: "be520ca2629ea1612ce896eed9204eea4b15eee54f3ea2ffeb232fd4f28ad779" }), "Persistence changes", "Selected startup configuration"));
+      case "changes": return r(await this.check(token, 600, () => report({ id: id(), created: now(), kind: "Persistence changes", subject: "Startup and system configuration", coverage: { checked: ["Startup and configuration files", "Package attribution (rpm)"], notes: ["Records content, mode, owner and file capabilities of startup, scheduling, login, PAM, loader, kernel-module, udev, SSH, name-resolution and desktop-handler files. Baseline means previously observed, not trusted; it does not identify the writer."], skipped: [] }, findings: [
+        { rule: "persistence.sensitive_modified", severity: "high", summary: "/etc/pam.d/sudo differs from what sudo-1.9.17-10.p2.fc44 installed", evidence: "/etc/pam.d/sudo\nPAM authentication\nOwned by sudo-1.9.17-10.p2.fc44 (a configuration file), but modified: size, content\nmode 0644, owner 0:0\nSHA-256 30273a0ee8c676cd83d1f725ca2eb628d92715e22a92b8fec73cf30834f7a3a2", action: "Compare it with the package's version (rpm -V, dpkg --verify or pacman -Qkk) and restore it if you did not make the change." },
+        { rule: "persistence.change", severity: "review", summary: "/home/sam/.bashrc changed", evidence: "/home/sam/.bashrc\nshell profile or environment\nNot owned by any package\nmode 0644, owner 1000:1000\nSHA-256 9a1d0c3fbb4ce2d1b9f2a4e5b7c8d9e0f1a2b3c4d5e6f708192a3b4c5d6e7f80", action: "Review the file and the package that owns it before accepting a new baseline." },
+        { rule: "persistence.package_update", severity: "info", summary: "/etc/systemd/system/multi-user.target.wants/sshd.service updated by openssh-server-10.0p1-5.fc44", evidence: "/etc/systemd/system/multi-user.target.wants/sshd.service\nsystemd unit\nOwned by openssh-server-10.0p1-5.fc44, matches the package\nmode 0777, owner 0:0\nSHA-256 be520ca2629ea1612ce896eed9204eea4b15eee54f3ea2ffeb232fd4f28ad779", action: "Nothing to do: the package database accounts for this change." },
+      ], sha256: "be520ca2629ea1612ce896eed9204eea4b15eee54f3ea2ffeb232fd4f28ad779" }), "Persistence changes", "Startup and system configuration"));
       case "audit": return r(await this.check(token, 1_500, () => report({ id: id(), created: now(), kind: `${request.tool} integration`, subject: request.path, coverage: { checked: ["Upstream tool"], notes: ["Runs as you; checks that need administrator access are reported as not run."], skipped: [] } }), `${request.tool} integration`, request.path));
       case "yara": return r(await this.check(token, 900, () => report({ id: id(), created: now(), kind: "YARA-X scan", subject: request.target, coverage: { checked: ["YARA-X rules"], notes: ["Rule matches are rule results, not proof of malware."], skipped: [] } }), "YARA-X scan", request.target));
       case "canary_test": return r(await this.check(token, 800, () => report({ id: id(), created: now(), kind: "Canary verification", subject: this.canaries.find((c) => c.id === request.id)?.path ?? "", coverage: { checked: ["Monitor heartbeat", "Read receipt"], notes: ["Verifies local detection and durable evidence, not notification delivery or reader identity."], skipped: [] }, findings: [{ rule: "canary.verified", severity: "info", summary: "Local read detection verified", evidence: "Kernel read receipt from the monitor", action: "Leave monitoring running." }] }), "Canary verification", request.id));
@@ -238,6 +247,10 @@ class MockDaemon {
       case "open_tool": return { type: "done", value: { message: "Opened.", report: null, undo: null } };
       case "events": return { type: "events", value: this.events.filter((e) => e.at >= request.since && (request.until === null || e.at <= request.until) && (request.sources.length === 0 || request.sources.includes(e.source))).slice(-request.limit).reverse() };
       case "unread": return { type: "unread", value: this.unread() };
+      case "preview_transaction": return { type: "error", value: { message: "Previews come from package-manager hooks, not the app" } };
+      case "decide":
+        this.push({ type: "preview_done", value: { id: request.id, proceed: request.proceed, by: "you" } });
+        return { type: "done", value: { message: request.proceed ? "The transaction continues." : "The transaction was stopped.", report: null, undo: null } };
       case "receipt": {
         const found = RECEIPTS[request.id];
         return found ? { type: "receipt", value: found } : { type: "error", value: { message: `No receipt ${request.id}` } };
@@ -289,6 +302,25 @@ export function mockTransport(scenario = "findings", latencyMs = 250, speed = 1)
         };
         daemon.subscribers.add(subscriber);
         if (events) onPush({ type: "unread", value: daemon.unread() });
+        // `?scenario=preview`: a transaction waits for an answer as soon as the app connects.
+        const waiting = RECEIPTS["rc-412"];
+        if (events && scenario === "preview" && waiting) {
+          onPush({
+            type: "preview",
+            value: {
+              deadline: now() + 60,
+              receipt: {
+                ...waiting,
+                id: "pv-1",
+                at: now(),
+                transaction: "preview-4411",
+                repositories: { nix: "fedora", "nix-libs": "fedora" },
+                after: { checked: false, listeners: [] },
+                coverage: { checked: ["Package database (rpm archives)"], notes: ["A preview from the downloaded package files, before anything was installed. Nothing was unpacked or run."], skipped: [] },
+              },
+            },
+          });
+        }
         // Tests run with speed 0 and push only what their actions cause.
         const timer = speed > 0 && samples
           ? setInterval(() => daemon.push({ type: "samples", value: INTERFACES.map((iface) => sampleAt(iface, now())) }), 1_000)

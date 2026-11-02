@@ -2,7 +2,7 @@
 //! change without changing anything, `apply` does it. The CLI, the daemon and the
 //! desktop app all go through these, so a preview can never drift from the change.
 use crate::{
-    checks::{canary, changes, inspect, packages, scan, setup},
+    checks::{canary, changes, hooks, inspect, packages, scan, setup},
     model::Report,
     runner::Cancel,
     store::Store,
@@ -19,6 +19,10 @@ pub enum Action {
     /// Install an optional tool group from the distribution repositories via polkit.
     InstallTool {
         tool: String,
+    },
+    /// Install (or remove) the package-manager hook that previews receipts.
+    ReceiptHook {
+        remove: bool,
     },
     /// Join (or leave) systemd-journal so SELinux and AppArmor denials can be read.
     JournalAccess {
@@ -199,6 +203,33 @@ fn paths(list: &[PathBuf]) -> String {
 
 pub fn preview(action: &Action, store: &Store) -> Result<ActionPlan> {
     Ok(match action {
+        Action::ReceiptHook { remove } => {
+            let (manager, path, content, script) = hooks::plan(*remove)?;
+            ActionPlan {
+                undo: Some(if *remove {
+                    "Turn the preview on again from Setup.".into()
+                } else {
+                    "Undo removes the hook file again.".into()
+                }),
+                ..plan(
+                    if *remove { "Stop previewing package changes" } else { "Preview package changes before they happen" },
+                    if *remove { "Remove the hook" } else { "Install the hook" },
+                    if *remove {
+                        format!("Delete {}. {} stops asking Bigman before a transaction; receipts afterwards continue.", path.display(), manager.name())
+                    } else {
+                        format!(
+                            "Add a hook so {} shows each transaction's receipt in Bigman first, with Continue and Abort. It continues on its own after a minute, so unattended upgrades never wait, and it continues whenever Bigman is not running or cannot read a package. Administrator approval is asked for by polkit.",
+                            manager.name()
+                        )
+                    },
+                    if *remove {
+                        format!("pkexec /bin/sh -c \"{script}\"")
+                    } else {
+                        format!("{}\n\n{content}\npkexec /bin/sh -c \"{script}\"", path.display())
+                    },
+                )
+            }
+        }
         Action::JournalAccess { remove } => {
             let command = setup::journal_group_plan(*remove)?;
             ActionPlan {
@@ -402,6 +433,14 @@ pub fn preview(action: &Action, store: &Store) -> Result<ActionPlan> {
 pub fn apply(action: &Action, store: &Store, stop: &Cancel) -> Result<ActionOutcome> {
     Ok(match action {
         Action::InstallTool { tool } => message(setup::install_tool(tool, true, stop)?),
+        Action::ReceiptHook { remove } => {
+            let done = message(hooks::apply(*remove, stop)?);
+            if *remove {
+                done
+            } else {
+                undoable(done, Action::ReceiptHook { remove: true })
+            }
+        }
         Action::JournalAccess { remove } => {
             let done = message(setup::journal_group(*remove, stop)?);
             if *remove {

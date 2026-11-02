@@ -31,17 +31,28 @@ export function FileTree({ groups, onOpen }: { groups: FileTreeGroup[]; onOpen?:
           <ul className="pb-1">
             {group.files.map((file) => (
               <li key={file.path}>
-                <button
-                  type="button"
-                  disabled={!onOpen}
-                  onClick={() => onOpen?.(file)}
-                  className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-2 py-1 pr-3 pl-9 text-left enabled:cursor-pointer enabled:hover:bg-ground"
-                >
-                  <File aria-hidden size={13} className="text-ink-muted" />
-                  <span className="truncate font-mono text-small text-ink" title={file.path}>{file.path}</span>
-                  <span className="text-small text-ink-muted">{CHANGE[file.change]}</span>
-                  {file.severity && file.severity !== "info" ? <SeverityBadge severity={file.severity} /> : <span />}
-                </button>
+                {(() => {
+                  const row = (
+                    <>
+                      <File aria-hidden size={13} className="text-ink-muted" />
+                      <span className="truncate font-mono text-small text-ink" title={file.path}>{file.path}</span>
+                      <span className="text-small text-ink-muted">
+                        {CHANGE[file.change]}
+                        {file.detail ? ` · ${file.detail}` : ""}
+                      </span>
+                      {file.severity && file.severity !== "info" ? <SeverityBadge severity={file.severity} /> : <span />}
+                    </>
+                  );
+                  const layout = "grid w-full grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-2 py-1 pr-3 pl-9 text-left";
+                  // Rows that open are buttons; the rest are plain rows a screen reader does not skip as dimmed.
+                  return onOpen ? (
+                    <button type="button" onClick={() => onOpen(file)} className={`${layout} cursor-pointer hover:bg-ground`}>
+                      {row}
+                    </button>
+                  ) : (
+                    <div className={layout}>{row}</div>
+                  );
+                })()}
               </li>
             ))}
           </ul>

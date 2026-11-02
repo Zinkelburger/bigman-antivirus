@@ -551,10 +551,10 @@ pub fn compare(
             _ => r.add(
                 "persistence.change",
                 Severity::Review,
-                if before.is_some() {
-                    "Startup entry changed"
+                &if before.is_some() {
+                    format!("{} changed", p.display())
                 } else {
-                    "New startup entry"
+                    format!("New: {}", p.display())
                 },
                 evidence(p, e, a),
                 "Review the file and the package that owns it before accepting a new baseline.",
@@ -571,7 +571,7 @@ pub fn compare(
             r.add(
                 "persistence.removed",
                 Severity::Review,
-                "Startup entry removed",
+                &format!("{} was removed", p.display()),
                 p.display(),
                 "Check whether an intentional configuration or package change explains this.",
             );
