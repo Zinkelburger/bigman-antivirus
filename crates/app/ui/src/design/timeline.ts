@@ -18,6 +18,8 @@ export interface TimelineEntry {
   count: number;
   /** When it was first seen. */
   firstAt: number;
+  /** Arrived since the user last marked Activity as seen. */
+  unread?: boolean | undefined;
 }
 
 /** Raw occurrences before folding; `key` says what makes two of them the same thing. */
@@ -31,6 +33,8 @@ export interface Occurrence {
   severity: Severity;
   /** Times seen before this occurrence, from the store; 0 means first seen. */
   seenBefore: number;
+  /** When the store first saw this key, which may be before anything loaded. */
+  firstAt?: number | undefined;
 }
 
 /**
@@ -42,11 +46,13 @@ export function fold(occurrences: readonly Occurrence[]): TimelineEntry[] {
   for (const o of occurrences) {
     const group = byKey.get(o.key);
     if (!group) {
-      byKey.set(o.key, { latest: o, firstAt: o.at, count: o.seenBefore + 1 });
+      // A missing or zero first time (never recorded) falls back to this occurrence.
+      const known = o.firstAt !== undefined && o.firstAt > 0 ? o.firstAt : o.at;
+      byKey.set(o.key, { latest: o, firstAt: Math.min(known, o.at), count: o.seenBefore + 1 });
       continue;
     }
     if (o.at > group.latest.at) group.latest = o;
-    group.firstAt = Math.min(group.firstAt, o.at);
+    group.firstAt = Math.min(group.firstAt, o.firstAt !== undefined && o.firstAt > 0 ? o.firstAt : o.at, o.at);
     group.count = Math.max(group.count, o.seenBefore + 1);
   }
   return [...byKey.values()].map(({ latest, firstAt, count }) => ({

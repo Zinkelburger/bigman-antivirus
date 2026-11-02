@@ -96,9 +96,20 @@ try {
     return found.length === 0;
   });
 
+  // Live collection reaches the webview: the Network tab lists this machine's
+  // listeners (or says there are none) and the Activity tab shows its timeline.
+  await click(await tabButton("Network"));
+  await until("network tables", async () => (await textOf("#listeners")) === "Listening programs", 30_000);
+  const hasListeners = await wd("POST", `${s}/execute/sync`, {
+    script: "return !!document.querySelector('table[aria-label=\"Listening programs\"]') || /No program is listening/.test(document.body.textContent)",
+    args: [],
+  });
+  if (!hasListeners) throw new Error("Network shows neither listeners nor the empty state");
+  console.log("Network lists listening programs from the daemon");
+
   await wd("DELETE", s);
   session = null;
-  console.log("PASS: launched, visited every tab, opened and closed a drill-down, quit");
+  console.log("PASS: launched, visited every tab, opened and closed a drill-down, read live network state, quit");
 } finally {
   // Deleting the session closes the app window, even after a failure.
   if (session) await wd("DELETE", session).catch(() => undefined);

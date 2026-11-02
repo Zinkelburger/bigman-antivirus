@@ -153,7 +153,7 @@ const columns: ColumnDef<IndexedFinding>[] = [
 ];
 
 /** The registry's explanation of a finding's rule, so every finding says what it means. */
-function AboutRule({ id }: { id: string }) {
+export function AboutRule({ id }: { id: string }) {
   const rule = useRules().data?.find((r) => r.id === id);
   if (!rule) return <KeyValue items={[{ label: "Rule", value: id, mono: true }]} />;
   return (
@@ -163,7 +163,8 @@ function AboutRule({ id }: { id: string }) {
       <KeyValue
         items={[
           { label: "Rule", value: rule.id, mono: true },
-          ...(rule.threats.length ? [{ label: "Threats", value: rule.threats.join(", ") }] : []),
+          // IDs in Bigman's catalogue, docs/threats.
+          ...(rule.threats.length ? [{ label: "Catalogue", value: rule.threats.join(", "), mono: true }] : []),
         ]}
       />
     </section>

@@ -5,8 +5,12 @@
 //!   rule is used somewhere;
 //! - `docs/rules.md` matches the registry.
 use bigman_core::{
-    checks::{canary, changes, doctor, inspect, integrations, packages, pdf, scan, shell},
+    checks::{
+        canary, changes, denials, doctor, inspect, integrations, network, packages, pdf, scan,
+        shell,
+    },
     model::Report,
+    platform::{linux::parse_proc_net, Protocol},
     rules, runner,
     store::Store,
 };
@@ -82,6 +86,16 @@ fn run(dir: &Path, expected: &Expected) -> BTreeSet<String> {
                 .fold(0, |a, b| a | b);
             canary::event_finding(&mut r, "fixture", &canary::event_kinds(mask));
         }
+        "listener" => {
+            for (socket, _) in parse_proc_net(&text(), Protocol::Tcp) {
+                network::listener_findings(&mut r, &socket);
+            }
+        }
+        "denial" => {
+            for line in text().lines() {
+                denials::finding(&mut r, &denials::parse(line).expect("a denial record"));
+            }
+        }
         "lynis" => integrations::lynis_findings(&mut r, &text()),
         "osv" => assert!(integrations::osv_findings(&mut r, &text())),
         "yara" => integrations::yara_findings(&mut r, &text()),
@@ -128,6 +142,42 @@ fn every_rule_has_a_fixture_that_fires_exactly_its_rules() {
 }
 
 #[test]
+fn denials_read_as_plain_sentences() {
+    let selinux = fs::read_to_string(repo().join("fixtures/denial.selinux/input.txt")).unwrap();
+    let d = denials::parse(selinux.trim()).unwrap();
+    assert_eq!(
+        denials::sentence(&d),
+        "firefox, confined by the mozilla policy, tried to read .ssh (dir) and was stopped."
+    );
+    let apparmor = fs::read_to_string(repo().join("fixtures/denial.apparmor/input.txt")).unwrap();
+    let d = denials::parse(apparmor.trim()).unwrap();
+    assert_eq!(
+        denials::sentence(&d),
+        "firefox tried to read /home/user/.ssh/id_ed25519 and was stopped."
+    );
+    // Real records from a Fedora machine running the NetBird VPN.
+    let proc_read = "AVC avc:  denied  { read } for  pid=1713531 comm=\"ps\" name=\"1\" dev=\"proc\" ino=12289 scontext=system_u:system_r:netbird_t:s0 tcontext=system_u:system_r:init_t:s0 tclass=dir permissive=0";
+    let d = denials::parse(proc_read).unwrap();
+    assert_eq!(
+        denials::sentence(&d),
+        "ps, confined by the netbird policy, tried to read other processes' details in /proc and was stopped."
+    );
+    assert_eq!(
+        d.key, "denial:selinux:ps:read:dir:proc",
+        "every pid folds into one entry"
+    );
+    let dbus = "USER_AVC pid=1407 uid=81 msg='avc:  denied  { send_msg } for  scontext=system_u:system_r:netbird_t:s0 tcontext=system_u:system_r:firewalld_t:s0 tclass=dbus permissive=0 exe=\"/usr/bin/dbus-broker\"'";
+    assert_eq!(
+        denials::sentence(&denials::parse(dbus).unwrap()),
+        "A program confined by the netbird policy tried to message firewalld over D-Bus and was stopped."
+    );
+    let noise = "avc:  denied  { signull } for  pid=1130 comm=\"systemd-oomd\" scontext=system_u:system_r:systemd_oomd_t:s0 tcontext=system_u:system_r:unconfined_service_t:s0 tclass=process permissive=1";
+    let d = denials::parse(noise).unwrap();
+    assert!(d.allowed && denials::known_noise(&d));
+    assert!(denials::sentence(&d).ends_with("This one is known and harmless."));
+}
+
+#[test]
 fn every_fixture_belongs_to_a_registered_rule() {
     let stray: Vec<String> = fs::read_dir(repo().join("fixtures"))
         .unwrap()
@@ -154,7 +204,7 @@ fn rule_ids_in_source_and_registry_match() {
         .iter()
         .map(|r| r.id.split('.').next().unwrap())
         .collect();
-    let literal = regex::Regex::new(r#""([a-z]+(?:\.[a-z][a-z0-9-]*)+)""#).unwrap();
+    let literal = regex::Regex::new(r#""([a-z]+(?:\.[a-z][a-z0-9_-]*)+)""#).unwrap();
     let mut files = vec![];
     source_files(&repo().join("crates/core/src"), &mut files);
     let mut used = BTreeSet::new();

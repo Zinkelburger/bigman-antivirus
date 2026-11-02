@@ -13,8 +13,10 @@ use crate::{
         scan::{Quarantined, ScanItem},
         setup::ToolGroup,
     },
-    model::Report,
+    model::{Event, Report, Sample, SampleSeries, SourceId, Unread},
+    notify::NotificationSettings,
     rules::RuleInfo,
+    sources::{NetworkSnapshot, SourceStatus},
 };
 use anyhow::{bail, Context, Result};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
@@ -89,6 +91,39 @@ pub enum Request {
     OpenTool {
         tool: String,
     },
+    // The timeline and live collection.
+    /// Timeline entries in `[since, until]`, newest first, optionally from some sources.
+    Events {
+        since: u64,
+        until: Option<u64>,
+        sources: Vec<SourceId>,
+        limit: u32,
+    },
+    Unread,
+    /// Marks entries up to `through` (from `Unread`) as seen.
+    MarkSeen {
+        through: i64,
+    },
+    /// Throughput in `[since, until]`, averaged to about `points` per interface.
+    Samples {
+        since: u64,
+        until: u64,
+        points: u32,
+    },
+    /// Current connections and listeners.
+    Network,
+    /// Each source's health, for Setup and the timeline's coverage.
+    Sources,
+    Notifications,
+    SetNotifications {
+        settings: NotificationSettings,
+    },
+    /// Pushes `Live` frames carrying this request's id until the connection closes.
+    /// It keeps its connection busy, so open one for it.
+    Subscribe {
+        events: bool,
+        samples: bool,
+    },
     // State changes: preview first, then apply.
     Preview {
         action: Action,
@@ -111,9 +146,26 @@ pub enum Response {
     Canaries(Box<CanaryState>),
     ToolGroups(Vec<ToolGroup>),
     Rules(Vec<RuleInfo>),
+    Events(Vec<Event>),
+    Unread(Unread),
+    Samples(SampleSeries),
+    Network(Box<NetworkSnapshot>),
+    Sources(Vec<SourceStatus>),
+    Notifications(NotificationSettings),
+    Live(Live),
     Plan(Box<ActionPlan>),
     Done(Box<ActionOutcome>),
     Error(ErrorBody),
+}
+
+/// One push on a subscription.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
+#[serde(tag = "type", content = "value", rename_all = "snake_case")]
+#[ts(export)]
+pub enum Live {
+    Event(Event),
+    Samples(Vec<Sample>),
+    Unread(Unread),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]

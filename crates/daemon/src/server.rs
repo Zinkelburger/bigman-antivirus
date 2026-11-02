@@ -2,7 +2,7 @@
 use crate::{error, Daemon};
 use anyhow::{bail, Context, Result};
 use bigman_core::{
-    ipc::{read_frame, write_frame, ClientFrame, ServerFrame},
+    ipc::{read_frame, write_frame, ClientFrame, Request, Response, ServerFrame},
     runner::Cancel,
     store::private_dir,
 };
@@ -19,6 +19,23 @@ use std::{
     sync::{atomic::Ordering, Arc},
     time::Duration,
 };
+
+/// Another bigmand already answers on the socket. Not a failure: the service
+/// manager should not restart a daemon that is simply not needed.
+#[derive(Debug)]
+pub struct AlreadyRunning(pub PathBuf);
+
+impl std::fmt::Display for AlreadyRunning {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "Another bigmand is already answering at {}",
+            self.0.display()
+        )
+    }
+}
+
+impl std::error::Error for AlreadyRunning {}
 
 /// A bound socket that is removed when dropped.
 pub struct Socket {
@@ -46,7 +63,7 @@ pub fn bind(path: &Path) -> Result<Socket> {
     )?;
     if path.exists() {
         if UnixStream::connect(path).is_ok() {
-            bail!("Another bigmand is already answering at {}", path.display());
+            return Err(AlreadyRunning(path.into()).into());
         }
         std::fs::remove_file(path)?;
     }
@@ -112,7 +129,57 @@ enum Event {
     Frame(ClientFrame),
     /// The client closed its side, or sent something unreadable.
     Closed(Option<String>),
+    /// A subscription push; the job keeps running.
+    Push(ServerFrame),
     Done(ServerFrame),
+}
+
+/// Forwards timeline pushes until the client goes away or falls too far behind.
+fn subscription(
+    daemon: &Daemon,
+    id: u64,
+    events: bool,
+    samples: bool,
+    stop: &Cancel,
+    tx: &std::sync::mpsc::Sender<Event>,
+) -> Response {
+    use std::sync::mpsc::RecvTimeoutError;
+    let pushes = daemon.timeline.subscribe(events, samples);
+    if events {
+        // Start from the current unread count, so a client needs no separate request.
+        if let Ok(unread) = daemon.timeline.db.unread() {
+            let _ = tx.send(Event::Push(ServerFrame {
+                id,
+                response: Response::Live(bigman_core::ipc::Live::Unread(unread)),
+            }));
+        }
+    }
+    while !stop.load(Ordering::Relaxed) {
+        match pushes.recv_timeout(Duration::from_millis(250)) {
+            Ok(push) => {
+                if tx
+                    .send(Event::Push(ServerFrame {
+                        id,
+                        response: Response::Live(push),
+                    }))
+                    .is_err()
+                {
+                    break;
+                }
+            }
+            Err(RecvTimeoutError::Timeout) => {}
+            Err(RecvTimeoutError::Disconnected) => {
+                return error(
+                    "The subscription fell behind and was ended; subscribe again and reload.",
+                );
+            }
+        }
+    }
+    Response::Done(Box::new(bigman_core::actions::ActionOutcome {
+        message: "Subscription ended.".into(),
+        report: None,
+        undo: None,
+    }))
 }
 
 /// One client. A reader thread turns frames into events; each request runs on
@@ -142,7 +209,12 @@ fn connection(stream: UnixStream, daemon: &Arc<Daemon>) -> Result<()> {
         let stop = bigman_core::runner::cancel();
         let (daemon, job_stop, tx) = (daemon.clone(), stop.clone(), tx.clone());
         std::thread::spawn(move || {
-            let response = daemon.handle(frame.request, &job_stop);
+            let response = match frame.request {
+                Request::Subscribe { events, samples } => {
+                    subscription(&daemon, frame.id, events, samples, &job_stop, &tx)
+                }
+                request => daemon.handle(request, &job_stop),
+            };
             let _ = tx.send(Event::Done(ServerFrame {
                 id: frame.id,
                 response,
@@ -169,6 +241,14 @@ fn connection(stream: UnixStream, daemon: &Arc<Daemon>) -> Result<()> {
                 match &running {
                     Some(stop) => stop.store(true, Ordering::Relaxed),
                     None => break,
+                }
+            }
+            Event::Push(frame) => {
+                if write_frame(&mut writer, &frame).is_err() {
+                    closed = true;
+                    if let Some(stop) = &running {
+                        stop.store(true, Ordering::Relaxed);
+                    }
                 }
             }
             Event::Done(frame) => {

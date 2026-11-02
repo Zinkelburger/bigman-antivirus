@@ -29,7 +29,12 @@ export function FilterChips<T extends string>({ label, options, selected, onChan
           >
             {on && <Check aria-hidden size={12} strokeWidth={2.5} />}
             {option.label}
-            {option.count !== undefined && <span className={on ? "text-surface" : "text-ink-muted"}>{option.count}</span>}
+            {option.count !== undefined && (
+              <span className={on ? "text-surface" : "text-ink-muted"}>
+                <span className="sr-only">, </span>
+                {option.count}
+              </span>
+            )}
           </button>
         );
       })}

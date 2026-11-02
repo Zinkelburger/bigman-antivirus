@@ -1,0 +1,8 @@
+{
+  "driver": "listener",
+  "fires": [
+    "net.listener.wildcard"
+  ],
+  "about": "A /proc/net/tcp table with a listener on 0.0.0.0:8080 (the plan's acceptance case).",
+  "input": "input.txt"
+}

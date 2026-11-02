@@ -134,7 +134,8 @@ export function Timeline({ label, entries, now, onOpen, empty, height = 420 }: T
                 <span className="sr-only">{entry.source}: </span>
               </span>
               <span className="flex min-w-0 flex-col">
-                <span className="line-clamp-2 break-words text-ink" title={entry.summary}>
+                <span className={`line-clamp-2 break-words text-ink ${entry.unread ? "font-semibold" : ""}`} title={entry.summary}>
+                  {entry.unread && <span className="sr-only">New since your last look: </span>}
                   {entry.summary}
                 </span>
                 {entry.count > 1 && (

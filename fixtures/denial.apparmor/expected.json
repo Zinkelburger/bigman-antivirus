@@ -1,0 +1,8 @@
+{
+  "driver": "denial",
+  "fires": [
+    "denial.apparmor"
+  ],
+  "about": "An AppArmor denial of an SSH key read.",
+  "input": "input.txt"
+}

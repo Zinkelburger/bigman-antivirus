@@ -20,6 +20,10 @@ pub enum Action {
     InstallTool {
         tool: String,
     },
+    /// Join (or leave) systemd-journal so SELinux and AppArmor denials can be read.
+    JournalAccess {
+        remove: bool,
+    },
     /// Install (or remove) the per-user monitor and daily scan/update units.
     Services {
         remove: bool,
@@ -184,6 +188,26 @@ fn paths(list: &[PathBuf]) -> String {
 
 pub fn preview(action: &Action, store: &Store) -> Result<ActionPlan> {
     Ok(match action {
+        Action::JournalAccess { remove } => {
+            let command = setup::journal_group_plan(*remove)?;
+            ActionPlan {
+                undo: Some(if *remove {
+                    "Join the group again from Setup.".into()
+                } else {
+                    "Undo removes you from the group again.".into()
+                }),
+                ..plan(
+                    if *remove { "Stop reading the system journal" } else { "Read SELinux and AppArmor denials" },
+                    if *remove { "Leave the group" } else { "Join the group" },
+                    if *remove {
+                        "Remove your account from systemd-journal. Bigman stops collecting denials from your next login."
+                    } else {
+                        "Add your account to systemd-journal, the group that may read the system journal. Bigman then turns denials into plain sentences in Activity. Your account can also read other system logs; nothing gains write access. Administrator approval is asked for by polkit, and it takes effect at your next login."
+                    },
+                    command.join(" "),
+                )
+            }
+        }
         Action::InstallTool { tool } => {
             let command = setup::tool_plan(tool)?;
             ActionPlan {
@@ -209,9 +233,9 @@ pub fn preview(action: &Action, store: &Store) -> Result<ActionPlan> {
                 if *remove { "Remove background services" } else { "Install background services" },
                 if *remove { "Remove" } else { "Install" },
                 if *remove {
-                    "Stop and remove Bigman's per-user monitor and daily scan and update units. Reports and canary files stay."
+                    "Stop and remove Bigman's per-user collector, monitor and daily scan and update units. Reports, the timeline and canary files stay."
                 } else {
-                    "Write and enable per-user units: the canary and startup monitor, a daily Downloads scan and daily signature updates. Nothing system-wide."
+                    "Write and enable per-user units: the collector daemon that keeps Activity and Network history while the window is closed, the canary and startup monitor, a daily Downloads scan and daily signature updates. Nothing system-wide."
                 },
                 setup::services(store, false, *remove, &crate::runner::cancel())?,
             )
@@ -370,6 +394,14 @@ pub fn preview(action: &Action, store: &Store) -> Result<ActionPlan> {
 pub fn apply(action: &Action, store: &Store, stop: &Cancel) -> Result<ActionOutcome> {
     Ok(match action {
         Action::InstallTool { tool } => message(setup::install_tool(tool, true, stop)?),
+        Action::JournalAccess { remove } => {
+            let done = message(setup::journal_group(*remove, stop)?);
+            if *remove {
+                done
+            } else {
+                undoable(done, Action::JournalAccess { remove: true })
+            }
+        }
         Action::Services { remove } => {
             let done = message(setup::services(store, true, *remove, stop)?);
             if *remove {

@@ -1,4 +1,5 @@
-import { invoke } from "@tauri-apps/api/core";
+import { Channel, invoke } from "@tauri-apps/api/core";
+import type { Live } from "./generated/Live";
 import type { Response } from "./generated/Response";
 import type { DesktopShell } from "./shell";
 import { DaemonError, DisconnectedError, type Transport } from "./transport";
@@ -29,6 +30,15 @@ export const tauriTransport: Transport = {
   },
   async cancel(token) {
     await invoke("daemon_cancel", { token });
+  },
+  subscribe({ events, samples }, onPush) {
+    const token = crypto.randomUUID();
+    const channel = new Channel<Live>(onPush);
+    const ended = invoke<null>("daemon_subscribe", { channel, events, samples, token }).then(
+      () => undefined,
+      rethrow,
+    );
+    return { ended, stop: () => void invoke("daemon_cancel", { token }) };
   },
 };
 

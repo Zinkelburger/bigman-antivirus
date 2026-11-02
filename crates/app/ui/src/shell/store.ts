@@ -10,13 +10,23 @@ export type Range = "5m" | "1h" | "24h" | "7d";
 interface ShellStore {
   tab: TabId;
   range: Range;
+  /** Activity opens filtered to entries since the last look (from Overview's tile). */
+  unreadOnly: boolean;
   setTab: (tab: TabId) => void;
+  openUnread: () => void;
+  setUnreadOnly: (on: boolean) => void;
   setRange: (range: Range) => void;
 }
 
 export const useShell = create<ShellStore>((set) => ({
   tab: "overview",
   range: "24h",
+  unreadOnly: false,
+  openUnread: () => {
+    useDrilldown.getState().close();
+    set({ tab: "activity", unreadOnly: true });
+  },
+  setUnreadOnly: (unreadOnly) => set({ unreadOnly }),
   setTab: (tab) => {
     // A drill-down belongs to the tab that opened it.
     useDrilldown.getState().close();

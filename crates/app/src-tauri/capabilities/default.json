@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "The commands the UI calls: typed daemon requests and their cancellation, the desktop file chooser, and saving an exported report.",
+  "description": "The commands the UI calls: typed daemon requests, their cancellation and the live subscription, the desktop file chooser, and saving an exported report.",
   "windows": ["main"],
-  "permissions": ["allow-daemon-request", "allow-daemon-cancel", "allow-choose-path", "allow-export-report"]
+  "permissions": ["allow-daemon-request", "allow-daemon-cancel", "allow-daemon-subscribe", "allow-choose-path", "allow-export-report"]
 }

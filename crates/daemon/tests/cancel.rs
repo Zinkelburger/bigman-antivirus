@@ -33,7 +33,7 @@ fn disconnect_cancels_a_running_scan() {
     let stop = runner::cancel();
     let daemon_stop = stop.clone();
     let thread = std::thread::spawn(move || {
-        server::serve(&socket, Arc::new(Daemon::new(store)), &daemon_stop)
+        server::serve(&socket, Arc::new(Daemon::new(store).unwrap()), &daemon_stop)
     });
 
     let stream = UnixStream::connect(&path).unwrap();

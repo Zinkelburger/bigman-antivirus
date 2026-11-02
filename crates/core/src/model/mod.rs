@@ -1,5 +1,7 @@
 mod coverage;
+mod event;
 pub use coverage::{Coverage, SkipReason, Skipped};
+pub use event::{Event, Link, Observation, Sample, SampleSeries, SourceId, Unread, ALL_SOURCES};
 
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;

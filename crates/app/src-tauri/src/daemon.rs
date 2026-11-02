@@ -2,7 +2,7 @@
 use bigman_core::{
     ipc::{
         client::{Canceller, Client},
-        Request, Response,
+        Live, Request, Response,
     },
     runner,
 };
@@ -70,11 +70,11 @@ impl Launcher {
         }
     }
 
-    fn lock_running(&self) -> std::sync::MutexGuard<'_, HashMap<String, Canceller>> {
+    pub(crate) fn lock_running(&self) -> std::sync::MutexGuard<'_, HashMap<String, Canceller>> {
         self.running.lock().unwrap_or_else(|p| p.into_inner())
     }
 
-    fn start_daemon(&self) {
+    pub(crate) fn start_daemon(&self) {
         let mut last = self.last_start.lock().unwrap_or_else(|p| p.into_inner());
         if last.is_some_and(|t| t.elapsed() < RESTART_COOLDOWN) {
             return;
@@ -107,4 +107,37 @@ pub async fn daemon_request(
 #[tauri::command]
 pub fn daemon_cancel(launcher: tauri::State<'_, Arc<Launcher>>, token: String) {
     launcher.cancel(&token);
+}
+
+/// Streams timeline pushes into the webview until the UI cancels with `token` or
+/// the daemon goes away; the UI resubscribes after an error.
+#[tauri::command]
+pub async fn daemon_subscribe(
+    launcher: tauri::State<'_, Arc<Launcher>>,
+    channel: tauri::ipc::Channel<Live>,
+    events: bool,
+    samples: bool,
+    token: String,
+) -> Result<(), RequestError> {
+    let launcher = launcher.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut client = match Client::connect() {
+            Ok(client) => client,
+            Err(e) => {
+                launcher.start_daemon();
+                return Err(RequestError::Disconnected(format!("{e:#}")));
+            }
+        };
+        if let Ok(canceller) = client.canceller() {
+            launcher.lock_running().insert(token.clone(), canceller);
+        }
+        // A send fails once the webview that made the channel is gone.
+        let result = client
+            .subscribe(events, samples, |live| channel.send(live).is_ok())
+            .map_err(|e| RequestError::Disconnected(format!("{e:#}")));
+        launcher.lock_running().remove(&token);
+        result
+    })
+    .await
+    .map_err(|e| RequestError::Failed(e.to_string()))?
 }

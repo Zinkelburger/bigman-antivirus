@@ -5,6 +5,9 @@ import {
   type ActionPlan,
   type Canary,
   type DesktopShell,
+  type Event,
+  type Live,
+  type NotificationSettings,
   type Quarantined,
   type Report,
   type Request,
@@ -12,9 +15,11 @@ import {
   type Response,
   type ScanItem,
   type Transport,
+  type Unread,
 } from "@/ipc";
 import rules from "@/ipc/generated/rules.json";
 import { checkup, history, NOW, report, scanWithFinding, statusScenarios } from "./fixtures";
+import { INTERFACES, networkSnapshot, reportEvent, sampleAt, samplesFor, seedEvents, sourceStatuses } from "./live";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const id = () => crypto.randomUUID();
@@ -33,6 +38,10 @@ class MockDaemon {
   canaries: Canary[] = [];
   monitor: boolean;
   running = new Map<string, () => void>();
+  events: Event[];
+  seenThrough: number;
+  notifications: NotificationSettings = { findings: true, new_connections: false, new_listeners: false, packages: false, denials: false, paused_until: null };
+  subscribers = new Set<(live: Live) => void>();
 
   constructor(
     readonly scenario: string,
@@ -41,6 +50,9 @@ class MockDaemon {
   ) {
     this.monitor = (statusScenarios[scenario] ?? statusScenarios.findings)?.monitor != null && scenario !== "empty";
     this.reports = scenario === "empty" ? [] : history(scenario);
+    this.events = seedEvents(scenario, this.reports);
+    // Everything older than an hour was looked at already.
+    this.seenThrough = this.events.filter((e) => e.at < NOW - 3_600).reduce((m, e) => Math.max(m, e.id), 0);
     this.items.set(scanWithFinding.id, [
       { path: "/home/sam/Downloads/invoice-copy.zip", hash: "275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f", detected: true, signature: "Win.Test.EICAR_HDB-1" },
       { path: "/home/sam/Downloads/notes.txt", hash: "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08", detected: false, signature: "" },
@@ -65,7 +77,35 @@ class MockDaemon {
 
   save(r: Report): Report {
     this.reports = [r, ...this.reports];
+    const key = reportEvent(r, 0, 0, 0).key;
+    const earlier = this.events.filter((e) => e.key === key);
+    this.record(reportEvent(r, this.nextId(), earlier.length, earlier[0]?.first_at ?? r.created));
     return r;
+  }
+
+  nextId(): number {
+    return (this.events.at(-1)?.id ?? 0) + 1;
+  }
+
+  /** Stores an event and pushes it, as the daemon's timeline does. */
+  record(event: Event) {
+    this.events = [...this.events, event];
+    this.push({ type: "event", value: event });
+    this.push({ type: "unread", value: this.unread() });
+  }
+
+  push(live: Live) {
+    for (const subscriber of this.subscribers) subscriber(live);
+  }
+
+  unread(): Unread {
+    const fresh = this.events.filter((e) => e.id > this.seenThrough);
+    return {
+      first_seen: fresh.filter((e) => e.seen_before === 0).length,
+      to_review: fresh.filter((e) => e.severity !== "info").length,
+      through: fresh.at(-1)?.id ?? this.seenThrough,
+      seen_through: this.seenThrough,
+    };
   }
 
   /** Runs a check for `ms`, or returns a cancelled report if cancelled first. */
@@ -84,10 +124,13 @@ class MockDaemon {
   plan(action: Action): ActionPlan {
     const plan = (title: string, verb: string, summary: string, details: string, undo: string | null = null, careful = false): ActionPlan => ({ title, verb, summary, details, undo, careful });
     switch (action.kind) {
+      case "journal_access": return action.remove
+        ? plan("Stop reading the system journal", "Leave the group", "Remove your account from systemd-journal. Bigman stops collecting denials from your next login.", "pkexec gpasswd -d sam systemd-journal", "Join the group again from Setup.")
+        : plan("Read SELinux and AppArmor denials", "Join the group", "Add your account to systemd-journal, the group that may read the system journal. Bigman then turns denials into plain sentences in Activity. Your account can also read other system logs; nothing gains write access. Administrator approval is asked for by polkit, and it takes effect at your next login.", "pkexec usermod -aG systemd-journal sam", "Undo removes you from the group again.");
       case "install_tool": return plan("Install optional tools", "Install", `Install the ${action.tool} packages from your distribution's configured repositories. Administrator approval is asked for by polkit.`, `pkexec dnf install -y ${action.tool}`, "Remove the packages with your package manager if you no longer want them.");
       case "services": return action.remove
-        ? plan("Remove background services", "Remove", "Stop and remove Bigman's per-user monitor and daily scan and update units. Reports and canary files stay.", "~/.config/systemd/user/bigman-monitor.service\n~/.config/systemd/user/bigman-scan.timer\n~/.config/systemd/user/bigman-update.timer", "Install the services again from Setup.")
-        : plan("Install background services", "Install", "Write and enable per-user units: the canary and startup monitor, a daily Downloads scan and daily signature updates. Nothing system-wide.", "~/.config/systemd/user/bigman-monitor.service\n~/.config/systemd/user/bigman-scan.timer\n~/.config/systemd/user/bigman-update.timer", "Undo removes them again.");
+        ? plan("Remove background services", "Remove", "Stop and remove Bigman's per-user collector, monitor and daily scan and update units. Reports, the timeline and canary files stay.", "~/.config/systemd/user/bigmand.service\n~/.config/systemd/user/bigman-monitor.service\n~/.config/systemd/user/bigman-scan.timer\n~/.config/systemd/user/bigman-update.timer", "Install the services again from Setup.")
+        : plan("Install background services", "Install", "Write and enable per-user units: the collector daemon that keeps Activity and Network history while the window is closed, the canary and startup monitor, a daily Downloads scan and daily signature updates. Nothing system-wide.", "~/.config/systemd/user/bigmand.service\n~/.config/systemd/user/bigman-monitor.service\n~/.config/systemd/user/bigman-scan.timer\n~/.config/systemd/user/bigman-update.timer", "Undo removes them again.");
       case "package_policy": return plan("Disable automatic install scripts", "Write .npmrc", "Add ignore-scripts=true to this project's .npmrc so npm and pnpm do not run lifecycle scripts during install.", `Would update ${action.path}/.npmrc`, "Delete the added lines from .npmrc.");
       case "accept_baseline": return plan("Accept startup baseline", "Accept", "Treat the 1 changed startup entries below as expected from now on. Accept them only if you know why they changed. Bigman refuses if anything changed since this report.", "Changed: /home/sam/.bashrc", "Bigman keeps the baseline this replaces; Undo puts it back.");
       case "restore_previous_baseline": return plan("Restore the previous baseline", "Restore", "Put back the startup baseline that the last acceptance replaced.", "");
@@ -138,7 +181,8 @@ class MockDaemon {
       case "rehearse": return done("Rehearsal finished.", this.save(report({ id: id(), created: now(), kind: "Restricted installer rehearsal", subject: "install-tool.sh", findings: [{ rule: "trace.network", severity: "review", summary: "Execution attempted a network connection", evidence: 'connect(3, {sa_family=AF_INET, sin_port=htons(443), sin_addr=inet_addr("93.184.215.14")}, 16) = -1 ENETUNREACH', action: "The rehearsal has no external network. Review why the connection was attempted." }], coverage: { checked: ["Offline sandbox run", "strace"], notes: ["A rehearsal shows what the script tried in this one run, not what it would do elsewhere."], skipped: [] } })));
       case "accept_baseline": return done("Baseline saved.", null, { kind: "restore_previous_baseline" });
       case "restore_previous_baseline": return done("The previous baseline is back.");
-      case "services": return done(action.remove ? "User services removed" : "User monitoring, daily scan and definition updates enabled.", null, action.remove ? null : { kind: "services", remove: true });
+      case "services": return done(action.remove ? "User services removed" : "The collector daemon, monitoring, daily scan and definition updates are enabled.", null, action.remove ? null : { kind: "services", remove: true });
+      case "journal_access": return done(action.remove ? "You are no longer in systemd-journal." : "You are now in systemd-journal. Log out and back in; denials are collected from then on.", null, action.remove ? null : { kind: "journal_access", remove: true });
       case "package_policy": return done(`Updated ${action.path}/.npmrc. npm and pnpm no longer run lifecycle scripts during install there.`);
       default: return done("Done.");
     }
@@ -192,6 +236,23 @@ class MockDaemon {
       ] };
       case "rules": return { type: "rules", value: rules as RuleInfo[] };
       case "open_tool": return { type: "done", value: { message: "Opened.", report: null, undo: null } };
+      case "events": return { type: "events", value: this.events.filter((e) => e.at >= request.since && (request.until === null || e.at <= request.until) && (request.sources.length === 0 || request.sources.includes(e.source))).slice(-request.limit).reverse() };
+      case "unread": return { type: "unread", value: this.unread() };
+      case "mark_seen": {
+        this.seenThrough = Math.max(0, request.through);
+        const unread = this.unread();
+        this.push({ type: "unread", value: unread });
+        return { type: "unread", value: unread };
+      }
+      case "samples": return { type: "samples", value: this.scenario === "empty" ? { bucket: 1, samples: [] } : samplesFor(request.since, request.until, request.points) };
+      case "network": {
+        const snapshot = networkSnapshot(this.scenario);
+        return { type: "network", value: this.scenario === "empty" ? { ...snapshot, connections: [], listeners: [] } : snapshot };
+      }
+      case "sources": return { type: "sources", value: sourceStatuses(this.scenario) };
+      case "notifications": return { type: "notifications", value: this.notifications };
+      case "set_notifications": this.notifications = request.settings; return { type: "notifications", value: this.notifications };
+      case "subscribe": return { type: "error", value: { message: "Subscribe needs a connection of its own" } };
       case "preview": return { type: "plan", value: this.plan(request.action) };
       case "apply": await sleep(700 * this.speed); return { type: "done", value: this.apply(request.action) };
     }
@@ -212,6 +273,29 @@ export function mockTransport(scenario = "findings", latencyMs = 250, speed = 1)
     async cancel(token: string) {
       daemon.running.get(token)?.();
       await Promise.resolve();
+    },
+    subscribe({ events, samples }, onPush) {
+      if (scenario === "disconnected") {
+        return { ended: Promise.reject(new DisconnectedError("Bigman daemon is not running")), stop: () => undefined };
+      }
+      let stop: () => void = () => undefined;
+      const ended = new Promise<void>((resolve) => {
+        const subscriber = (live: Live) => {
+          if (live.type === "samples" ? samples : events) onPush(live);
+        };
+        daemon.subscribers.add(subscriber);
+        if (events) onPush({ type: "unread", value: daemon.unread() });
+        // Tests run with speed 0 and push only what their actions cause.
+        const timer = speed > 0 && samples
+          ? setInterval(() => daemon.push({ type: "samples", value: INTERFACES.map((iface) => sampleAt(iface, now())) }), 1_000)
+          : undefined;
+        stop = () => {
+          clearInterval(timer);
+          daemon.subscribers.delete(subscriber);
+          resolve();
+        };
+      });
+      return { ended, stop: () => stop() };
     },
   };
 }

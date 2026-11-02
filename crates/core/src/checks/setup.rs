@@ -95,6 +95,71 @@ pub fn tool_plan(tool: &str) -> Result<Vec<String>> {
     }
     Ok(cmd)
 }
+/// Your login name, from the password database rather than the environment.
+fn login_name() -> Result<String> {
+    let entry = unsafe { libc::getpwuid(libc::geteuid()) };
+    if entry.is_null() {
+        bail!("Your account is not in the password database");
+    }
+    let name = unsafe { std::ffi::CStr::from_ptr((*entry).pw_name) }
+        .to_string_lossy()
+        .into_owned();
+    if name.is_empty()
+        || !name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || "._-".contains(c))
+    {
+        bail!("Unexpected login name {name:?}");
+    }
+    Ok(name)
+}
+
+/// The command that adds you to (or removes you from) systemd-journal, the group
+/// that lets the denials source read the system journal without root.
+pub fn journal_group_plan(remove: bool) -> Result<Vec<String>> {
+    let group = std::ffi::CString::new("systemd-journal")?;
+    if unsafe { libc::getgrnam(group.as_ptr()) }.is_null() {
+        bail!("This system has no systemd-journal group; the journal may use adm or wheel instead");
+    }
+    let user = login_name()?;
+    Ok(if remove {
+        vec![
+            "pkexec".into(),
+            "gpasswd".into(),
+            "-d".into(),
+            user,
+            "systemd-journal".into(),
+        ]
+    } else {
+        vec![
+            "pkexec".into(),
+            "usermod".into(),
+            "-aG".into(),
+            "systemd-journal".into(),
+            user,
+        ]
+    })
+}
+
+pub fn journal_group(remove: bool, stop: &Cancel) -> Result<String> {
+    let plan = journal_group_plan(remove)?;
+    let o = runner::run(Command::new(&plan[0]).args(&plan[1..]), 120, stop)?;
+    if !o.ok() {
+        bail!(
+            "The group change did not complete: {:?}\n{}\n{}",
+            o.code,
+            o.stdout,
+            o.stderr
+        );
+    }
+    Ok(if remove {
+        "You are no longer in systemd-journal. Denials stop being collected from your next login."
+    } else {
+        "You are now in systemd-journal. Log out and back in; denials are collected from then on."
+    }
+    .into())
+}
+
 pub fn install_tool(tool: &str, apply: bool, stop: &Cancel) -> Result<String> {
     let plan = tool_plan(tool)?;
     if !apply {
@@ -134,8 +199,14 @@ pub fn service_plan(store: &Store) -> Result<Vec<(String, String)>> {
     let scan=format!("[Unit]\nDescription=Bigman daily Downloads scan\n[Service]\nType=oneshot\nExecStart={base} scan {} --notify\nNoNewPrivileges=true\nUMask=0077\n",quote(&downloads().to_string_lossy())?);
     let timer="[Unit]\nDescription=Daily Bigman scan\n[Timer]\nOnCalendar=daily\nPersistent=true\nRandomizedDelaySec=15m\n[Install]\nWantedBy=timers.target\n";
     let update=format!("[Unit]\nDescription=Bigman private signature update\n[Service]\nType=oneshot\nExecStart={base} update\nNoNewPrivileges=true\nUMask=0077\n");
+    let daemon = format!(
+        "[Unit]\nDescription=Bigman collector daemon\n[Service]\nType=simple\nExecStart={} --state {}\nRestart=on-failure\nRestartSec=10\nNoNewPrivileges=true\nUMask=0077\n[Install]\nWantedBy=default.target\n",
+        quote(&runner::sibling_executable("bigmand")?.to_string_lossy())?,
+        quote(&store.root.to_string_lossy())?
+    );
     let update_timer="[Unit]\nDescription=Daily Bigman definitions update\n[Timer]\nOnCalendar=daily\nPersistent=true\nRandomizedDelaySec=5m\n[Install]\nWantedBy=timers.target\n";
     Ok(vec![
+        ("bigmand.service".into(), daemon),
         ("bigman-update.service".into(), update),
         ("bigman-update.timer".into(), update_timer.into()),
         ("bigman-monitor.service".into(), monitor),
@@ -170,6 +241,7 @@ pub fn services(store: &Store, apply: bool, remove: bool, stop: &Cancel) -> Resu
                 "--user",
                 "disable",
                 "--now",
+                "bigmand.service",
                 "bigman-monitor.service",
                 "bigman-scan.timer",
                 "bigman-update.timer",
@@ -215,6 +287,7 @@ pub fn services(store: &Store, apply: bool, remove: bool, stop: &Cancel) -> Resu
                 "--user",
                 "enable",
                 "--now",
+                "bigmand.service",
                 "bigman-monitor.service",
                 "bigman-scan.timer",
                 "bigman-update.timer",
@@ -226,7 +299,7 @@ pub fn services(store: &Store, apply: bool, remove: bool, stop: &Cancel) -> Resu
             bail!("Units written, but enable failed: {}", o.stderr);
         }
     }
-    Ok(if remove{"User services removed"}else{"User monitoring, daily scan and definition updates enabled. Services follow your user session; no system-wide service or lingering was enabled."}.into())
+    Ok(if remove{"User services removed"}else{"The collector daemon, monitoring, daily scan and definition updates are enabled. They follow your user session; no system-wide service or lingering was enabled. A daemon the app already started keeps running until you log out, and the service takes over from the next login."}.into())
 }
 /// Configure only the monitor; easy canary setup must not enable unrelated scan timers.
 pub fn monitor_service(

@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef } from "react";
 import type { Action } from "./generated/Action";
+import type { NotificationSettings } from "./generated/NotificationSettings";
 import type { Request } from "./generated/Request";
+import type { SourceId } from "./generated/SourceId";
 import { call, DisconnectedError, transport } from "./transport";
 
 // While the daemon is unreachable, poll every few seconds so views recover quickly.
@@ -133,6 +135,81 @@ export function useAction() {
       }
     },
   };
+}
+
+/**
+ * Timeline entries since `since`, newest first. Live pushes prepend to every
+ * loaded range (see live.ts), so this refetches only as a fallback.
+ */
+export function useEvents(since: number, sources: SourceId[] = [], limit = 20_000) {
+  return useQuery({
+    queryKey: ["events", since, sources, limit],
+    queryFn: () => call({ type: "events", since, until: null, sources, limit }, "events"),
+    refetchInterval: (query) => poll(60_000)(query),
+  });
+}
+
+/** What arrived since Activity was last marked as seen; kept current by pushes. */
+export function useUnread() {
+  return useQuery({
+    queryKey: ["unread"],
+    queryFn: () => call({ type: "unread" }, "unread"),
+    refetchInterval: (query) => poll(60_000)(query),
+  });
+}
+
+export function useMarkSeen() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (through: number) => call({ type: "mark_seen", through }, "unread"),
+    onSuccess: (unread) => client.setQueryData(["unread"], unread),
+  });
+}
+
+/**
+ * Stored throughput over the last `seconds`, about `points` buckets per interface,
+ * read up to the moment of each fetch so nothing the daemon recorded is missing.
+ */
+export function useSamples(seconds: number, points: number, refetchMs: number) {
+  return useQuery({
+    queryKey: ["samples", seconds, points],
+    queryFn: () => {
+      const until = Math.floor(Date.now() / 1000);
+      return call({ type: "samples", since: until - seconds, until, points }, "samples");
+    },
+    refetchInterval: (query) => poll(refetchMs)(query),
+    placeholderData: (previous) => previous,
+  });
+}
+
+/** Connections and listeners right now. */
+export function useNetwork() {
+  return useQuery({
+    queryKey: ["network"],
+    queryFn: () => call({ type: "network" }, "network"),
+    refetchInterval: (query) => poll(3_000)(query),
+  });
+}
+
+/** Each live source's health. */
+export function useSources() {
+  return useQuery({
+    queryKey: ["sources"],
+    queryFn: () => call({ type: "sources" }, "sources"),
+    refetchInterval: (query) => poll(10_000)(query),
+  });
+}
+
+export function useNotifications() {
+  return useQuery({ queryKey: ["notifications"], queryFn: () => call({ type: "notifications" }, "notifications") });
+}
+
+export function useSetNotifications() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (settings: NotificationSettings) => call({ type: "set_notifications", settings }, "notifications"),
+    onSuccess: (settings) => client.setQueryData(["notifications"], settings),
+  });
 }
 
 export function useOpenTool() {

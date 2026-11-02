@@ -208,16 +208,16 @@ Everything OS-specific sits behind traits in `core/src/platform/` with only a Li
 
 | Trait | Linux implementation | Left open for later |
 |---|---|---|
-| `PackageDb` | rpm, dpkg, pacman queries; package caches; transaction logs | winget, Homebrew |
+| `PackageDb` | rpm, dpkg, pacman queries; package caches; transaction logs (milestone 4 built the history half as `PackageHistory`: dnf5's `transaction_history.sqlite` read-only, else the pacman or dpkg log) | winget, Homebrew |
 | `StartupLocations` | the baseline path list | Run keys, LaunchAgents |
 | `NetworkCounters` | `/sys/class/net/*/statistics` | OS APIs |
 | `ProcessSockets` | `/proc/net` + `/proc/<pid>/fd` inodes | OS APIs |
 | `ServiceManager` | systemd user units and timers | Task Scheduler, launchd |
-| `Notifier` | D-Bus desktop notifications | native toasts |
+| `Notifier` | D-Bus desktop notifications (through `notify-send`, raised by the daemon so they arrive with the window closed) | native toasts |
 | `PrivilegeBroker` | polkit | UAC, authorization services |
 | `Confinement` | SELinux, AppArmor, Flatpak, Snap metadata, `systemd-analyze security` | app sandboxes |
 | `Containers` | Docker and Podman inspect JSON | same APIs |
-| `Journal` | journald (audit transport) and `/var/log` through the helper | event logs |
+| `Journal` | journald (audit and kernel transports, read with `journalctl -o json` and a saved cursor when the user is in systemd-journal, adm or wheel) and `/var/log` through the helper | event logs |
 
 A rule that applies to one OS declares it in the registry and reports "not applicable" elsewhere.
 
@@ -290,11 +290,13 @@ pub trait Source: Send {
 
 The daemon runs every Source on its interval, turns each observation into an `Event` with `seen_before` computed from the store, and emits it. Adding a source means one module and its fixtures. It must not require UI changes: the Activity tab renders any `Event` and the `SourceId` enum drives its filter chips automatically.
 
+As built in milestone 4 (`core/src/sources/`), the trait is leaner: `name()`, `interval()` and `collect(&mut self, &Ctx) -> Result<Collected, Gap>`. An `Observation` already carries its first-seen key, summary, evidence, severity and rule, because each source knows those when it sees the thing; separate `first_seen_key` and `explain` methods only split one decision across three places. `Gap` is a source that cannot see right now (an unreadable journal), reported as coverage in Setup and Activity rather than as silence. Remediation previews stay with `actions::Action`. Sources that resume across restarts keep a cursor in `settings`; the first run of the connections and listeners sources records what is already there without announcing it. Every source runs on its own daemon thread, and pushes reach clients through a `Subscribe` request on a dedicated connection, forwarded into the webview with a Tauri channel. `ProcessSockets` reads `/proc/net/{tcp,tcp6,udp,udp6}` and the fds of your own processes rather than parsing `ss` output. `Sample` carries bytes per second as `f64` per interface; per-process samples wait for the helper (milestone 10).
+
 ### C7. Store
 
 - SQLite via `rusqlite` with the bundled feature. Tables: `schema_version`, `events`, `samples` (downsampled after 24 h to 1 min, after 30 d to 1 h), `receipts`, `first_seen` (key, source, first_at, count), `settings`.
 - JSON report files and evidence stay as today under the private store directory with mode 0600, since the CLI integration tests and quarantine code depend on them.
-- Forward-only migrations in `store/migrations/`, each tested against a fixture database committed from the previous release.
+- Forward-only migrations in `store/migrations/`, each tested against a fixture database committed from the previous release. (Milestone 4 shipped migration 0001; the first fixture database is committed with the first release that adds a migration. `Db::open` refuses a database newer than the binary.)
 
 ---
 
@@ -322,7 +324,7 @@ Acceptance: on a clean VM with the daemon running, Overview renders four tiles, 
 - **new (needs OpenSnitch daemon)** Bigman as the OpenSnitch UI. The daemon connects to a UI server over gRPC; `bigmand` implements that server, the stock Qt UI is not installed, and prompts, connections for all users, and rules render in Bigman's design. Setup installs the daemon and configures its UI socket address. The adapter pins supported daemon versions and fails visibly on mismatch. OpenSnitch is GPL-3.0 and is only spoken to over its protocol.
 - **later (needs helper)** Per-process bandwidth samples.
 
-Acceptance: close the window for ten minutes, reopen, the 1 h graph shows the gap-free history; a new process connecting appears as a first-seen row within 5 s; a fixture `ss` dump with a wildcard bind on 0.0.0.0:8080 produces rule `net.listener.wildcard`.
+Acceptance: close the window for ten minutes, reopen, the 1 h graph shows the gap-free history; a new process connecting appears as a first-seen row within 5 s; a fixture `/proc/net/tcp` dump with a wildcard bind on 0.0.0.0:8080 produces rule `net.listener.wildcard`.
 
 ### D3. Activity
 

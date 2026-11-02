@@ -5,7 +5,7 @@ use bigman_core::{
     },
     ipc::{self, client::Client},
     model::{self, Report},
-    runner, store,
+    platform, runner, store,
 };
 use clap::{Parser, Subcommand};
 use std::{
@@ -115,6 +115,23 @@ enum Commands {
 enum DaemonCommands {
     /// Show whether bigmand answers on its socket.
     Status,
+    /// Timeline entries, newest first.
+    Events {
+        /// Only the last N hours.
+        #[arg(long, default_value_t = 24)]
+        hours: u64,
+        /// Only these sources (network, listener, receipt, denial, scan, canary, ...).
+        #[arg(long = "source")]
+        sources: Vec<String>,
+        #[arg(long, default_value_t = 50)]
+        limit: u32,
+    },
+    /// Print entries as the daemon records them, until interrupted.
+    Follow,
+    /// Current connections of your programs, and every listening program.
+    Network,
+    /// What each live source can and cannot read.
+    Sources,
 }
 #[derive(Subcommand)]
 enum CanaryCommands {
@@ -342,6 +359,10 @@ fn run() -> Result<()> {
             daemon_status(cli.json)?;
             None
         }
+        Some(Commands::Daemon { command }) => {
+            daemon_live(command, cli.json)?;
+            None
+        }
         Some(Commands::NativeInstall { extension_id }) => {
             for p in setup::native_manifest_paths() {
                 setup::write_native_manifest(&p, &extension_id)?;
@@ -394,4 +415,139 @@ fn daemon_status(json: bool) -> Result<()> {
         other => bail!("Unexpected daemon response: {other:?}"),
     }
     Ok(())
+}
+
+fn daemon_request(request: ipc::Request) -> Result<ipc::Response> {
+    let mut client = Client::connect()?;
+    client.set_timeout(Some(std::time::Duration::from_secs(30)))?;
+    match client.request(request)? {
+        ipc::Response::Error(e) => bail!("Daemon error: {}", e.message),
+        response => Ok(response),
+    }
+}
+
+fn print_event(e: &model::Event) {
+    let repeat = if e.seen_before == 0 {
+        "first seen".to_string()
+    } else {
+        format!("seen {} times", e.seen_before + 1)
+    };
+    let severity = match e.severity {
+        model::Severity::Info => String::new(),
+        s => format!(" [{s:?}]"),
+    };
+    println!(
+        "{}  {:<9} {}{severity} ({repeat})",
+        e.at,
+        e.source.as_str(),
+        e.summary
+    );
+}
+
+/// The timeline and live collection, read through the daemon that owns them.
+fn daemon_live(command: DaemonCommands, json: bool) -> Result<()> {
+    match command {
+        DaemonCommands::Status => daemon_status(json),
+        DaemonCommands::Events {
+            hours,
+            sources,
+            limit,
+        } => {
+            let sources = sources
+                .iter()
+                .map(|s| {
+                    model::SourceId::parse(s).ok_or_else(|| anyhow::anyhow!("Unknown source {s}"))
+                })
+                .collect::<Result<Vec<_>>>()?;
+            let since = model::now().saturating_sub(hours * 3600);
+            let ipc::Response::Events(events) = daemon_request(ipc::Request::Events {
+                since,
+                until: None,
+                sources,
+                limit,
+            })?
+            else {
+                bail!("Unexpected daemon response");
+            };
+            if json {
+                println!("{}", serde_json::to_string_pretty(&events)?);
+            } else if events.is_empty() {
+                println!("No entries in the last {hours} hours.");
+            } else {
+                events.iter().for_each(print_event);
+            }
+            Ok(())
+        }
+        DaemonCommands::Follow => {
+            let mut client = Client::connect()?;
+            client.subscribe(true, false, |live| {
+                if let ipc::Live::Event(e) = live {
+                    if json {
+                        println!("{}", serde_json::to_string(&e).unwrap_or_default());
+                    } else {
+                        print_event(&e);
+                    }
+                }
+                true
+            })
+        }
+        DaemonCommands::Network => {
+            let ipc::Response::Network(net) = daemon_request(ipc::Request::Network)? else {
+                bail!("Unexpected daemon response");
+            };
+            if json {
+                println!("{}", serde_json::to_string_pretty(&net)?);
+                return Ok(());
+            }
+            let name = |s: &platform::Socket| {
+                s.process
+                    .as_ref()
+                    .map_or("(another user)".to_string(), |p| p.name.clone())
+            };
+            println!("Listening programs");
+            for l in &net.listeners {
+                let worst = l.findings.iter().map(|f| f.severity).max();
+                println!(
+                    "  {:<22} {:<16} {:<24} {}",
+                    l.socket.local.to_string(),
+                    name(&l.socket),
+                    l.reach,
+                    worst.map_or(String::new(), |s| format!(
+                        "[{s:?}] {}",
+                        l.findings[0].summary
+                    ))
+                );
+            }
+            println!("Your programs' connections");
+            for c in &net.connections {
+                println!(
+                    "  {:<16} {}",
+                    name(&c.socket),
+                    c.socket.remote.map_or(String::new(), |r| r.to_string())
+                );
+            }
+            for note in &net.coverage.notes {
+                println!("{note}");
+            }
+            Ok(())
+        }
+        DaemonCommands::Sources => {
+            let ipc::Response::Sources(sources) = daemon_request(ipc::Request::Sources)? else {
+                bail!("Unexpected daemon response");
+            };
+            if json {
+                println!("{}", serde_json::to_string_pretty(&sources)?);
+            } else {
+                for s in &sources {
+                    let state = if s.ok {
+                        "reading".to_string()
+                    } else {
+                        format!("not collected: {}", s.detail)
+                    };
+                    println!("{:<34} {state}", s.label);
+                }
+            }
+            Ok(())
+        }
+    }
 }

@@ -20,3 +20,12 @@ Object.defineProperties(HTMLElement.prototype, {
   clientHeight: { configurable: true, get: () => 768 },
   clientWidth: { configurable: true, get: () => 1024 },
 });
+
+// Virtualized rows measure themselves (`data-index`) by offsetHeight; jsdom reports
+// 0, which makes a virtualizer render every row. Give measured rows a row's height.
+Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
+  configurable: true,
+  get(this: HTMLElement) {
+    return this.hasAttribute("data-index") ? 40 : 0;
+  },
+});

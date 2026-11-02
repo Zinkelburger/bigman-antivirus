@@ -1,0 +1,8 @@
+{
+  "driver": "denial",
+  "fires": [
+    "denial.selinux"
+  ],
+  "about": "An enforced AVC denial of a home-directory SSH folder.",
+  "input": "input.txt"
+}

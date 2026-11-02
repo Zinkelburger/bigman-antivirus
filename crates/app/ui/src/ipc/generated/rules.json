@@ -313,6 +313,69 @@
     "threats": []
   },
   {
+    "id": "net.listener.wildcard",
+    "severity": "review",
+    "title": "Listens on every network interface",
+    "explanation": "A program accepts connections on all of this computer's network addresses, so other machines on the same network can reach it.",
+    "remediation": "If only this computer uses it, make it listen on 127.0.0.1, or stop it.",
+    "threats": [
+      "NE-01",
+      "NE-22"
+    ]
+  },
+  {
+    "id": "net.listener.docker_api",
+    "severity": "high",
+    "title": "The container API is open on the network",
+    "explanation": "Docker's API is listening on TCP. Whoever reaches it can start containers with root access to this machine.",
+    "remediation": "Use the local socket instead, or require TLS client certificates.",
+    "threats": [
+      "NE-06",
+      "MW-03"
+    ]
+  },
+  {
+    "id": "net.listener.debugger",
+    "severity": "high",
+    "title": "A remote debugger is reachable from the network",
+    "explanation": "A debugger port (Node.js inspector, Chromium DevTools, debugpy) is open beyond this computer. Debuggers let whoever connects run code in the program.",
+    "remediation": "Bind the debugger to 127.0.0.1, or stop it when you are done.",
+    "threats": [
+      "NE-11"
+    ]
+  },
+  {
+    "id": "net.listener.lan_service",
+    "severity": "review",
+    "title": "A local AI or notebook server is reachable from the network",
+    "explanation": "A server that usually has no login (Ollama, Jupyter, Gradio and similar) listens beyond this computer.",
+    "remediation": "If only you use it, bind it to 127.0.0.1.",
+    "threats": [
+      "NE-09",
+      "NE-10"
+    ]
+  },
+  {
+    "id": "denial.selinux",
+    "severity": "info",
+    "title": "SELinux stopped or logged an access",
+    "explanation": "SELinux refused a program something its policy does not allow, or logged it when the program runs in a permissive domain. This is the system's own defense working.",
+    "remediation": "If the program needed this to work, a local policy module can allow it; Bigman shows the record and never changes policy for you.",
+    "threats": [
+      "DS-18"
+    ]
+  },
+  {
+    "id": "denial.apparmor",
+    "severity": "info",
+    "title": "AppArmor stopped or logged an access",
+    "explanation": "AppArmor refused a confined program something its profile does not allow, or logged it in complain mode.",
+    "remediation": "If the program needed this to work, its profile can be extended; Bigman shows the record and never changes profiles for you.",
+    "threats": [
+      "DS-18"
+    ]
+  },
+  {
     "id": "lynis.finding",
     "severity": "review",
     "title": "Lynis recommendation",

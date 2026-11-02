@@ -34,7 +34,9 @@ export function ago(seconds: number, now: number): string {
 }
 
 export function plural(n: number, word: string): string {
-  return `${formatCount(n)} ${word}${n === 1 ? "" : "s"}`;
+  if (n === 1) return `${formatCount(n)} ${word}`;
+  // "entry" → "entries", "day" stays "days".
+  return `${formatCount(n)} ${word.replace(/([^aeiou])y$/, "$1ie")}s`;
 }
 
 // Fixed locale until the app is translated: 24-hour times, "Oct 3" dates.

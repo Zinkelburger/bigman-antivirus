@@ -5,6 +5,7 @@ fn main() {
         tauri_build::AppManifest::new().commands(&[
             "daemon_request",
             "daemon_cancel",
+            "daemon_subscribe",
             "choose_path",
             "export_report",
         ]),

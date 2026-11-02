@@ -30,13 +30,14 @@ export { Tally } from "./components/Tally";
 export { TextField } from "./components/TextField";
 export { ThroughputChart, type ThroughputSeries } from "./components/ThroughputChart";
 export { Timeline } from "./components/Timeline";
-export { Toast, Toaster, useToasts } from "./components/Toast";
+export { Toast, Toaster, useToasts, type ToastAction } from "./components/Toast";
 export { Toggle } from "./components/Toggle";
 export { useDrilldown, type Panel } from "./drilldown";
 export * from "./format";
 export { fold, layout, type Occurrence, type TimelineEntry } from "./timeline";
 export { applyTheme, storedTheme, type ThemeChoice } from "./theme";
 export {
+  AboutRule,
   FindingEvidence,
   reportOccurrence,
   reportOccurrences,
@@ -51,5 +52,7 @@ export { ActionDialog, ActionDialogHost, closeActionDialog } from "./action";
 export { CheckStatus } from "./check";
 export { DaemonGate } from "./daemon-gate";
 export { ReportById } from "./report-by-id";
+export { EventPanel, eventOccurrence, sourceLabel } from "./events";
 export { heldIn } from "./report-actions";
 export { LastResult } from "./last-result";
+export { SourceGapLine, SourceRemedy } from "./source-gap";

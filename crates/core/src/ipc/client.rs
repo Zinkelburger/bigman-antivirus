@@ -1,5 +1,7 @@
 //! Blocking client used by the CLI, native host and desktop shell.
-use super::{read_frame, socket_path, write_frame, ClientFrame, Request, Response, ServerFrame};
+use super::{
+    read_frame, socket_path, write_frame, ClientFrame, Live, Request, Response, ServerFrame,
+};
 use anyhow::{bail, Context, Result};
 use std::{
     io::BufReader,
@@ -51,6 +53,39 @@ impl Client {
             );
         }
         Ok(frame.response)
+    }
+}
+
+impl Client {
+    /// Subscribes on this connection and hands each push to `on` until it returns
+    /// false or the daemon goes away. Use a connection of its own.
+    pub fn subscribe(
+        &mut self,
+        events: bool,
+        samples: bool,
+        mut on: impl FnMut(Live) -> bool,
+    ) -> Result<()> {
+        let id = self.next_id;
+        self.next_id += 1;
+        write_frame(
+            &mut self.writer,
+            &ClientFrame {
+                id,
+                request: Request::Subscribe { events, samples },
+            },
+        )?;
+        while let Some(frame) = read_frame::<ServerFrame>(&mut self.reader)? {
+            match frame.response {
+                Response::Live(live) if frame.id == id => {
+                    if !on(live) {
+                        return Ok(());
+                    }
+                }
+                Response::Error(e) => bail!("{}", e.message),
+                _ => return Ok(()),
+            }
+        }
+        bail!("Bigman daemon closed the connection")
     }
 }
 

@@ -35,6 +35,12 @@ Every finding Bigman shows comes from one of these rules. Each has a synthetic f
 | `canary.event` | High | A decoy file was opened or changed | CR-22 |
 | `canary.verified` | Info | Local read detection verified | CR-22 |
 | `canary.notifications-unavailable` | Info | Desktop pop-ups are not available |  |
+| `net.listener.wildcard` | Review | Listens on every network interface | NE-01, NE-22 |
+| `net.listener.docker_api` | High | The container API is open on the network | NE-06, MW-03 |
+| `net.listener.debugger` | High | A remote debugger is reachable from the network | NE-11 |
+| `net.listener.lan_service` | Review | A local AI or notebook server is reachable from the network | NE-09, NE-10 |
+| `denial.selinux` | Info | SELinux stopped or logged an access | DS-18 |
+| `denial.apparmor` | Info | AppArmor stopped or logged an access | DS-18 |
 | `lynis.finding` | Review | Lynis recommendation | HI-24 |
 | `osv.advisory` | Review | A dependency has a published advisory | SC-05, SC-10 |
 | `yara.output` | Review | YARA-X rules matched | MW-01 |
@@ -270,6 +276,54 @@ What you can do: Leave monitoring running.
 notify-send is not installed, so canary alerts appear in Activity but not as pop-ups.
 
 What you can do: Install your distribution's desktop notification utilities if you want pop-ups.
+
+## `net.listener.wildcard`
+
+**Listens on every network interface** (Review)
+
+A program accepts connections on all of this computer's network addresses, so other machines on the same network can reach it.
+
+What you can do: If only this computer uses it, make it listen on 127.0.0.1, or stop it.
+
+## `net.listener.docker_api`
+
+**The container API is open on the network** (High)
+
+Docker's API is listening on TCP. Whoever reaches it can start containers with root access to this machine.
+
+What you can do: Use the local socket instead, or require TLS client certificates.
+
+## `net.listener.debugger`
+
+**A remote debugger is reachable from the network** (High)
+
+A debugger port (Node.js inspector, Chromium DevTools, debugpy) is open beyond this computer. Debuggers let whoever connects run code in the program.
+
+What you can do: Bind the debugger to 127.0.0.1, or stop it when you are done.
+
+## `net.listener.lan_service`
+
+**A local AI or notebook server is reachable from the network** (Review)
+
+A server that usually has no login (Ollama, Jupyter, Gradio and similar) listens beyond this computer.
+
+What you can do: If only you use it, bind it to 127.0.0.1.
+
+## `denial.selinux`
+
+**SELinux stopped or logged an access** (Info)
+
+SELinux refused a program something its policy does not allow, or logged it when the program runs in a permissive domain. This is the system's own defense working.
+
+What you can do: If the program needed this to work, a local policy module can allow it; Bigman shows the record and never changes policy for you.
+
+## `denial.apparmor`
+
+**AppArmor stopped or logged an access** (Info)
+
+AppArmor refused a confined program something its profile does not allow, or logged it in complain mode.
+
+What you can do: If the program needed this to work, its profile can be extended; Bigman shows the record and never changes profiles for you.
 
 ## `lynis.finding`
 

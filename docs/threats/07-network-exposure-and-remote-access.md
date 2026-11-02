@@ -11,14 +11,14 @@
 | NE-03 | SSH brute force, password spraying and credential stuffing | Medium (High if password auth on) | Gap | Rootless journald summary of failed and accepted logins, grouped by source and user |
 | NE-04 | Vulnerable SSH daemons (regreSSHion, 2025 OpenSSH CVEs, Terrapin, Erlang/OTP SSH) | High | Gap | Feed-driven advisory keyed on the installed package version and the distro's fixed version |
 | NE-05 | Unrecognised SSH keys and risky forwarding and agent settings | High | Partial | Already baselines `~/.ssh/authorized_keys`; add `AuthorizedKeysFile` and `sshd_config.d` drift and a forwarding audit |
-| NE-06 | Docker Engine API exposed on TCP (2375/2376) | Critical | Gap | `docker.api.tcp` from listeners, daemon flags, `daemon.json` and unit drop-ins |
+| NE-06 | Docker Engine API exposed on TCP (2375/2376) | Critical | Partial | `docker.api.tcp` from listeners, daemon flags, `daemon.json` and unit drop-ins |
 | NE-07 | Docker/Podman published ports bypassing ufw/firewalld | High | Gap | `docker.publish.wildcard` from `docker-proxy` or `rootlessport` command lines plus a firewall-backend explanation |
 | NE-08 | Unauthenticated data stores (Redis, Elasticsearch, MongoDB, PostgreSQL trust, MySQL) | High | Gap | Port and owner-package match plus a read-only config lint (`bind`, `protected-mode`, `requirepass`, `xpack.security`) |
-| NE-09 | Exposed notebooks and ML frameworks (Jupyter, Ray dashboard) | High | Gap | Flag the known ports when bound beyond loopback; read Jupyter config for empty token and password |
-| NE-10 | Local AI model servers bound publicly (Ollama, LM Studio, vLLM, ComfyUI) | High | Gap | Flag 11434 and similar ports on non-loopback; check the `OLLAMA_HOST` unit environment |
-| NE-11 | Debug ports and dev servers reachable from the LAN (Node inspector, Chrome DevTools, Vite/webpack, Flask debug) | High | Gap | Port and process-argument rules for `--inspect=0.0.0.0`, `--remote-debugging-port`, `--host 0.0.0.0` |
+| NE-09 | Exposed notebooks and ML frameworks (Jupyter, Ray dashboard) | High | Partial | Flag the known ports when bound beyond loopback; read Jupyter config for empty token and password |
+| NE-10 | Local AI model servers bound publicly (Ollama, LM Studio, vLLM, ComfyUI) | High | Partial | Flag 11434 and similar ports on non-loopback; check the `OLLAMA_HOST` unit environment |
+| NE-11 | Debug ports and dev servers reachable from the LAN (Node inspector, Chrome DevTools, Vite/webpack, Flask debug) | High | Partial | Port and process-argument rules for `--inspect=0.0.0.0`, `--remote-debugging-port`, `--host 0.0.0.0` |
 | NE-12 | Host firewall off, permissive or tampered with | High | Partial | Turn the raw `systemctl is-active` dump into `firewall.*` findings: backend, default zone, open ranges, and changes since baseline |
-| NE-13 | Outbound connections to unexpected hosts (C2, mining pools, blocklisted ranges) | High | Gap | Rootless established-connection snapshot matched against user-imported DROP or FireHOL level 1 lists and a mining-pool port list |
+| NE-13 | Outbound connections to unexpected hosts (C2, mining pools, blocklisted ranges) | High | Partial | Rootless established-connection snapshot matched against user-imported DROP or FireHOL level 1 lists and a mining-pool port list |
 | NE-14 | Reverse-shell-like process behaviour (a shell whose stdio is a socket) | Critical | Partial (`shell.network-listener` static rule, `trace.network` in the sandbox) | `net.shell-socket-stdio` for processes the user can inspect, with an optional root or auditd mode |
 | NE-15 | DNS tampering (`/etc/hosts`, `resolv.conf`, NetworkManager and resolved DNS) | High | Gap | Add these files to the `bigman changes` baseline; diff the effective DNS servers from `resolvectl` |
 | NE-16 | LLMNR, mDNS and NetBIOS name poisoning on untrusted LANs | Medium | Gap | Report LLMNR and mDNS state from resolved and NetworkManager; flag UDP 5355 and 5353 listeners |
@@ -40,7 +40,7 @@
   - `/proc/PID/cgroup` (unit name), `/proc/PID/cmdline` and `/proc/PID/exe` (exe is readable only for your own processes).
   - Owning package: `rpm -qf PATH` or `dpkg -S PATH`. A binary owned by no package, or living in `/tmp`, `/dev/shm`, `~/.cache` or `~/.local/share`, is a review item.
   - Suspicious states: a wildcard bind by a process with no package owner, a listener that appeared since the last baseline, or a well-known dev or database port (see NE-06 to NE-11) on a non-loopback address.
-- **Bigman today:** Partial. `bigman doctor` runs `ss -lntup` and pastes the raw output into report details. It explicitly says "Listening sockets are inventory, not detections". There are no per-socket findings, no owner attribution and no baseline.
+- **Bigman today:** Partial. The listeners source reads `/proc/net/tcp*` every few seconds; each listening socket appears in Network > Listening programs with its program (your own processes), reach and first-seen time, a new listener enters Activity, and `net.listener.wildcard` (Review) fires on a wildcard bind. Owning unit and package attribution, and the firewall zone, are not added yet.
 - **Proposed mitigation / detection:** Add a CLI check plus monitor diff, `bigman network listeners`, with these steps:
   1. Parse `/proc/net/{tcp,tcp6,udp,udp6}` directly, so the check is deterministic and doesn't depend on `ss` output format. Keep LISTEN state for TCP, and unconnected sockets for UDP.
   2. Classify each bind address as loopback, link-local, private (RFC 1918 or ULA), wildcard or public.
@@ -169,7 +169,7 @@
   - `systemctl cat docker.service` drop-ins under `/etc/systemd/system/docker.service.d/`.
   - `DOCKER_HOST` in user environment files.
   - A `tcp://` host without `tlsverify` is critical; a `tcp://` host bound to a non-loopback address is high.
-- **Bigman today:** Gap.
+- **Bigman today:** Partial. `net.listener.docker_api` (High) fires on a listener on 2375 or 2376 beyond loopback, in Network and as a new-listener entry in Activity. Daemon flags, `daemon.json` and unit drop-ins are not read yet.
 - **Proposed mitigation / detection:**
   - `docker.api.tcp` (Critical without TLS, High with TLS on a wildcard bind). All sources are world-readable or rootless.
   - Guidance: use the Unix socket or SSH (`DOCKER_HOST=ssh://`), or TLS with client certificates on 2376.
@@ -248,7 +248,7 @@
   - Listeners on 8888-8890 (Jupyter), 8265 and 10001 (Ray), 6006 (TensorBoard) and 7860 (Gradio) beyond loopback.
   - `~/.jupyter/jupyter_server_config.py` or `.json` (`ServerApp.ip`, `IdentityProvider.token = ''`, `ServerApp.password`).
   - Process args such as `--ip=0.0.0.0` or `--NotebookApp.token=` (empty).
-- **Bigman today:** Gap.
+- **Bigman today:** Partial. `net.listener.lan_service` (Review) flags Jupyter (8888), TensorBoard (6006), Streamlit (8501) and Gradio (7860) bound beyond loopback. Ray and Jupyter token or password settings are not read yet.
 - **Proposed mitigation / detection:**
   - `devserver.jupyter.exposed` and `devserver.jupyter.no-auth` (config and argument parsing, user-owned so rootless).
   - `devserver.ray.exposed` (port match and process name `ray`/`dashboard`).
@@ -275,7 +275,7 @@
   - The user's `~/.config/environment.d/*.conf`.
   - Docker `-p 11434:11434` (NE-07).
   - The installed Ollama version against advisories.
-- **Bigman today:** Gap.
+- **Bigman today:** Partial. `net.listener.lan_service` (Review) flags Ollama (11434), LM Studio (1234) and ComfyUI (8188) bound beyond loopback. The `OLLAMA_HOST` unit environment and vLLM are not checked yet.
 - **Proposed mitigation / detection:**
   - `ai.server.exposed` (port, process name and unit env).
   - `ai.server.outdated` (feed-driven, via a GitHub release or OSV advisory for `ollama`).
@@ -300,7 +300,7 @@
 - **What a defender inspects (indicators):**
   - Listeners on 9229 (Node inspector), 9222 (Chrome DevTools), 5173, 3000, 4200, 8000 and 8080 (dev servers), and 5678 (debugpy), beyond loopback.
   - Process args containing `--inspect=0.0.0.0`, `--inspect-brk=0.0.0.0`, `--remote-debugging-port`, `--remote-debugging-address=0.0.0.0`, `--host 0.0.0.0` or `--host` with no value, `http.server` with no `--bind`, or `FLASK_DEBUG=1` in the environment (own processes only).
-- **Bigman today:** Gap.
+- **Bigman today:** Partial. `net.listener.debugger` (High) flags the Node.js inspector (9229), Chromium DevTools (9222) and debugpy (5678) reachable beyond loopback. Process arguments and dev-server ports are not inspected yet.
 - **Proposed mitigation / detection:**
   - `devserver.debug-port.exposed` (High) and `devserver.http.exposed` (Review).
   - Process argv is user-readable, so this is rootless.
@@ -360,7 +360,7 @@
   - Remote ports 3333, 4444, 5555, 7777, 14444 and 45700 (common pool ports; a heuristic, so Review severity).
   - Matches against Spamhaus DROP, the FireHOL level1 aggregate, and other user-imported lists.
   - Long-lived connections from processes with no package owner.
-- **Bigman today:** Gap. The browser extension supports user-imported URL blocklists but there's no IP or socket matching. OpenSnitch is offered for interactive egress control.
+- **Bigman today:** Partial. The connections source records, rootless, each of your programs' first network connection and each new address range a known program reaches (first-seen Info entries in Activity, optional notifications). No blocklist or mining-pool matching yet, and other users' processes are not attributed.
 - **Proposed mitigation / detection:**
   - `net.outbound.blocklist` (CIDR match, user-imported, with the list name, date and licence recorded in the report).
   - `net.outbound.unowned-binary` (an established connection from a binary not owned by any package and outside an allow-list of known user app paths such as Flatpak and Steam).
@@ -441,7 +441,7 @@
   - `resolved.conf` `LLMNR=`/`MulticastDNS=`.
   - NetworkManager `connection.llmnr` and `connection.mdns`.
   - `systemctl is-active avahi-daemon nmb`.
-- **Bigman today:** Gap. Raw `ss` output would show 5355 but nothing interprets it.
+- **Bigman today:** Gap. The listener rules treat systemd-resolved's LLMNR listener on 5355 as a distribution default rather than a wildcard finding; `name.llmnr-enabled` is not implemented.
 - **Proposed mitigation / detection:** `name.llmnr-enabled` and `name.mdns-enabled` (Review, with "matters on public Wi-Fi" context). Suggest `LLMNR=no` in a resolved drop-in, and per-connection settings for untrusted networks. Report-only.
 - **Test case idea:** Fixture `resolvectl status` text containing `Protocols: +DefaultRoute +LLMNR -mDNS -DNSOverTLS` and a fixture resolved.conf. Assert `name.llmnr-enabled`. With `LLMNR=no` in the drop-in fixture, assert no finding.
 - **References:**
@@ -560,7 +560,7 @@
 - **What it is:** Some daemons are rarely needed on a single-user workstation but are often pulled in by package groups and listen on wildcard addresses: `rpcbind` (111), NFS, Samba (139/445), `telnetd`, VNC (5900+) and `xrdp` (3389). Each is an additional pre-authentication attack surface. CCDC guidance is blunt: disable anything that is not needed for the host's role.
 - **Real-world examples:** WinterKnight (2026) asks why a host runs a service its role doesn't need. Samba and rpcbind are historic sources of remote CVEs. The specific recent CVEs were not re-verified for this catalogue.
 - **What a defender inspects (indicators):** `systemctl list-unit-files --state=enabled` for `rpcbind.socket`, `nfs-server`, `smb`, `nmb`, `xinetd`, `telnet.socket`, `vncserver@`, `xrdp` and `gnome-remote-desktop`; listener ports 111, 2049, 139, 445, 23, 5900-5910 and 3389 on non-loopback addresses.
-- **Bigman today:** Partial. They appear in the raw `ss` dump, without interpretation.
+- **Bigman today:** Partial. When bound beyond loopback they appear in Network > Listening programs with `net.listener.wildcard` (Review), without naming the service or its role.
 - **Proposed mitigation / detection:** `service.legacy-network-daemon` (Review), with a one-line role question: "Is this machine a file server?". Guidance: `systemctl disable --now` (shown as text for the user to run, never run by Bigman).
 - **Test case idea:** Fixture `systemctl list-sockets` output with a `0.0.0.0:111 rpcbind.socket` row. Assert a finding naming `rpcbind.socket`.
 - **References:**

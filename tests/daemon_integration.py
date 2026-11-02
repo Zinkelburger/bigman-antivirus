@@ -138,7 +138,49 @@ sys.exit(1 if detected else 0)
         history = value({'type': 'history', 'limit': 50}, 'history')
         assert {r['kind'] for r in history} >= {'File scan', 'Installer inspection', 'Persistence changes'}
         assert ask({'type': 'run_shell'})['type'] == 'error'
-        print('PASS: scan, previewed quarantine and restore, nonexecuting inspection, package policy, reviewed baseline, verified canary, history over the daemon socket')
+
+        # Live collection: every saved report enters the timeline once, and a
+        # subscriber on its own connection receives new entries as they happen.
+        def scan_events():
+            return [e for e in value({'type': 'events', 'since': 0, 'until': None, 'sources': ['scan'], 'limit': 100}, 'events')]
+        deadline = time.monotonic() + 10
+        while not any(e['summary'].startswith('Scanned ') for e in scan_events()):
+            assert time.monotonic() < deadline, 'saved reports did not reach the timeline'
+            time.sleep(0.25)
+        events = scan_events()
+        assert all(e['link']['kind'] == 'report' for e in events)
+        assert len({e['link']['id'] for e in events}) == len(events), 'a report entered the timeline twice'
+
+        with socket.socket(socket.AF_UNIX) as sub:
+            sub.settimeout(10)
+            sub.connect(str(sock))
+            sub.sendall((json.dumps({'id': 900, 'request': {'type': 'subscribe', 'events': True, 'samples': False}}) + '\n').encode())
+            pushes = sub.makefile('rb')
+            first = json.loads(pushes.readline())
+            assert first['id'] == 900 and first['response']['value']['type'] == 'unread', first
+            value({'type': 'changes'}, 'report')
+            started = time.monotonic()
+            while True:
+                frame = json.loads(pushes.readline())
+                live = frame['response']['value']
+                if live['type'] == 'event' and live['value']['summary'].startswith('Compared startup files'):
+                    break
+            assert time.monotonic() - started < 5, 'a new entry took longer than 5 s to arrive'
+
+        unread = value({'type': 'unread'}, 'unread')
+        assert unread['first_seen'] > 0
+        assert value({'type': 'mark_seen', 'through': unread['through']}, 'unread')['first_seen'] == 0
+        names = {s['name'] for s in value({'type': 'sources'}, 'sources')}
+        assert names >= {'throughput', 'connections', 'listeners', 'denials', 'reports'}, names
+
+        cli = lambda *args: subprocess.run([str(bin_dir / 'bigman'), '--json', 'daemon', *args], env=env, capture_output=True, text=True, timeout=30)
+        listed = cli('events', '--source', 'scan')
+        assert listed.returncode == 0, listed.stderr
+        assert any(e['summary'].startswith('Compared startup files') for e in json.loads(listed.stdout))
+        assert cli('sources').returncode == 0
+        network = cli('network')
+        assert network.returncode == 0 and 'listeners' in json.loads(network.stdout), network.stderr
+        print('PASS: scan, previewed quarantine and restore, nonexecuting inspection, package policy, reviewed baseline, verified canary, history, timeline, live push, unread and CLI over the daemon socket')
     finally:
         daemon.terminate()
         daemon.wait(timeout=10)

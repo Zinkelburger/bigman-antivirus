@@ -27,7 +27,7 @@ fn answers_health_on_a_private_socket() {
 
     let stop = runner::cancel();
     let daemon_stop = stop.clone();
-    let daemon = Arc::new(Daemon::new(store));
+    let daemon = Arc::new(Daemon::new(store).unwrap());
     let thread = std::thread::spawn(move || server::serve(&socket, daemon, &daemon_stop));
 
     let mut client = Client::connect_to(&path).unwrap();

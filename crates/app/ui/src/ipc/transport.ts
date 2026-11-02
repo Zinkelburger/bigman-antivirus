@@ -1,3 +1,4 @@
+import type { Live } from "./generated/Live";
 import type { Request } from "./generated/Request";
 import type { Response } from "./generated/Response";
 
@@ -7,6 +8,16 @@ export interface Transport {
   request(request: Request, token?: string): Promise<Response>;
   /** Cancels a running request; it still resolves, with its cancelled report. */
   cancel(token: string): Promise<void>;
+  /**
+   * Receives timeline pushes until `stop()`. `ended` settles when the stream ends:
+   * resolved after `stop()`, rejected when the daemon went away.
+   */
+  subscribe(topics: { events: boolean; samples: boolean }, onPush: (live: Live) => void): Subscription;
+}
+
+export interface Subscription {
+  ended: Promise<void>;
+  stop(): void;
 }
 
 /** bigmand could not be reached. Views show the Disconnected state. */

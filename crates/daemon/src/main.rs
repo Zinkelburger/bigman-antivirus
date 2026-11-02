@@ -1,6 +1,6 @@
 use anyhow::Result;
-use bigman_core::{ipc, model, runner, store::Store};
-use bigman_daemon::{server, Daemon};
+use bigman_core::{ipc, model, platform::linux::NotifySend, runner, sources, store::Store};
+use bigman_daemon::{server, timeline, Daemon};
 use clap::Parser;
 use std::{path::PathBuf, sync::Arc};
 
@@ -17,6 +17,10 @@ struct Args {
 
 fn main() {
     if let Err(e) = run() {
+        if let Some(running) = e.downcast_ref::<server::AlreadyRunning>() {
+            eprintln!("bigmand: {running}; nothing to do.");
+            return;
+        }
         eprintln!("bigmand: {}", model::clean(&format!("{e:#}")));
         std::process::exit(2);
     }
@@ -32,6 +36,18 @@ fn run() -> Result<()> {
     let stop = runner::cancel();
     let signal = stop.clone();
     ctrlc::set_handler(move || signal.store(true, std::sync::atomic::Ordering::Relaxed))?;
+    let daemon = Arc::new(Daemon::new(store)?);
+    let collectors = timeline::start(
+        &daemon,
+        sources::linux_sources(stop.clone()),
+        Box::new(NotifySend),
+        &stop,
+    );
     eprintln!("bigmand: listening on {}", socket.path.display());
-    server::serve(&socket, Arc::new(Daemon::new(store)), &stop)
+    let served = server::serve(&socket, daemon, &stop);
+    stop.store(true, std::sync::atomic::Ordering::Relaxed);
+    for thread in collectors {
+        let _ = thread.join();
+    }
+    served
 }

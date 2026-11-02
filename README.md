@@ -42,7 +42,10 @@ Package installation plans support Fedora, Debian and Ubuntu. Packages come from
 | Hosted canary shortcuts | Saves an HTTPS token URL supplied by the user | Bigman does not provision a provider account or token; the provider triggers only when the URL is activated |
 | Optional integrations | Lynis report findings, OSV advisory matching, osquery process JSON, user-supplied YARA-X rules, OpenSnitch launch/setup | External tools must be installed; adapters preserve failures and raw evidence |
 | Browser checks | Text/destination mismatch, lookalikes, selected Unicode confusables, ClickFix text combinations, user-imported blocklists, warning pages and expiring exceptions | Limited page/link heuristics; no remote reputation requests or complete navigation interception |
-| Background services | Rootless monitor, daily Downloads scan and private ClamAV update timers | Explicit installation/removal; follows user session; no lingering or system services enabled |
+| Activity timeline | `bigmand` records your programs' first connections and new address ranges, new listening programs, package transactions (dnf5 history, pacman or dpkg log), SELinux/AppArmor denials as plain sentences, and every saved report; repeats fold into their first sighting, unread entries feed Overview and the tray | First-seen is a record of what was observed, not a verdict; denials need journal access (systemd-journal, adm or wheel) and say so when it is missing; other users' processes are not named without the optional helper |
+| Network | Per-interface throughput kept in SQLite (1 s, minute averages after a day, hour averages after 30 days), current connections and listeners; listener rules for wildcard binds, the container API, debugger ports and local AI or notebook servers | Read from `/proc` as you; no packet capture, blocking or firewall changes |
+| Notifications | Batched desktop notifications for the categories you choose (findings on by default), at most one a minute, pausable from the tray | Raised by the daemon through `notify-send`; Activity always has every entry |
+| Background services | Rootless collector daemon, monitor, daily Downloads scan and private ClamAV update timers | Explicit installation/removal; follows user session; no lingering or system services enabled |
 | History/export | Private JSON reports, coverage, errors and evidence shared by the CLI, the desktop app's Activity tab and the native host | Export is explicit; reports can contain local paths and inspected source |
 
 ## CLI
@@ -141,7 +144,7 @@ bigman services                         # show exact unit contents
 bigman services --apply                 # enable monitor and daily scan/update timers
 bigman services --remove                # removal preview
 bigman services --remove --apply
-systemctl --user status bigman-monitor.service bigman-scan.timer bigman-update.timer
+systemctl --user status bigmand.service bigman-monitor.service bigman-scan.timer bigman-update.timer
 ```
 
 The monitor compares persistence snapshots every five minutes. Review the initial inventory and establish a baseline first. Existing state remains after disabling services. Use `bigman canary stop` before replacing a session monitor with the complete service/timer setup.

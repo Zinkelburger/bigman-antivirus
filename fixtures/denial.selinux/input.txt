@@ -1,0 +1,1 @@
+avc:  denied  { read } for  pid=4242 comm="firefox" name=".ssh" dev="dm-0" ino=1234 scontext=unconfined_u:unconfined_r:mozilla_t:s0 tcontext=unconfined_u:object_r:ssh_home_t:s0 tclass=dir permissive=0

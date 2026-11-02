@@ -1,3 +1,5 @@
+pub mod db;
+
 use crate::model::Report;
 use anyhow::{bail, Context, Result};
 use serde::{de::DeserializeOwned, Serialize};

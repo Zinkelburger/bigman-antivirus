@@ -1,0 +1,8 @@
+{
+  "driver": "listener",
+  "fires": [
+    "net.listener.docker_api"
+  ],
+  "about": "Docker's API on 192.168.1.1:2375, a LAN address rather than every interface.",
+  "input": "input.txt"
+}

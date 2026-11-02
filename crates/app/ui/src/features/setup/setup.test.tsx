@@ -21,3 +21,20 @@ describe("Setup", () => {
     expect(connect).toBeEnabled();
   });
 });
+
+describe("Setup notifications", () => {
+  it("keeps findings on by default and saves a category change", async () => {
+    const { user } = renderWithDaemon(<SetupPage />);
+    const findings = await screen.findByRole("switch", { name: /Findings to review/ });
+    expect(findings).toHaveAttribute("aria-checked", "true");
+    const connections = screen.getByRole("switch", { name: /New connections/ });
+    expect(connections).toHaveAttribute("aria-checked", "false");
+    await user.click(connections);
+    expect(await screen.findByRole("switch", { name: /New connections/ })).toHaveAttribute("aria-checked", "true");
+  });
+
+  it("shows which sources cannot read and why", async () => {
+    renderWithDaemon(<SetupPage />);
+    expect(await screen.findByText(/not collected \(no permission to read\)/)).toBeInTheDocument();
+  });
+});

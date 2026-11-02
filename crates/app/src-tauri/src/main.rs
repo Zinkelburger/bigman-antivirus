@@ -25,13 +25,12 @@ fn main() {
     }
     tauri::Builder::default()
         .plugin(tauri_plugin_window_state::Builder::default().build())
-        .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
         .manage(Arc::new(daemon::Launcher::default()))
-        .manage(tray::NotificationPause::default())
         .invoke_handler(tauri::generate_handler![
             daemon::daemon_request,
             daemon::daemon_cancel,
+            daemon::daemon_subscribe,
             files::choose_path,
             files::export_report
         ])

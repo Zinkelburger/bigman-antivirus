@@ -2,6 +2,8 @@ import type { ColumnDef } from "@tanstack/react-table";
 import {
   ActionButton,
   DataTable,
+  EventPanel,
+  eventOccurrence,
   fold,
   ago,
   IncompleteNotice,
@@ -10,10 +12,8 @@ import {
   PageHeader,
   plural,
   ProgressRow,
-  reportOccurrences,
   ReportById,
   ReportPanel,
-  reportTitle,
   reportSeverity,
   reportStatus,
   Select,
@@ -29,11 +29,13 @@ import {
 import {
   DisconnectedError,
   useCheck,
-  useHistory,
+  useEvents,
   useStatus,
+  useUnread,
+  type Event,
   type ProtectionStatus,
-  type Report,
   type ToolState,
+  type Unread,
 } from "@/ipc";
 import { useShell, type Range } from "@/shell/store";
 
@@ -105,12 +107,9 @@ function ToolsPanel({ status, now }: { status: ProtectionStatus; now: number }) 
 }
 
 /** The one sentence the eye lands on: what to look at, or the calm status line. */
-function ResultLine({ reports, status, rangeLabel, now }: { reports: Report[]; status: ProtectionStatus; rangeLabel: string; now: number }) {
+function ResultLine({ events, status, rangeLabel, now }: { events: Event[]; status: ProtectionStatus; rangeLabel: string; now: number }) {
   const open = useDrilldown((s) => s.open);
-  const toReview = reports.filter((r) => {
-    const severity = reportSeverity(r);
-    return severity === "review" || severity === "high";
-  });
+  const toReview = events.filter((e) => e.severity !== "info");
   const scan = status.last_scan;
   const incomplete = scan && reportStatus(scan) === "Incomplete" ? scan : null;
   const first = toReview[0];
@@ -119,9 +118,9 @@ function ResultLine({ reports, status, rangeLabel, now }: { reports: Report[]; s
       {first && (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <p className="m-0 text-body font-semibold text-ink">
-            Findings to review: {plural(toReview.length, "result")} from the {rangeLabel.toLowerCase()}.
+            Findings to review: {plural(toReview.length, "entry")} from the {rangeLabel.toLowerCase()}.
           </p>
-          <ActionButton variant="quiet" onClick={() => open({ title: reportTitle(first.kind), content: <ReportById id={first.id} /> })}>
+          <ActionButton variant="quiet" onClick={() => open({ title: first.summary, content: <EventPanel event={first} /> })}>
             Open the latest
           </ActionButton>
         </div>
@@ -140,19 +139,34 @@ function ResultLine({ reports, status, rangeLabel, now }: { reports: Report[]; s
   );
 }
 
+/** "Since last look": first sightings and findings since Activity was marked as seen. */
+function sinceLastLook(unread: Unread | undefined) {
+  if (!unread) return { value: undefined, detail: undefined };
+  const { first_seen: fresh, to_review: review } = unread;
+  if (fresh + review === 0) return { value: "Nothing new", detail: "Everything in Activity has been seen." };
+  return {
+    value: fresh > 0 ? plural(fresh, "first sighting") : plural(review, "finding"),
+    detail: review > 0 ? `${plural(review, "entry")} to review since you last looked` : "New since you last marked Activity as seen.",
+  };
+}
+
+/** Days are loaded from the start of an hour so the query stays put as time passes. */
+const hourFloor = (t: number) => Math.floor(t / 3_600) * 3_600;
+
 export function OverviewPage() {
   const status = useStatus();
-  const history = useHistory();
+  const unread = useUnread();
   const doctor = useCheck();
   const open = useDrilldown((s) => s.open);
   const toast = useToasts((s) => s.push);
-  const { range, setRange } = useShell();
+  const { range, setRange, openUnread } = useShell();
   const now = nowSeconds();
 
   const overviewRange: Range = range === "7d" ? "7d" : "24h";
   const rangeLabel = RANGES.find((r) => r.value === overviewRange)?.label ?? "Last 24 hours";
   const since = now - (RANGE_SECONDS[overviewRange] ?? 86_400);
-  const disconnected = status.error instanceof DisconnectedError || history.error instanceof DisconnectedError;
+  const events = useEvents(hourFloor(since));
+  const disconnected = status.error instanceof DisconnectedError || events.error instanceof DisconnectedError;
   const tileState: TileState = disconnected ? "disconnected" : status.isPending ? "loading" : status.isError ? "incomplete" : "ready";
   const ready = tileState === "ready";
   const data = status.data;
@@ -160,9 +174,11 @@ export function OverviewPage() {
   const scan = data?.last_scan ?? null;
   const scanStatus = scan ? reportStatus(scan) : null;
   const scanSeverity = scan ? reportSeverity(scan) : null;
-  const inRange = (history.data ?? []).filter((r) => r.created >= since);
-  // Fold across all loaded history so repeats count from their first sighting, then show the range.
-  const entries = fold(reportOccurrences(history.data ?? [])).filter((e) => e.at >= since);
+  const inRange = (events.data ?? []).filter((e) => e.at >= since);
+  const byId = new Map(inRange.map((e) => [String(e.id), e]));
+  // The store's counts carry repeats from before the range, so folding needs only the range.
+  const entries = fold(inRange.map(eventOccurrence));
+  const look = sinceLastLook(unread.data);
 
   const runCheckup = () =>
     doctor.mutate({ type: "doctor" }, {
@@ -187,10 +203,10 @@ export function OverviewPage() {
         {disconnected && (
           <IncompleteNotice
             kind="disconnected"
-            errors={[status.error?.message ?? history.error?.message ?? ""]}
+            errors={[status.error?.message ?? events.error?.message ?? ""]}
             action={
               // The desktop shell starts bigmand when a request cannot connect.
-              <ActionButton onClick={() => void Promise.all([status.refetch(), history.refetch()])}>
+              <ActionButton onClick={() => void Promise.all([status.refetch(), events.refetch()])}>
                 Start background checks
               </ActionButton>
             }
@@ -208,14 +224,15 @@ export function OverviewPage() {
           />
         )}
         {doctor.isError && <IncompleteNotice title="The checkup did not finish" errors={[doctor.error.message]} />}
-        {data && history.data && <ResultLine reports={inRange} status={data} rangeLabel={rangeLabel} now={now} />}
+        {data && events.data && <ResultLine events={inRange} status={data} rangeLabel={rangeLabel} now={now} />}
 
         <section aria-label="Status" className="grid grid-cols-4 gap-3">
           <StatusTile
             label="Since last look"
-            state={ready ? "empty" : tileState}
-            value="Not collected yet"
-            detail={ready ? "New connections, listeners and installs will be counted here." : undefined}
+            state={!ready ? tileState : unread.isPending ? "loading" : unread.isError ? "incomplete" : look.value === "Nothing new" ? "empty" : "ready"}
+            value={look.value}
+            detail={look.detail}
+            onOpen={unread.data && look.value !== "Nothing new" ? openUnread : undefined}
           />
           <StatusTile
             label="Bigman's tools"
@@ -262,20 +279,23 @@ export function OverviewPage() {
           </h2>
           {disconnected ? (
             <p className="m-0 text-body text-ink-muted">Entries appear once background checks are running again.</p>
-          ) : history.isPending ? (
+          ) : events.isPending ? (
             <Skeleton shape="rows" count={4} />
           ) : (
             <Timeline
               label={rangeLabel}
               entries={entries}
               now={now}
+              height={560}
               onOpen={(entry) => {
-                open({ title: entry.source, content: <ReportById id={entry.id} /> });
+                const event = byId.get(entry.id);
+                if (event) open({ title: entry.summary, content: <EventPanel event={event} /> });
               }}
               empty={
                 <>
                   <p className="m-0 max-w-[56ch]">
-                    Each check you run is entered here the first time; later runs of the same check fold under it.
+                    New connections, listeners, package installs and every check you run are entered here the first
+                    time they are seen; repeats fold under them.
                   </p>
                   <ActionButton disabled={doctor.isPending} onClick={runCheckup}>
                     Run checkup

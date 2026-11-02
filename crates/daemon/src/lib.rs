@@ -1,19 +1,26 @@
 //! bigmand: the per-user collector daemon. It owns the store and runs every check;
 //! the CLI, desktop app and native host talk to it over a private Unix socket.
 pub mod server;
+pub mod timeline;
 
 use bigman_core::{
     actions,
     checks::{canary, changes, doctor, inspect, integrations, packages, pdf, route, scan, setup},
     ipc::{DaemonHealth, ErrorBody, ProtectionStatus, Request, Response},
-    model::{now, Report},
+    model::{now, Report, SampleSeries},
+    platform::{linux::ProcSockets, ProcessSockets},
     runner::Cancel,
-    store::Store,
+    sources::network_snapshot,
+    store::{db::EventQuery, Store},
 };
+use timeline::Timeline;
 
 /// Shared daemon state handed to every connection.
 pub struct Daemon {
     pub store: Store,
+    pub timeline: Timeline,
+    /// Where the Network tab's tables come from; tests substitute a fake.
+    pub sockets: Box<dyn ProcessSockets>,
     pub started: u64,
 }
 
@@ -31,11 +38,14 @@ fn report(result: anyhow::Result<Report>) -> Response {
 }
 
 impl Daemon {
-    pub fn new(store: Store) -> Self {
-        Self {
+    /// Opens the timeline store. Collection starts separately, with `timeline::start`.
+    pub fn new(store: Store) -> anyhow::Result<Self> {
+        Ok(Self {
+            timeline: Timeline::open(&store)?,
+            sockets: Box::new(ProcSockets),
             store,
             started: now(),
-        }
+        })
     }
 
     /// Runs one request. `stop` is set when the client disconnects, so long checks
@@ -91,6 +101,47 @@ impl Daemon {
                         undo: None,
                     }))
                 }
+                Request::Events {
+                    since,
+                    until,
+                    sources,
+                    limit,
+                } => Response::Events(self.timeline.db.events(&EventQuery {
+                    since,
+                    until,
+                    sources,
+                    limit: limit.min(20_000),
+                })?),
+                Request::Unread => Response::Unread(self.timeline.db.unread()?),
+                Request::MarkSeen { through } => {
+                    self.timeline.db.mark_seen(through)?;
+                    self.timeline.publish_unread();
+                    Response::Unread(self.timeline.db.unread()?)
+                }
+                Request::Samples {
+                    since,
+                    until,
+                    points,
+                } => {
+                    let (bucket, samples) =
+                        self.timeline
+                            .db
+                            .samples(since, until, u64::from(points.clamp(1, 2000)))?;
+                    Response::Samples(SampleSeries { bucket, samples })
+                }
+                Request::Network => Response::Network(Box::new(network_snapshot(
+                    self.sockets.as_ref(),
+                    &self.timeline.db,
+                    now(),
+                ))),
+                Request::Sources => Response::Sources(self.timeline.statuses()),
+                Request::Notifications => Response::Notifications(self.timeline.notifications()),
+                Request::SetNotifications { settings } => {
+                    self.timeline.set_notifications(&settings)?;
+                    Response::Notifications(settings)
+                }
+                // Served by the connection loop, which streams it.
+                Request::Subscribe { .. } => error("Subscribe needs a connection of its own"),
                 Request::Preview { action } => {
                     Response::Plan(Box::new(actions::preview(&action, store)?))
                 }

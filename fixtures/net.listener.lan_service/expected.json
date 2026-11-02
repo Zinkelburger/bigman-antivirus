@@ -1,0 +1,8 @@
+{
+  "driver": "listener",
+  "fires": [
+    "net.listener.lan_service"
+  ],
+  "about": "An Ollama server on a LAN address.",
+  "input": "input.txt"
+}

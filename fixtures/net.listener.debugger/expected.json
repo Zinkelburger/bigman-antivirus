@@ -1,0 +1,8 @@
+{
+  "driver": "listener",
+  "fires": [
+    "net.listener.debugger"
+  ],
+  "about": "A Node.js inspector on a LAN address.",
+  "input": "input.txt"
+}

@@ -1,4 +1,5 @@
 import { AppShell, Toaster } from "@/design";
+import { useLive, useUnread } from "@/ipc";
 import { ActivityPage } from "@/features/activity/ActivityPage";
 import { InspectPage } from "@/features/inspect/InspectPage";
 import { NetworkPage } from "@/features/network/NetworkPage";
@@ -24,10 +25,13 @@ const PAGES: Record<TabId, () => React.JSX.Element> = {
 export function App() {
   const { tab, setTab } = useShell();
   useGlobalKeys();
+  useLive();
+  const unread = useUnread().data?.first_seen ?? 0;
+  const tabs = TABS.map((t) => (t.id === "activity" && unread > 0 ? { ...t, badge: unread } : t));
   const Page = PAGES[tab];
   return (
     <>
-      <AppShell tabs={TABS} active={tab} onSelect={setTab} statusStrip={<StatusStrip />}>
+      <AppShell tabs={tabs} active={tab} onSelect={setTab} statusStrip={<StatusStrip />}>
         <Page />
       </AppShell>
       <Toaster />

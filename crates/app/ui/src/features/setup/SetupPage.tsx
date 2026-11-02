@@ -12,10 +12,25 @@ import {
   nowSeconds,
   signatureAge,
   TextField,
+  Toggle,
+  ago,
+  formatTime,
+  SKIP_REASON,
+  SourceRemedy,
   type ThemeChoice,
 } from "@/design";
 import { useQueryClient } from "@tanstack/react-query";
-import { DisconnectedError, useHealth, useOpenTool, useStatus, useToolGroups } from "@/ipc";
+import {
+  DisconnectedError,
+  useHealth,
+  useNotifications,
+  useOpenTool,
+  useSetNotifications,
+  useSources,
+  useStatus,
+  useToolGroups,
+  type NotificationSettings,
+} from "@/ipc";
 
 /**
  * One line of the checklist. `done` is true or false for steps that can be
@@ -67,6 +82,92 @@ function Tools({ disabled }: { disabled: boolean }) {
             )
           ) : (
             <ActionDialog action={{ kind: "install_tool", tool: g.id }} label="Install…" variant="quiet" />
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+const CATEGORIES: readonly { key: keyof Omit<NotificationSettings, "paused_until">; label: string; description: string }[] = [
+  { key: "findings", label: "Findings to review", description: "Anything rated Review or High, from any source." },
+  { key: "new_connections", label: "New connections", description: "A program going online for the first time, or reaching a new address range." },
+  { key: "new_listeners", label: "New listening programs", description: "A program starting to accept connections." },
+  { key: "packages", label: "Package changes", description: "Installs, updates and removals." },
+  { key: "denials", label: "Denials", description: "SELinux or AppArmor stopping a program." },
+];
+
+/** Which live source feeds each notification category. */
+const SOURCE_OF: Partial<Record<string, string>> = {
+  denials: "denials",
+  packages: "packages",
+  new_connections: "connections",
+  new_listeners: "listeners",
+};
+
+function Notifications({ disabled }: { disabled: boolean }) {
+  const settings = useNotifications();
+  const sources = useSources();
+  // A category whose source cannot read would never notify; say so beside its switch.
+  const blind = new Map((sources.data ?? []).filter((s) => !s.ok).map((s) => [s.name, s.label]));
+  const save = useSetNotifications();
+  const now = nowSeconds();
+  if (disabled) return <p className="m-0 text-small text-ink-muted">Shown once background checks are running.</p>;
+  if (settings.isPending) return <Skeleton shape="rows" count={3} />;
+  if (settings.isError) return <IncompleteNotice title="Notification settings could not be loaded" errors={[settings.error.message]} />;
+  const current = settings.data;
+  const paused = current.paused_until !== null && current.paused_until > now;
+  return (
+    <div className="flex flex-col gap-3">
+      {paused && current.paused_until !== null && (
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="m-0 text-ink">Paused until {formatTime(current.paused_until)}.</p>
+          <ActionButton variant="quiet" onClick={() => save.mutate({ ...current, paused_until: null })}>
+            Resume now
+          </ActionButton>
+        </div>
+      )}
+      {CATEGORIES.map((c) => (
+        <Toggle
+          key={c.key}
+          label={c.label}
+          description={blind.has(SOURCE_OF[c.key] ?? "") ? `${c.description} Not collected right now; see What is collected.` : c.description}
+          checked={current[c.key]}
+          disabled={save.isPending}
+          onChange={(checked) => save.mutate({ ...current, [c.key]: checked })}
+        />
+      ))}
+      {save.isError && <IncompleteNotice title="The change was not saved" errors={[save.error.message]} />}
+    </div>
+  );
+}
+
+function Sources({ disabled }: { disabled: boolean }) {
+  const sources = useSources();
+  const now = nowSeconds();
+  if (disabled) return <p className="m-0 text-small text-ink-muted">Shown once background checks are running.</p>;
+  if (sources.isPending) return <Skeleton shape="rows" count={3} />;
+  if (sources.isError) return <IncompleteNotice title="Sources could not be listed" errors={[sources.error.message]} />;
+  return (
+    <ul className="m-0 flex list-none flex-col gap-2 p-0">
+      {sources.data.map((source) => (
+        <li key={source.name} className="flex flex-col">
+          <span>
+            <span className="font-semibold text-ink">{source.label}</span>
+            <span className="text-ink-muted">
+              {" · "}
+              {source.ok
+                ? source.last_run === null
+                  ? "starting"
+                  : `read ${ago(source.last_run, now)}`
+                : `not collected (${SKIP_REASON[source.why ?? "failed"].toLowerCase()})`}
+            </span>
+          </span>
+          {!source.ok && source.detail && <span className="max-w-[56ch] text-small text-ink-muted">{source.detail}</span>}
+          {!source.ok && (
+            <div className="mt-1">
+              <SourceRemedy source={source} />
+            </div>
           )}
         </li>
       ))}
@@ -131,13 +232,30 @@ export function SetupPage() {
 
           <Item title="Background services" done={null}>
             <p className="m-0 max-w-[56ch] text-ink-muted">
-              Per-user units for the canary and startup monitor, a daily Downloads scan and daily signature updates.
-              They follow your login session; nothing system-wide is enabled.
+              Per-user units for the collector that keeps Activity and Network history while this window is closed, the
+              canary and startup monitor, a daily Downloads scan and daily signature updates. They follow your login
+              session; nothing system-wide is enabled.
             </p>
             <div className="flex gap-2">
               <ActionDialog action={{ kind: "services", remove: false }} label="Install services…" disabled={down} />
               <ActionDialog action={{ kind: "services", remove: true }} label="Remove services…" variant="quiet" disabled={down} />
             </div>
+          </Item>
+
+          <Item title="What is collected" done={null}>
+            <p className="m-0 max-w-[56ch] text-ink-muted">
+              Each source reads as you, without administrator access. A source that cannot read says so here and in
+              Activity rather than reporting nothing.
+            </p>
+            <Sources disabled={down} />
+          </Item>
+
+          <Item title="Notifications" done={null}>
+            <p className="m-0 max-w-[56ch] text-ink-muted">
+              Entries gather for 30 seconds into one desktop notification, at most one a minute. Activity always has
+              everything; these only choose what interrupts you.
+            </p>
+            <Notifications disabled={down} />
           </Item>
 
           <Item title="Browser extension" done={null}>

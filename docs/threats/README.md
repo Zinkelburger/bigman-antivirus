@@ -16,9 +16,9 @@ The prioritised plan built from these files is in [research/roadmap.md](../resea
 | [04 Host integrity and hardening audit](./04-host-integrity-and-hardening-audit.md) | HI- | 25 | 0 | 9 | 16 |
 | [05 Malware families and detection](./05-malware-families-and-detection.md) | MW- | 24 | 0 | 14 | 10 |
 | [06 Credential and secret protection](./06-credential-and-secret-protection.md) | CR- | 22 | 0 | 4 | 18 |
-| [07 Network exposure and remote access](./07-network-exposure-and-remote-access.md) | NE- | 22 | 0 | 5 | 17 |
+| [07 Network exposure and remote access](./07-network-exposure-and-remote-access.md) | NE- | 22 | 0 | 10 | 12 |
 | [08 Desktop and sandboxing](./08-desktop-and-sandboxing.md) | DS- | 21 | 0 | 7 | 14 |
-| **Total** | | **181** | **1** | **59** | **121** |
+| **Total** | | **181** | **1** | **64** | **116** |
 
 "Partial" usually means an existing workflow (ClamAV scans, `bigman inspect`, the startup baseline, the canary or the browser extension) catches some indicators but not the threat as a whole.
 
