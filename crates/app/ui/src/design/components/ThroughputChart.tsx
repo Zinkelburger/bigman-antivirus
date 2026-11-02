@@ -48,7 +48,7 @@ export function ThroughputChart({ label, series, height = 220 }: ThroughputChart
       stroke: color("ink-muted"),
       grid: { stroke: rule, width: 1 },
       ticks: { stroke: rule, width: 1 },
-      font: '12px "Atkinson Hyperlegible Next Variable", sans-serif',
+      font: '13px "Atkinson Hyperlegible Next Variable", sans-serif',
     };
     const u = new uPlot(
       {

