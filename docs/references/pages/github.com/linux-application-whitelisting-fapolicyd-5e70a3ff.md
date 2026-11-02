@@ -1,0 +1,702 @@
+---
+url: "https://github.com/linux-application-whitelisting/fapolicyd"
+title: "GitHub - linux-application-whitelisting/fapolicyd: File Access Policy Daemon"
+site: "GitHub"
+captured: "2026-11-02T19:05:12Z"
+via: "live"
+sha256: "c84cc757c6d733cab966e7b8e217305b1de581ed53bbef6f657670b769c197da"
+wayback: "https://web.archive.org/web/20260616222339/https://github.com/linux-application-whitelisting/fapolicyd"
+cited_in:
+  - "docs/research/linux-av-landscape-and-papers.md"
+---
+
+# GitHub - linux-application-whitelisting/fapolicyd: File Access Policy Daemon
+
+> Archived copy of a third-party page, kept so Bigman's findings survive if the original goes away. Copyright stays with the original publisher; cite the original URL.
+>
+> Original: <https://github.com/linux-application-whitelisting/fapolicyd>
+> Snapshot: <https://web.archive.org/web/20260616222339/https://github.com/linux-application-whitelisting/fapolicyd>
+
+# File Access Policy Daemon
+
+https://github.com/linux-application-whitelisting/fapolicyd#file-access-policy-daemon
+
+https://travis-ci.com/linux-application-whitelisting/fapolicyd
+
+This is a simple application whitelisting daemon for Linux.
+
+## RUNTIME DEPENDENCIES
+
+https://github.com/linux-application-whitelisting/fapolicyd#runtime-dependencies
+
+- kernel >= 4.20 (Must support FANOTIFY_OPEN_EXEC_PERM. See [1] below.)
+
+## BUILDING
+
+https://github.com/linux-application-whitelisting/fapolicyd#building
+
+See [BUILD.md](https://github.com/linux-application-whitelisting/fapolicyd/blob/main/BUILD.md) for build-time dependencies and instructions for building.
+
+## DEPRECATION NOTICES
+
+https://github.com/linux-application-whitelisting/fapolicyd#deprecation-notices
+
+### dir=untrusted rules
+
+https://github.com/linux-application-whitelisting/fapolicyd#diruntrusted-rules
+
+The dir=untrusted rule macro is deprecated and is planned for removal in the 2.1 release. Existing rules continue to parse for compatibility, but they emit a deprecation warning.
+
+New policy should match trust explicitly. Use object trust rules for the file being controlled instead of relying on the legacy dir=untrusted path exception.
+
+## POLICIES
+
+https://github.com/linux-application-whitelisting/fapolicyd#policies
+
+The current design for policy is that it is split up into units of rules that are designed to work together. They are copied into /etc/fapolicyd/rules.d/ When the service starts, the systemd service file runs fagenrules which assembles the units of rules into a comprehensive policy. The policy is evaluated from top to bottom with the first match winning. You can see the assembled policy by running
+
+```
+fapolicyd-cli --list
+
+```
+
+Originally, there were 2 policies shipped, known-libs and restrictive.
+
+The restrictive policy was designed with these goals in mind:
+
+- No bypass of security by executing programs via ld.so.
+- Anything requesting execution must be trusted.
+- Elf binaries, python, and shell scripts are enabled for trusted applications/libraries.
+- Other languages are not allowed or must be enabled.
+
+It can be recreated by copying the following policy units into rules.d. The optional ones are not included unless they are needed:
+
+20-dracut.rules 21-updaters.rules 30-patterns.rules 40-bad-elf.rules 41-shared-obj.rules 43-known-elf.rules 71-known-python.rules 72-shell.rules optional: 73-known-perl.rules optional: 74-known-ocaml.rules optional: 75-known-php.rules optional: 76-known-ruby.rules optional: 77-known-lua.rules 90-deny-execute.rules 95-allow-open.rules
+
+The restrictive policy uses the object path=ld_so keyword to match the native and known runtime linker paths internally. The keyword selects a path; the accompanying trust=1 check is what requires the linker to be trusted.
+
+The known-libs policy (default) was designed with these goals in mind:
+
+- No bypass of security by executing programs via ld.so.
+- Anything requesting execution must be trusted.
+- Any library or interpreted application or module must be trusted.
+- Everything else is not allowed.
+
+It can be created by copying the following policy units into rules.d:
+
+10-languages.rules 20-dracut.rules 21-updaters.rules 30-patterns.rules 40-bad-elf.rules 41-shared-obj.rules 42-trusted-elf.rules 70-trusted-lang.rules 72-shell.rules 90-deny-execute.rules 95-allow-open.rules
+
+## EXPERIMENTING
+
+https://github.com/linux-application-whitelisting/fapolicyd#experimenting
+
+You can test by starting the daemon from the command line. Before starting the daemon, cp /usr/bin/ls /usr/bin/my-ls just to setup for testing. When testing new policy, its highly recommended to use the permissive mode to make sure nothing bad happens. It really is not too hard to deadlock your system. Continuing on with the tutorial, as root start the daemon as follows:
+
+```
+/usr/sbin/fapolicyd --permissive --debug
+
+```
+
+Then in another window do the following:
+
+- /usr/lib64/ld-2.29.so /usr/bin/ls
+- my-ls
+- run a python file in your home directory.
+- run a program from /tmp
+
+In permissive + debug mode you will see dec=deny which means "decision is to deny". But the program will actually be allowed to run.
+
+You can run the daemon from the command line with --debug-deny command line option. This culls the event notification to only print the denials. If this is running cleanly, then you can remove the --permissive option and get true denials. Now retest above steps and see the difference.
+
+## DEBUG MODE
+
+https://github.com/linux-application-whitelisting/fapolicyd#debug-mode
+
+In debug mode, you will see events such as this:
+
+```
+rule:9 dec=deny_audit perm=execute auid=1001 pid=14137 exe=/usr/bin/bash : file=/home/joe/my-ls ftype=application/x-executable
+
+```
+
+What this is saying is rule 9 made the ultimate Decision that was followed. The Decision is to deny access and create an audit event. The subject is the user that logged in as user id 1001. The subject's process id that is trying to perform an action is 14137. The current executable that the subject is using is bash. Bash wanted permission to execute /home/joe/my-ls which is the object. And the object is an ELF executable.
+
+Sometimes you want to list out the rules to see what rule 9 might be. You can easily do that by running:
+
+```
+fapolicyd-cli --list
+
+```
+
+Also, in fapolicyd.conf, there is a configuration option, syslog_format, which can be modified to output information the way you want to see it. So, if you think auid in uninteresting you can delete it. If you want to see the device information for the file being accessed, you can add it. You can also enable this information to go to syslog by changing the rules to not say audit, but instead have syslog or log appended to the allow or deny decision.
+
+## OVERRIDE MOUNTS WHILE DEBUGGING
+
+https://github.com/linux-application-whitelisting/fapolicyd#override-mounts-while-debugging
+
+When debugging you can specify an alternative mounts file to the deamon to watch for event notifications. This allows for finer level of control than is achievable by filtering by filesystem type.
+
+The alternative mounts file will expect the same format as /proc/mounts, which allows us to select entries from /proc/mounts into a new file which fapolicyd will use as the mount source.
+
+For example, use grep to select a single mount point:
+
+```
+mount -t tmpfs tmpfs /tmp/my-test-dir
+grep my-test-dir /proc/mounts > /tmp/my-test-mounts
+fapolicyd --debug --mounts=/tmp/my-test-mounts
+
+```
+
+Here we mount a tmpfs for testing in /tmp, and grep it from /proc/mounts into the overriding mounts file, then run fapolicyd in debug mode while specifying the override file. The result is fapolicyd only receives events that occur in /tmp/my-test-dir.
+
+## WRITING RULES
+
+https://github.com/linux-application-whitelisting/fapolicyd#writing-rules
+
+The authoritative source is the fapolicyd.rules man page.
+
+It is suggested that people use the known-libs set of rules. This set of rules is designed to allow anything that is trusted to execute. It's design is to stay out of your way as much as possible. All that you need to do is add unpackaged but trusted files to the trust database. See the "Managing Trust" section for more.
+
+But if you had to write rules, they follow a simple "decision permission subject : object" recipe. The idea is to write a couple things that you want to allow, and then deny everything else. For example, this is how shared libraries are handled:
+
+```
+allow perm=open all : ftype=application/x-sharedlib trust=1
+deny_audit perm=open all : ftype=application/x-sharedlib
+
+```
+
+What this says is let any program open shared libraries if the library being opened is trusted. Otherwise, deny with an audit event any open of untrusted libraries.
+
+First and foremost, fapolicyd rules are based on trust relationships. It is not meant to be an access control system of Mandatory Access Control Policy. But you can do that. It is not recommended to do this except when necessary. Every rule that is added has to potentially be evaluated - which delays the decision.
+
+If you needed to allow admins access to ping, but deny it to everyone else, you could do that with the following rules:
+
+```
+allow perm=any gid=wheel : trust=1 path=/usr/bin/ping
+deny_audit perm=execute all : trust=1 path=/usr/bin/ping
+
+```
+
+You can similarly do this for trusted users that have to execute things in the home dir. You can create a trusted_user group, add them the group, and then write a rule allowing them to execute from their home dir.
+
+When you want to use user or group name (as a string). You have to guarantee that these names were correctly resolved. In case of systemd, you need to add a new after target 'After=nss-user-lookup.target'. To achieve that you can use systemctl edit --full fapolicyd, uncomment the respective line and save the change.
+
+```
+allow perm=any gid=trusted_user : ftype=%languages dir=/home
+deny_audit perm=any all : ftype=%languages dir=/home
+
+```
+
+One thing to point out, if you have lists of things that you would like to allow, use the macro set support as illustrated in this last example. This puts the list into a sorted AVL tree so that searching is cut to a minimum number of compares.
+
+The exe and path rule attributes also accept fnmatch glob patterns for paths with a necessary variable component. Prefix each pattern with glob:, as in glob:/opt/vendor/product-*/bin/tool, to distinguish it from an exact path. Unprefixed values remain exact even when their file names contain *, ?, or [ characters. Wildcards do not cross / or implicitly match a leading period, and ** recursive matching is not supported. Continue to use dir for a complete subtree under a fixed directory and exact values or sets when the paths are known. The glob: prefix is a rule error on dir and all attributes other than exe and path; fapolicyd-cli --check-rules reports these errors without expanding valid patterns.
+
+A glob selects matching paths but does not trust them. In particular, it is not advisable to allow execution from a user-writable path solely because its name matches a glob. It is strongly suggested to pair an object path allow with object trust=1 or an explicit FILE_HASH; pair a subject exe glob in a user-writable location with subject trust=1. The trust database continues to contain concrete paths; see the fapolicyd.rules(5) man page for the complete globbing contract.
+
+One last note, the rule engine is a first match wins system. If you are adding rules to allow something but it gets denied by a rule higher up, then move your rule above the thing that denies it. But again, if you are writing rules to allow execution, you should reconsider if adding the programs to the trust database is better.
+
+## RULE ORDERING
+
+https://github.com/linux-application-whitelisting/fapolicyd#rule-ordering
+
+Starting with 1.1, the rules should be placed in a rules.d directory under the fapolicyd configuration directory. There is a new utility, fagenrules, which will compile the rules into a single file, compiled.rules, and place the resulting file in the main config directory.
+
+Starting with 2.0, fagenrules validates the generated candidate with the daemon policy parser before installation. It syncs and atomically renames a validated candidate into compiled.rules, leaving the installed file in place until the replacement is ready. It prints a SHA-256 ruleset identity when the rules are unchanged or successfully updated. Use fagenrules --check to determine whether the assembled policy needs an update without replacing compiled.rules.
+
+If you want to migrate your existing rules, just move them as is to the rules.d directory. You cannot have both compiled.rules and fapolicyd.rules. The fagenrules will notice this and put a warning in syslog. If you use fapolicyd-cli --list, it will also notice and warn. If you do have both files, the old rules file will be used instead of the new one.
+
+This new rules.d directory is intended to make it easier to develop application specific rules that can be dropped off by automation / orchestration. This should make managing the configuration easier.
+
+The files in the rules.d directory are processed in a specific order. See the [rules.d README](https://github.com/linux-application-whitelisting/fapolicyd/blob/main/rules.d/README-rules) file for more information.
+
+Rules can be validated before they are installed or reloaded by running:
+
+```
+fapolicyd-cli --check-rules [path]
+
+```
+
+If no path is given, the active rules file is checked. The --lint option adds policy-shape warnings for rules that may unintentionally allow executable or programmatic content to reach the default allow decision. Runtime rule reloads are transactional: a candidate ruleset is parsed and validated before it replaces the active policy, so a failed reload preserves the previous published ruleset.
+
+## REPORT
+
+https://github.com/linux-application-whitelisting/fapolicyd#report
+
+On shutdown the daemon will write an object access report to /var/log/fapolicyd-access.log. The report is from oldest access to newest. Timestamps are not included because that would be a severe performance hit. The report gives some basic forensic information about what was being accessed.
+
+## PERFORMANCE
+
+https://github.com/linux-application-whitelisting/fapolicyd#performance
+
+When a program opens a file or calls execve, that thread has to wait for fapolicyd to make a decision. To make a decision, fapolicyd has to lookup information about the process and the file being accessed. Each system call fapolicyd has to make slows down the system.
+
+To speed things up, fapolicyd caches everything it looks up so that subsequent access uses the cache rather than looking things up from scratch. But the cache is only so big. You are in control of it, though. You can make both subject and object caches bigger. When the program ends, it will output some performance statistic like this into /var/log/fapolicyd-access.log or the screen:
+
+```
+Permissive: false
+q_size: 640
+Inter-thread max queue depth 7
+Allowed accesses: 70397
+Denied accesses: 4
+Trust database max pages: 14848
+Trust database pages in use: 10792 (72%)
+
+Subject cache size: 1549
+Subject slots in use: 369 (23%)
+Subject hits: 70032
+Subject misses: 455
+Subject evictions: 86 (0%)
+
+Object cache size: 8191
+Object slots in use: 6936 (84%)
+Object hits: 63465
+Object misses: 17964
+Object evictions: 11028 (17%)
+
+```
+
+In this report, you can see that the internal request queue maxed out at 7. This means that the daemon had at most 7 threads/processes waiting. This shows that it got a little backed up but was handling requests pretty quick. If this number were big, like more than 200, then increasing the q_size may be necessary.
+
+Another statistic worth looking at is the hits to evictions ratio. When a request has nowhere to put information, it has to evict something to make room. This is done by a LRU cache which naturally determines what's not getting used and makes it's memory available for re-use.
+
+In the above statistics, the subject hit ratio was 95%. The object cache was not quite as lucky. For it, we get a hit ration of 79%. This is still good, but could be better. This would suggest that for the workload on that system, the cache could be a little bigger. If the number used for the cache size is a prime number, you will get less cache churn due to collisions than if it had a common denominator. Some primes you might consider for cache size are: 2039, 4099, 6143, 8191, 10243, 12281, 16381, 20483, 24571, 28669, 32687, 40961, 49157, 57347, 65353, etc.
+
+## Decision worker tuning
+
+https://github.com/linux-application-whitelisting/fapolicyd#decision-worker-tuning
+
+Starting with 2.0, decision_threads controls the number of decision workers. The default is 1. Each worker has its own event queue, subject cache, object cache, and subject defer array, so q_size, subj_cache_size, and obj_cache_size are per-worker values. This setting requires a daemon restart.
+
+Increase the worker count only after observing persistent queue pressure under a representative workload: a high inter-thread queue depth relative to q_size, a non-zero queue-full count, or a growing oldest queued age. Start with two workers and compare the per-worker queue, cache, and defer data before making another change. A busy single PID remains on one stable worker, so one hot worker and idle peers can indicate workload skew rather than a need to continually increase the count.
+
+For day to day monitoring, fapolicyd-cli --check-status reports daemon health and configuration state, while fapolicyd-cli --check-metrics reports runtime counters. The status report includes health indicators such as kernel queue overflows, filesystem health events, reply errors, and deferred-subject pressure. The metrics report includes rule hit counts, default-allow fallthrough decisions, cache effectiveness, and subject/object attribute lookup activity.
+
+Starting with 1.6, status and metrics reports also identify the active configuration, ruleset, trust database, and LMDB environment generations. This helps correlate a report with the live state that was active after a reload, trust database rebuild, or controlled compaction.
+
+State and metrics reports can be scheduled periodically by setting the configuration option report_interval. This option is set to 0 by default, which disables the reporting interval. A positive value for this option specifies the number of seconds to wait between reports. Runtime metric counters can be reset with fapolicyd-cli --reset-metrics when the daemon is configured with reset_strategy=manual. Rule hit counters naturally reset when a new ruleset is loaded, and --reset-metrics also clears them after reporting so the current rules can be tested from a fresh counter window.
+
+For bounded latency investigations, set timing_collection=manual and use fapolicyd-cli --timing-start followed by fapolicyd-cli --timing-stop. This produces a decision timing report with aggregate queue, decision, and helper latency information without storing one timing record per decision.
+
+Also, it should be mentioned that the more rules in the policy, the more rules it will have to iterate over to make a decision. As for the system performance impact, this is very workload dependent. For a typical desktop scenario, you won't notice it's running. A system that opens lots of random files for short periods of time will have more impact.
+
+Another configuration option that can affect performance is the integrity setting. If this is set to sha256, then every miss in the object cache will cause a hash to be calculated on the file being accessed. One trade-off would be to use size checking rather than sha256. This is not as secure, but it is an option if performance is problematic.
+
+## Use ignore_mounts with great care
+
+https://github.com/linux-application-whitelisting/fapolicyd#use-ignore_mounts-with-great-care
+
+Starting with fapolicyd-1.3.8, there is a new performance option, ignore_mounts. ignore_mounts removes selected mount points from fanotify monitoring to reduce overhead on very busy filesystems (for example, cache or logging partitions). This improves performance at the cost of visibility: when a mount is ignored, fapolicyd does not see opens/reads from that tree and cannot apply policy decisions there.
+
+### When to consider it
+
+https://github.com/linux-application-whitelisting/fapolicyd#when-to-consider-it
+
+-
+
+High-churn data-only mounts where monitoring provides little value (e.g. cache directories, file/content serving directories, or dedicated logging partitions).
+
+-
+
+Workloads that are well understood and controlled, with correct ownership/permissions/SELinux labels and no expectation that content will be treated as code.
+
+### Risks
+
+https://github.com/linux-application-whitelisting/fapolicyd#risks
+
+-
+
+Interpreter and plugin gaps: Even with noexec, trusted interpreters (shell, Python, Java, Node.js, etc.) and applications that load plugins/bytecode may read and act on files from the ignored mount. Those accesses bypass fapolicyd because the mount is not watched.
+
+-
+
+Policy blind spots: Content copied into the ignored tree won’t be evaluated while it resides there and may only be detected after it moves to a monitored location.
+
+-
+
+Coverage assumptions: The root filesystem / is always monitored. Do not use ignore_mounts to work around denials for native ELF binaries; that is not its purpose.
+
+### Required guardrails
+
+https://github.com/linux-application-whitelisting/fapolicyd#required-guardrails
+
+-
+
+Each ignored mount must be mounted with noexec. This prevents direct ELF execve() from that mount. If noexec is missing, / is still monitored and the first observed event will be the runtime linker which will trigger the ld_so pattern detection which will deny access. Due to this certain denial, fapolicyd refuses to ignore mount points not mounted with noexec. Mounting with noexec does not mitigate interpreter/JIT/plugin scenarios.
+
+-
+
+Advisory pre-check before changing configuration:
+
+```
+    fapolicyd-cli --check-ignore_mounts[=MOUNT] [--verbose]
+
+```
+
+This verifies the mount exists, confirms noexec, scans for executable regular files, ELF/shared objects, archives/JARs/ZIPs, bytecode caches, plugin/runtime directories, and files matching the %languages macro. It reports counts by risk category, and --verbose lists each matching file or directory with its categories so automation can gate configuration changes.
+
+- Add entries exactly as shown in the second column of /proc/mounts. Whitespace around comma-separated entries is ignored.
+
+### Conflicts and notes
+
+https://github.com/linux-application-whitelisting/fapolicyd#conflicts-and-notes
+
+-
+
+/ is always monitored.
+
+-
+
+Do not combine this option with allow_filesystem_mark=1; the daemon will refuse the configuration.
+
+## MEMORY USAGE
+
+https://github.com/linux-application-whitelisting/fapolicyd#memory-usage
+
+Fapolicyd uses LMDB as its trust database. LMDB is fast because it uses the kernel virtual memory system to map the database. The db_max_size configuration option controls the maximum LMDB map size.
+
+Starting with the 1.6 release, the shipped default is:
+
+```
+db_max_size = auto
+
+```
+
+Users with an older numeric db_max_size setting should migrate to db_max_size = auto with this release unless they have a specific operational requirement for a fixed manual limit. Auto sizing starts from the historical 100 MiB baseline and lets the daemon grow or shrink the LMDB map as the trust database and package set change.
+
+Auto sizing is also aware of reload headroom. A trust database reload builds a candidate generation while the current generation remains available to active readers. That means safe sizing needs room for the active trust database, the candidate generation, and LMDB copy-on-write metadata.
+
+Use the status report to inspect the current trust database sizing state:
+
+```
+fapolicyd-cli --check-status
+
+```
+
+The most useful fields are:
+
+```
+Trust database max pages
+Trust database pages in use
+Trust database allocated high-water pages
+Retired trust database generations
+Trust database resize recommended
+Trust database resize target
+Trust database compaction recommended
+Trust database compaction target
+
+```
+
+Trust database pages in use is the active trust database footprint. Trust database allocated high-water pages is LMDB's physical allocation high-water mark. The high-water value can be larger than active use after reload churn.
+
+Manual numeric values are not changed by the daemon. If a system keeps a manual db_max_size and the status report says resize is recommended, either set db_max_size to at least the reported target or migrate the system to:
+
+```
+db_max_size = auto
+
+```
+
+If the status report says compaction is recommended, use the controlled maintenance command:
+
+```
+sudo fapolicyd-cli --compact-trustdb
+
+```
+
+This rebuilds and validates a replacement LMDB environment, then swaps it into place during a controlled handoff. Normal package and trust file updates should still use fapolicyd-cli --update.
+
+Starting with the 0.9.4 release, the rpm backend filters most files in the /usr/share directory. It keeps anything with a with a python extension or a libexec directory. It also keeps /usr/src/kernel so that Akmod can still build drivers on a kernel update.
+
+## TROUBLESHOOTING
+
+https://github.com/linux-application-whitelisting/fapolicyd#troubleshooting
+
+Whatever you do, DO NOT TRY TO ATTACH WITH PTRACE. Ptrace attachment sends a SIGSTOP which cannot be blocked. Since your whole system depends on fapolicyd approving access to glibc and various critical libraries, that will not happen until SIGCONT is sent. The system can deadlock if the continue signal is not sent. Using gdb will have the same results. With that in mind, let's talk about troubleshooting steps...
+
+If you are using deny_audit and you are not getting any audit events, the fix is to add 1 audit rule. It can be a rule about anything. Watches tend to be the highest performance, so maybe just add a watch for writes to etc shadow and restart the audit daemon so the rule gets loaded.
+
+```
+-w /etc/shadow -p w
+
+```
+
+When fapolicyd blocks something, it will generate an audit event if the Decision is deny_audit and it has been compiled with the auditing option. The audit system must have at least 1 audit rule loaded to create the full FANOTIFY event. It doesn't matter what rule. To see if you have any denials, you can run:
+
+```
+ausearch --start today -m fanotify --raw | aureport --file --summary
+
+File Summary Report
+===========================
+total  file
+===========================
+16  /sbin/ldconfig
+1  /home/joe/./my-ls
+
+```
+
+You can also see which executables are involved like this:
+
+```
+ausearch --start today -m fanotify -f /sbin/ldconfig --raw | aureport -x --summary
+
+Executable Summary Report
+=================================
+total  file
+=================================
+16  /usr/bin/python3.7
+
+```
+
+However, you probably want to know the rule that is blocking it. Unfortunately the audit system cannot tell you this unless you are using the 6.3 kernel or later. What you can do is change the decisions to deny_log. This will write the event to syslog as well as the audit log. In syslog, you will have the same output as the debug mode.
+
+The shipped rules expect that everything installed is in the trust database. If you have installed anything by unzipping it or untarring it, then you need to add the executables, libraries, and modules to the trust database. See the MANAGING THE FILE TRUST SOURCE section for instructions on how to do this.
+
+You can ask fapolicyd to include the trust information by adding trust to the end of the syslog_format configuration option. The things that you need to know to debug the policy is:
+
+- The rule triggering
+- The executable accessing the file
+- The object file type
+- The trust value
+
+Look at the rule that triggered and see if it makes sense that it triggered. If the rule is a catch all denial, then check if the file is in the trust db. To see the rule that is being triggered, either reproduce the problem with the daemon running in debug-deny mode or change the rules from deny_audit to deny_syslog. If you choose this method, the denials will go into syslog. To see them run:
+
+```
+journalctl -b -u fapolicyd.service
+
+```
+
+to list out any events since boot by the fapolicyd service.
+
+On systemd builds with watchdog support, the installed service uses Type=notify, WatchdogSec=10s, and Restart=on-failure. The health monitor refreshes the watchdog while decision workers make progress. Adjust the watchdog with a systemd drop-in rather than editing the packaged unit; see [the systemd watchdog documentation](https://github.com/linux-application-whitelisting/fapolicyd/blob/main/doc/systemd-watchdog.md).
+
+Starting with 1.1, fapolicyd-cli includes diagnostic and maintenance capabilities.
+
+| Option  | Added in  | What it does
+
+| --check-config  | 1.1  | Parse fapolicyd.conf for syntax errors.
+
+| --check-trustdb  | 1.1  | Check the trustdb against files on disk for mismatches that can cause run time problems.
+
+| --check-watch_fs  | 1.1  | Compare mounted file systems with the watch_fs daemon configuration.
+
+| --check-status  | 1.1.4  | Output daemon health and configuration state. Starting in 1.6, active generations and trust DB sizing guidance.
+
+| --check-path  | 1.1.5  | Check that every file in $PATH is in the trustdb.
+
+| --test-filter  | 1.3.6  | Test a path against filter rules to see whether it will be trusted.
+
+| --check-ignore_mounts  | 1.4  | Check ignored mounts for noexec and suspicious files.
+
+| --check-metrics  | 1.5  | Output runtime counters, rule hits, cache effectiveness, and attribute lookup metrics. Starting in 1.6, generation context.
+
+| --check-rules [path]  | 1.5  | Validate rule syntax without loading the rules; use --lint for policy-shape warnings.
+
+| --reset-metrics  | 1.5  | Output metrics and request a counter reset when the daemon configuration allows it.
+
+| --timing-start  | 1.5  | Start a manual decision timing collection run.
+
+| --timing-stop  | 1.5  | Stop manual decision timing collection and output the timing report.
+
+| --timer-start  | 1.5  | Alias for --timing-start.
+
+| --timer-stop  | 1.5  | Alias for --timing-stop.
+
+| --compact-trustdb  | 1.6  | Rebuild and compact the daemon trustdb LMDB environment.
+
+| --check-status and --check-metrics  | 2.0  | Include aggregate and per-decision-worker health, queue, cache, and defer data.
+
+## MANAGING TRUST
+
+https://github.com/linux-application-whitelisting/fapolicyd#managing-trust
+
+Fapolicyd use lmdb as a backend database for its trusted software list. You can find this database in /var/lib/fapolicyd/. This list gets updated whenever packages are installed by dnf or rpm by a rpm plugin.
+
+The files that go into the trust database from rpm go through a filter to eliminate as many unimportant files as possible so that the trust database is concise. To see what kinds of files are in the trust database, you can try this:
+
+```
+fapolicyd-cli -D  | awk '{print $2}'  | awk -F/ '{
+     base=$NF
+     ext="*"
+     if (base !~ /^\./ && base ~ /\./) {
+       n=split(base,a,"."); ext="*."a[n]
+     }
+     path=""
+     for(i=1;i<NF;i++) if($i!="") path=path"/"$i
+     print path"/"ext
+   }'  | sort | uniq -c | sort -nr | less
+
+```
+
+This will show you which directories and file extensions are present like this:
+
+```
+   4913 /usr/bin/*
+   2028 /usr/lib/python3.13/site-packages/yt_dlp/extractor/__pycache__/*.pyc
+   1937 /usr/lib64/R/library/Matrix/help/*.html
+   1622 /usr/lib64/R/library/base/help/*.html
+
+```
+
+Another view that you may find handy is an aggregate roll up of the trust database:
+
+```
+fapolicyd-cli -D  | \
+awk '{split($2, a, "."); print a[length(a)]}' | \
+sort | uniq -c | sort -nr | less
+
+```
+
+Which gives a summary by type:
+
+```
+  17426 xz
+  13571 h
+  11734 html
+   7873 go
+   5598 json
+
+```
+
+This could give you the idea to get rid of the html files since there are a lot and they do not need to be considered trusted. Files that are in the trusted database should be known files that will get executed. See the fapolicyd-filter.conf man page for more information about writing filter rules.
+
+One last thing about the trustdb, lmdb is a very fast database. Normally it works fine. But it does not tolerate malformed databases. If the status report recommends compaction because the LMDB high-water mark is much larger than the active trust database, use fapolicyd-cli --compact-trustdb. If the database is malformed and cannot be opened, the fix is to delete the database and restart the daemon. It will then rebuild the database and work as it should. To do this, run the following command:
+
+```
+fapolicyd-cli --delete-db
+
+```
+
+## MANAGING THE FILE TRUST SOURCE
+
+https://github.com/linux-application-whitelisting/fapolicyd#managing-the-file-trust-source
+
+Starting with 0.9.4, the fapolicyd command line utility can help you manage the file trust database. For example, suppose you have an application and its files over in /opt, you can add them all with the following command:
+
+```
+fapolicyd-cli --file add /opt/my-app/
+
+```
+
+The command line utility will walk the directory tree and add all files to fapolicyd.trust. To do this, it opens each one and calculates the sha256 hash of the file and write that information to the new entry. Later if you decide to uninstall that app and you want to cleanup the list, then simply run:
+
+```
+fapolicyd-cli --file delete /opt/my-app/
+
+```
+
+The command line utility will remove all files that match that directory from fapolicyd.trust. There is also a --file update extension that can update the size and hash information with what is currently on disk.
+
+If files are added or deleted into the file trust database, fapolicyd does not get a notification. In that case, you would also need to tell the daemon that it needs to update the trust database. This is done by running fapolicyd-cli and passing along the --update option.
+
+Sometimes you want to see what is stored in the combined file and rpm trust database. In this case you can use the dump command
+
+```
+fapolicyd-cli --dump-db
+
+```
+
+which will dump which database the entry came from, path, size, and hash value.
+
+## GUI
+
+https://github.com/linux-application-whitelisting/fapolicyd#gui
+
+If you need a GUI to create policy, manage trust, analyze policy, test policy, and deploy rules, you might want to checkout the [fapolicy-analyzer](https://github.com/ctc-oss/fapolicy-analyzer) project. RPM packages are in Fedora and EPEL.
+
+## More Information
+
+https://github.com/linux-application-whitelisting/fapolicyd#more-information
+
+There are documents and unsupported tools that can help you understand fapolicyd and the fanotify API it depends on over in the [fapolicyd-extras repo](https://github.com/linux-application-whitelisting/fapolicyd-extras).
+
+## FAQ
+
+https://github.com/linux-application-whitelisting/fapolicyd#faq
+
+- Can this work with other distributions?
+
+Absolutely! There is a backend API that any trust source has to implement. This API is located in fapolicyd-backend.h. A new backend needs an init, load, and destroy function. So, someone who knows the debian package database, for example, could implement a new backend and send a pull request. We are looking for collaborators.
+
+An initial implementation for Debian distributions has been added. Run:
+
+```
+cd deb
+./build_deb.sh
+
+```
+
+To build the .deb package that uses the debdb backend. You must add rules to /etc/fapolicyd/rules.d/ and change configuration in /etc/fapolicyd/fapolicyd.conf to use trust=debdb after installation. The debdb import applies fapolicyd-filter.conf before package-owned paths enter the trust database. On package sets where the filter excludes many files, this reduces the active LMDB footprint and can reduce memory residency and improve trust lookup time.
+
+Also, if the distribution is very small, you can use the file trust database file. Just add the places where libraries and applications are stored.
+
+- Can SE Linux or AppArmor do this instead?
+
+SE Linux is modeling how an application behaves. It is not concerned about where the application came from or whether it's known to the system. Basically, anything in /bin gets bin_t type by default which is not a very restrictive label. MAC systems serve a different purpose. Fapolicyd by design cares solely about if this is a known application/library. These are complimentary security subsystems. There is more information about application whitelisting use cases at the following NIST website:
+
+https://www.nist.gov/publications/guide-application-whitelisting
+
+- Does the daemon check file integrity?
+
+Version 0.9.5 and later supports 3 modes of integrity checking. The first is based on file size. In this mode, fapolicyd will take the size information from the trust db and compare it with the measured file size. This test incurs no overhead since the file size is collected when establishing uniqueness for caching purposes. It is intended to detect accidental overwrites as opposed to malicious activity where the attacker can make the file size match.
+
+The second mode is based on using IMA to calculate sha256 hashes and make them available through extended attributes. This incurs only the overhead of calling fgetxattr which is fast since there is no path name resolution. The file system must support i_version. For XFS, this is enabled by default. For other file systems, this means you need to add the iversion mount option. In either case, IMA must be setup appropriately.
+
+The third mode is where fapolicyd calculates a SHA256 hash of the file itself and compares that with what is stored in the trust db.
+
+- This is only looking at location. Can't this be defeated by simply moving the files to another location?
+
+Yes, this is checking to see if this is a known file. Known files have a known location. The shipped policy prevents execution from /tmp, /var/tmp, and $HOME based on the fact that no rpm package puts anything there. Also, moving a file means it's no longer "known" and will be blocked from executing. And if something were moved to overwrite it, then the hash is no longer the same and that will make it no longer trusted.
+
+- Does this protect against root modifications?
+
+If you are root, you can change the fapolicyd rules or simply turn off the daemon. So, this is not designed to prevent root from doing things. None of the integrity subsystems on Linux are designed to prevent root from doing things. There has to be a way of doing updates or disabling something for troubleshooting. For example, you can change IMA to ima_appraise=fix in /etc/default/grub. You can run setenforce 0 to turn off SELinux. You can also set selinux=0 or enforcing=0 for the boot prompt. The IPE integrity subsystem can be turned off via
+
+```
+echo -n 0 > "/sys/kernel/security/ipe/Ex Policy/active"
+
+```
+
+and so on. Since they can all be disabled, the fact that an admin can issue a service stop command is not a unique weakness.
+
+- How do you prevent race conditions on startup? Can something execute before the daemon takes control?
+
+One of the design goals is to take control before users can login. Users are the main problem being addressed. They can pip install apps to the home dir or do other things an admin may wish to prevent. Only root can install things that run before login. And again, root can change the rules or turn off the daemon.
+
+Another design goal is to prevent malicious apps from running. Suppose someone guesses your password and they login to your account. Perhaps they wish to ransomware your home dir. The app they try to run is not known to the system and will be stopped. Or suppose there is an exploitable service on your system. The attacker is lucky enough to pop a shell. Now they want to download privilege escalation tools or perhaps an LD_PRELOAD key logger. Since neither of these are in the trust database, they won't be allowed to run.
+
+This is really about stopping escalation or exploitation before the attacker can gain any advantage to install root kits. If we can do that, UEFI secure boot can make sure no other problems exist during boot.
+
+Wrt to the second question being asked, fapolicyd starts very early in the boot process and startup is very fast. It's running well before other login daemons.
+
+## NOTES
+
+https://github.com/linux-application-whitelisting/fapolicyd#notes
+
+-
+
+It's highly recommended to run in permissive mode while you are testing the daemon's policy.
+
+-
+
+Stracing the fapolicyd daemon WILL DEADLOCK THE SYSTEM.
+
+-
+
+About shell script restrictions...there's not much difference between running a script or someone typing things in by hand. The aim at this point is to check that any program it calls meets the policy.
+
+-
+
+Some interpreters do not immediately read all lines of input. Rather, they read content as needed until they get to end of file. This means that if they do stuff like networking or sleeping or anything that takes time, someone with the privileges to modify the file can add to it after the file's integrity has been checked. This is not unique to fapolicyd, it's simply how things work. Make sure that trusted file permissions are not excessive so that no unexpected file content modifications can occur.
+
+-
+
+If for some reason rpm database errors are detected, you may need to do the following:
+
+```
+1. db_verify /var/lib/rpm/Packages
+if OK, then
+2. rm -f /var/lib/rpm/__db*
+3. rpm --rebuilddb
+
+```
+
+[1] - https://git.kernel.org/pub/scm/linux/kernel/git/jack/linux-fs.git/commit/?id=66917a3130f218dcef9eeab4fd11a71cd00cd7c9

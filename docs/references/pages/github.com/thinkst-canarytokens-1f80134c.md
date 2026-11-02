@@ -1,0 +1,208 @@
+---
+url: "https://github.com/thinkst/canarytokens"
+title: "GitHub - thinkst/canarytokens: Canarytokens helps track activity and actions on your network"
+site: "GitHub"
+captured: "2026-11-02T19:08:29Z"
+via: "live"
+sha256: "7c01ec0440dcd136403afc0920358e3b49fcfce16a3696be158b9e8833339842"
+wayback: "https://web.archive.org/web/20261024025955/https://github.com/thinkst/canarytokens"
+cited_in:
+  - "docs/threats/06-credential-and-secret-protection.md"
+---
+
+# GitHub - thinkst/canarytokens: Canarytokens helps track activity and actions on your network
+
+> Archived copy of a third-party page, kept so Bigman's findings survive if the original goes away. Copyright stays with the original publisher; cite the original URL.
+>
+> Original: <https://github.com/thinkst/canarytokens>
+> Snapshot: <https://web.archive.org/web/20261024025955/https://github.com/thinkst/canarytokens>
+
+https://camo.githubusercontent.com/a61be5d2a6871f1f11c00d8b0e6026ed50460adde75ab101550391a1e82b52e7/687474703a2f2f63616e617279746f6b656e732e6f72672f7265736f75726365732f6c6f676f2e706e67
+
+# Canarytokens
+
+https://github.com/thinkst/canarytokens#canarytokens
+
+by Thinkst Applied Research
+
+## Overview
+
+https://github.com/thinkst/canarytokens#overview
+
+Canarytokens help track activity and actions on your network.
+
+If you have any issues please check out our FAQ over [here](https://github.com/thinkst/canarytokens/wiki#), or create an issue and we'll try to get back to you as soon as possible.
+
+## Table of Contents
+
+https://github.com/thinkst/canarytokens#table-of-contents
+
+- [Code of Conduct](https://github.com/thinkst/canarytokens#code-of-conduct)
+- [Deprecations](https://github.com/thinkst/canarytokens#deprecations)
+- [Installation](https://github.com/thinkst/canarytokens#installation)
+- [Configuration](https://github.com/thinkst/canarytokens#configuration)
+- [AWS ID infrastructure](https://github.com/thinkst/canarytokens#aws-id-infrastructure)
+- [Configuration of Outgoing SMTP](https://github.com/thinkst/canarytokens#configuration-of-outgoing-smtp)
+- [Alert throttling](https://github.com/thinkst/canarytokens#alert-throttling)
+- [Webhook failure limiting](https://github.com/thinkst/canarytokens#webhook-failure-limiting)
+- [FAQ](https://github.com/thinkst/canarytokens#faq)
+- [Contributing](https://github.com/thinkst/canarytokens#contributing)
+
+## Code of Conduct
+
+https://github.com/thinkst/canarytokens#code-of-conduct
+
+This project and everyone participating in it is governed by the [Code of Conduct](https://github.com/thinkst/.github/blob/master/CODE_OF_CONDUCT.md). By participating, you are expected to uphold this code. Please report unacceptable behavior to github@thinkst.com.
+
+## Deprecations
+
+https://github.com/thinkst/canarytokens#deprecations
+
+- The Slack API Token is deprecated and it's no longer possible to create new ones. Old tokens will still work.
+
+## Installation
+
+https://github.com/thinkst/canarytokens#installation
+
+We recommend [the Docker image installation process](https://github.com/thinkst/canarytokens-docker).
+
+## Configuration
+
+https://github.com/thinkst/canarytokens#configuration
+
+The Canarytokens server can use many different settings configurations. You can find them in settings.py. There are two main settings files: frontend.env and switchboard.env.
+
+The frontend.env contains the frontend process settings such as:
+
+- CANARY_DOMAINS=mytesttokensdomain.com
+- CANARY_NXDOMAINS=pdf.demo.canarytokens.net
+- CANARY_AWSID_URL=
+- CANARY_AWSID_AUTH=
+- CANARY_AWSID_GUID=
+- CANARY_AWSID_CONTROL_ACCOUNT_ID=
+- CANARY_WEB_IMAGE_UPLOAD_PATH=/uploads
+- CANARY_GOOGLE_API_KEY=
+- LOG_FILE=frontend.log
+
+The switchboard.env contains the switchboard process settings such as:
+
+| Variable Name  | Value
+
+| CANARY_MAILGUN_DOMAIN_NAME  |
+
+| CANARY_MAILGUN_API_KEY  |
+
+| CANARY_MANDRILL_API_KEY  |
+
+| CANARY_SENDGRID_API_KEY  |
+
+| CANARY_PUBLIC_IP  |
+
+| CANARY_PUBLIC_DOMAIN  |
+
+| CANARY_ALERT_EMAIL_FROM_ADDRESS  | noreply@yourdomain.com
+
+| CANARY_ALERT_EMAIL_FROM_DISPLAY  | "Canarytoken Mailer"
+
+| CANARY_ALERT_EMAIL_SUBJECT  | "Alert"
+
+| CANARY_MAX_ALERTS_PER_MINUTE  | 1000
+
+| CANARY_SMTP_USERNAME  |
+
+| CANARY_SMTP_PASSWORD  |
+
+| CANARY_SMTP_SERVER  | smtp.gmail.com
+
+| CANARY_IPINFO_API_KEY  | <ipinfo.io api key>
+
+| CANARY_SMTP_PORT  | 587
+
+| CANARY_WEB_IMAGE_UPLOAD_PATH  | /uploads
+
+| LOG_FILE  | switchboard.log
+
+| ERROR_LOG_WEBHOOK  |
+
+| CANARY_FORCE_HTTPS  | force https protocol scheme for Canarytokens
+
+| CANARY_LAMBDA_AWS_CRED_REPORT_AUTH  |
+
+Please note that when choosing which email provider you would like to use, you MUST only provide information related to that provider. E.g. if you have CANARY_MAILGUN_API_KEY then you must remove the others such as CANARY_SENDGRID_API_KEY and CANARY_MANDRILL_API_KEY.
+
+If you are using Mailgun's European infrastructure for your Canarytokens Server, you will need to add CANARY_MAILGUN_BASE_URL=https://api.eu.mailgun.net to your switchboard.env. If you do not specify that, we will use the regular URL as 'https://api.mailgun.net' as the default.
+
+### AWS ID infrastructure
+
+https://github.com/thinkst/canarytokens#aws-id-infrastructure
+
+AWS API key Canarytokens use AWS-side infrastructure to allocate IAM users and run safety-net checks. That infrastructure has moved to a private repo.
+
+This repo still owns the Canarytokens-facing integration points:
+
+- CANARY_AWSID_URL in frontend.env is the API Gateway/Lambda URL for the LinkAWSIDTokenUserToCanaryConsole endpoint managed from the private repo.
+- CANARY_AWSID_AUTH in frontend.env must match the auth token in the AWS ID secret. The frontend sends domain, token, auth, and guid when creating an AWS key token.
+- CANARY_AWSID_GUID identifies the Canarytokens instance when allocating and deleting AWS key tokens.
+- CANARY_AWSID_CONTROL_ACCOUNT_ID is the AWS account ID that owns the AWS ID deletion queue.
+- If either CANARY_AWSID_URL or CANARY_AWSID_AUTH is unset, AWS key token creation is disabled for this Canarytokens instance.
+- CANARY_LAMBDA_AWS_CRED_REPORT_AUTH in switchboard.env enables the /a/cr callback used by the AWS ID credential report checker.
+
+### Configuration of Outgoing SMTP
+
+https://github.com/thinkst/canarytokens#configuration-of-outgoing-smtp
+
+When configuring outgoing SMTP please consider the following:
+
+Restrictions:
+
+- no other provider like Mailgun or Sendgrid must be configured for this to work
+- For AWS SES CANARY_ALERT_EMAIL_FROM_DISPLAY should be in the format: CANARY_ALERT_EMAIL_FROM_DISPLAY=CanaryAlert <canaryalert@my-email-domain.here>
+
+Note: SMTP alert emails send an RFC-compliant From header. If CANARY_ALERT_EMAIL_FROM_DISPLAY is configured as a display name, the resulting header is rendered as Display Name <CANARY_ALERT_EMAIL_FROM_ADDRESS>, matching the existing Mailgun behaviour. This may slightly change how the sender appears in mail clients for SMTP-backed deployments, but the alert email body is unchanged.
+
+The following settings have to be configured in switchboard.env for SMTP to work:
+
+- CANARY_SMTP_SERVER: the SMTP server
+- CANARY_SMTP_PORT: the port number of the SMTP server (must be a StartTLS enabled port!)
+- CANARY_SMTP_USERNAME: Username for the SMTP server (no anonymous SMTP supported right now)
+- CANARY_SMTP_PASSWORD: the password that corresponds to the username
+
+A complete example config in switchboard.env then looks like this:
+
+```
+CANARY_SMTP_SERVER=smtp.yourserver.com
+CANARY_SMTP_PORT=587
+CANARY_SMTP_USERNAME=<your smtp username>
+CANARY_SMTP_PASSWORD=<your smtp password>
+CANARY_ALERT_EMAIL_FROM_ADDRESS=canary@yourdomain.com
+CANARY_ALERT_EMAIL_SUBJECT="Canary Alert via SMTP"
+
+```
+
+## Alert throttling
+
+https://github.com/thinkst/canarytokens#alert-throttling
+
+By default, unless running in DEBUG mode, no more than 1 alert per unique calling IP per minute is permitted. Activity will still be recorded in the database, and visible in the token management console, but alerts will not be generated (email and/or webhook).
+
+This is tunable with the switchboard ENV variable CANARY_MAX_ALERTS_PER_MINUTE.
+
+## Webhook failure limiting
+
+https://github.com/thinkst/canarytokens#webhook-failure-limiting
+
+After a webhook returns an error 5 times in a row, it is disabled. This behaviour can be tuned with MAX_ALERT_FAILURES.
+
+## FAQ
+
+https://github.com/thinkst/canarytokens#faq
+
+We have a FAQ over [here](https://github.com/thinkst/canarytokens/wiki)
+
+## Contributing
+
+https://github.com/thinkst/canarytokens#contributing
+
+Please check out our [Code of Conduct](https://github.com/thinkst/.github/blob/master/CODE_OF_CONDUCT.md) and [Contributing](https://github.com/thinkst/.github/blob/master/CONTRIBUTING.md) documents before submitting a pull request.
+
+We look forward to your valuable contributions.
