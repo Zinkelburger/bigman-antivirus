@@ -79,6 +79,9 @@ enum Commands {
         #[arg(long)]
         against: Option<PathBuf>,
     },
+    /// Where packages come from: apt, dnf, zypper, pacman, Flatpak and Nix sources,
+    /// judged on signatures, HTTPS, key scope and priority over the distribution.
+    PackageSources,
     /// Pending security updates for installed packages, from your distribution's
     /// own security data (Fedora, Debian, Arch). Shows the update command; never runs it.
     Advisories {
@@ -299,6 +302,11 @@ fn run() -> Result<()> {
         }
         Some(Commands::Lockfile { path, against }) => {
             let r = checks::lockfile::lockfile(&path, against.as_deref())?;
+            store.save(&r)?;
+            Some(r)
+        }
+        Some(Commands::PackageSources) => {
+            let r = checks::channels::channels();
             store.save(&r)?;
             Some(r)
         }

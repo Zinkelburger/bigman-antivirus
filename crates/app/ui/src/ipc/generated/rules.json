@@ -641,6 +641,99 @@
     ]
   },
   {
+    "id": "channel.signature-disabled",
+    "severity": "high",
+    "title": "A package source skips signature checks",
+    "explanation": "The source is configured to install packages without verifying their signatures (apt trusted=yes or allow-insecure, gpgcheck=0, pacman SigLevel Never or Optional, Flatpak no-gpg-verify, Nix require-sigs = false).",
+    "remediation": "Turn signature checks back on for this source.",
+    "threats": [
+      "DP-02"
+    ]
+  },
+  {
+    "id": "channel.plain-http",
+    "severity": "info",
+    "title": "A package source uses plain HTTP",
+    "explanation": "Packages and metadata are downloaded unencrypted. Signatures still protect the packages, but the network sees what you install and can replay old metadata.",
+    "remediation": "Use the source's https:// address if it has one.",
+    "threats": [
+      "DP-02",
+      "DP-05"
+    ]
+  },
+  {
+    "id": "channel.unscoped-key",
+    "severity": "review",
+    "title": "A third-party apt source has no signed-by key",
+    "explanation": "Without signed-by, apt accepts packages for this source signed by any key it trusts, and the vendor's key is trusted for every other source.",
+    "remediation": "Store the vendor's key in /etc/apt/keyrings and add signed-by= to the source.",
+    "threats": [
+      "DP-03"
+    ]
+  },
+  {
+    "id": "channel.global-key",
+    "severity": "review",
+    "title": "A third-party key is trusted for every apt source",
+    "explanation": "A keyring in /etc/apt/trusted.gpg.d or the legacy trusted.gpg that no distribution ships can sign packages for any source, the distribution's own included.",
+    "remediation": "Move the key to /etc/apt/keyrings and reference it with signed-by= from its own source.",
+    "threats": [
+      "DP-03"
+    ]
+  },
+  {
+    "id": "channel.expiry-check-off",
+    "severity": "review",
+    "title": "An apt source accepts expired metadata",
+    "explanation": "check-valid-until=no lets a mirror keep serving an old snapshot that hides security updates (a freeze attack).",
+    "remediation": "Remove the option unless the source is an archive snapshot pinned on purpose.",
+    "threats": [
+      "DP-05"
+    ]
+  },
+  {
+    "id": "channel.stale-metadata",
+    "severity": "review",
+    "title": "Package lists are more than two weeks old",
+    "explanation": "The newest metadata from the distribution's own repositories was published over 14 days ago. Either the lists are not being refreshed, or a mirror is serving a frozen copy.",
+    "remediation": "Refresh the package lists; if they stay old, switch mirrors.",
+    "threats": [
+      "DP-05"
+    ]
+  },
+  {
+    "id": "channel.priority-override",
+    "severity": "review",
+    "title": "A third-party source outranks the distribution",
+    "explanation": "A dnf or zypper priority below 99, a pacman repository listed above [core], or an apt pin above the distribution's 500 (1000 and above also downgrades) lets this source replace the distribution's packages.",
+    "remediation": "Keep the override only if you mean it, and limit it to the packages you need from that source.",
+    "threats": [
+      "DP-22",
+      "DP-12"
+    ]
+  },
+  {
+    "id": "channel.personal-repo",
+    "severity": "info",
+    "title": "Personal repositories are configured",
+    "explanation": "PPAs, COPR projects and OBS home projects are run by one person or project and are not reviewed by the distribution.",
+    "remediation": "Remove the ones you no longer use.",
+    "threats": [
+      "DP-12"
+    ]
+  },
+  {
+    "id": "channel.third-party",
+    "severity": "info",
+    "title": "Third-party package sources are configured",
+    "explanation": "An inventory of sources not run by the distribution or Flathub. Each can ship updates for anything it packages; an abandoned one whose domain changes hands can ship anything.",
+    "remediation": "Remove sources you no longer use.",
+    "threats": [
+      "DP-10",
+      "DP-22"
+    ]
+  },
+  {
     "id": "canary.event",
     "severity": "high",
     "title": "A decoy file was opened or changed",

@@ -64,6 +64,15 @@ Every finding Bigman shows comes from one of these rules. Each has a synthetic f
 | `lockfile.missing-integrity` | Review | A dependency has no integrity hash | SC-13 |
 | `lockfile.install-hook` | Info | A dependency runs an install script | SC-01 |
 | `lockfile.new-install-hook` | Review | A new dependency runs an install script | SC-01, SC-06, SC-09 |
+| `channel.signature-disabled` | High | A package source skips signature checks | DP-02 |
+| `channel.plain-http` | Info | A package source uses plain HTTP | DP-02, DP-05 |
+| `channel.unscoped-key` | Review | A third-party apt source has no signed-by key | DP-03 |
+| `channel.global-key` | Review | A third-party key is trusted for every apt source | DP-03 |
+| `channel.expiry-check-off` | Review | An apt source accepts expired metadata | DP-05 |
+| `channel.stale-metadata` | Review | Package lists are more than two weeks old | DP-05 |
+| `channel.priority-override` | Review | A third-party source outranks the distribution | DP-22, DP-12 |
+| `channel.personal-repo` | Info | Personal repositories are configured | DP-12 |
+| `channel.third-party` | Info | Third-party package sources are configured | DP-10, DP-22 |
 | `canary.event` | High | A decoy file was opened or changed | CR-22 |
 | `canary.verified` | Info | Local read detection verified | CR-22 |
 | `canary.notifications-unavailable` | Info | Desktop pop-ups are not available |  |
@@ -540,6 +549,78 @@ What you can do: Read the package's scripts, or install with --ignore-scripts.
 Compared with the older lockfile, a package that runs an install script was added or changed version.
 
 What you can do: Read the new package's scripts before installing, or install with --ignore-scripts.
+
+## `channel.signature-disabled`
+
+**A package source skips signature checks** (High)
+
+The source is configured to install packages without verifying their signatures (apt trusted=yes or allow-insecure, gpgcheck=0, pacman SigLevel Never or Optional, Flatpak no-gpg-verify, Nix require-sigs = false).
+
+What you can do: Turn signature checks back on for this source.
+
+## `channel.plain-http`
+
+**A package source uses plain HTTP** (Info)
+
+Packages and metadata are downloaded unencrypted. Signatures still protect the packages, but the network sees what you install and can replay old metadata.
+
+What you can do: Use the source's https:// address if it has one.
+
+## `channel.unscoped-key`
+
+**A third-party apt source has no signed-by key** (Review)
+
+Without signed-by, apt accepts packages for this source signed by any key it trusts, and the vendor's key is trusted for every other source.
+
+What you can do: Store the vendor's key in /etc/apt/keyrings and add signed-by= to the source.
+
+## `channel.global-key`
+
+**A third-party key is trusted for every apt source** (Review)
+
+A keyring in /etc/apt/trusted.gpg.d or the legacy trusted.gpg that no distribution ships can sign packages for any source, the distribution's own included.
+
+What you can do: Move the key to /etc/apt/keyrings and reference it with signed-by= from its own source.
+
+## `channel.expiry-check-off`
+
+**An apt source accepts expired metadata** (Review)
+
+check-valid-until=no lets a mirror keep serving an old snapshot that hides security updates (a freeze attack).
+
+What you can do: Remove the option unless the source is an archive snapshot pinned on purpose.
+
+## `channel.stale-metadata`
+
+**Package lists are more than two weeks old** (Review)
+
+The newest metadata from the distribution's own repositories was published over 14 days ago. Either the lists are not being refreshed, or a mirror is serving a frozen copy.
+
+What you can do: Refresh the package lists; if they stay old, switch mirrors.
+
+## `channel.priority-override`
+
+**A third-party source outranks the distribution** (Review)
+
+A dnf or zypper priority below 99, a pacman repository listed above [core], or an apt pin above the distribution's 500 (1000 and above also downgrades) lets this source replace the distribution's packages.
+
+What you can do: Keep the override only if you mean it, and limit it to the packages you need from that source.
+
+## `channel.personal-repo`
+
+**Personal repositories are configured** (Info)
+
+PPAs, COPR projects and OBS home projects are run by one person or project and are not reviewed by the distribution.
+
+What you can do: Remove the ones you no longer use.
+
+## `channel.third-party`
+
+**Third-party package sources are configured** (Info)
+
+An inventory of sources not run by the distribution or Flathub. Each can ship updates for anything it packages; an abandoned one whose domain changes hands can ship anything.
+
+What you can do: Remove sources you no longer use.
 
 ## `canary.event`
 

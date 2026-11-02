@@ -1,0 +1,13 @@
+{
+  "channels": [
+    {
+      "manager": "apt",
+      "name": "https://deb.debian.org/debian",
+      "file": "/etc/apt/sources.list",
+      "url": "https://deb.debian.org/debian",
+      "signed": false,
+      "scoped_key": true,
+      "official": true
+    }
+  ]
+}

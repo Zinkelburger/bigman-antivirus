@@ -1,0 +1,8 @@
+{
+  "driver": "channels",
+  "fires": [
+    "channel.global-key"
+  ],
+  "about": "A vendor keyring in apt's global trust.",
+  "input": "input.json"
+}

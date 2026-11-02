@@ -1,0 +1,8 @@
+{
+  "driver": "channels",
+  "fires": [
+    "channel.signature-disabled"
+  ],
+  "about": "An official Debian source with trusted=yes.",
+  "input": "input.json"
+}

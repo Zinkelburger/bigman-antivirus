@@ -88,6 +88,10 @@ impl Daemon {
                         Ok(r)
                     }))
                 }
+                Request::PackageSources => {
+                    let r = bigman_core::checks::channels::channels();
+                    report(store.save(&r).map(|_| r))
+                }
                 Request::Advisories { refresh, offline } => {
                     report(bigman_core::checks::advisories::advisories(
                         store,

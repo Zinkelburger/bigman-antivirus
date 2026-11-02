@@ -1,0 +1,11 @@
+{
+  "channels": [
+    {
+      "manager": "apt",
+      "name": "https://repo.vendor.example/apt",
+      "file": "/etc/apt/sources.list",
+      "url": "https://repo.vendor.example/apt",
+      "scoped_key": false
+    }
+  ]
+}

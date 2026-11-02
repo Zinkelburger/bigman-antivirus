@@ -1,0 +1,9 @@
+{
+  "driver": "channels",
+  "fires": [
+    "channel.third-party",
+    "channel.unscoped-key"
+  ],
+  "about": "A vendor apt source without signed-by; it is also third-party.",
+  "input": "input.json"
+}

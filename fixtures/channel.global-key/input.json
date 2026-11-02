@@ -1,0 +1,5 @@
+{
+  "global_keys": [
+    "/etc/apt/trusted.gpg.d/vendor.gpg"
+  ]
+}

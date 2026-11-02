@@ -1,0 +1,8 @@
+{
+  "driver": "channels",
+  "fires": [
+    "channel.priority-override"
+  ],
+  "about": "An apt pin of every package from a vendor origin at 1001.",
+  "input": "input.json"
+}

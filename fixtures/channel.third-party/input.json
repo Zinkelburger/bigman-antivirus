@@ -1,0 +1,10 @@
+{
+  "channels": [
+    {
+      "manager": "dnf",
+      "name": "google-chrome",
+      "url": "https://dl.google.com/linux/chrome/rpm/stable/x86_64",
+      "file": "/etc/yum.repos.d/google-chrome.repo"
+    }
+  ]
+}

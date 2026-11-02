@@ -191,6 +191,11 @@ fn run(dir: &Path, expected: &Expected) -> BTreeSet<String> {
                 .collect();
             checks::repo::assess(&mut r, &files, repo.git_config.as_deref());
         }
+        "channels" => {
+            let value = json();
+            let now = value["now"].as_u64().unwrap_or(0);
+            checks::channels::assess(&mut r, &serde_json::from_value(value).unwrap(), now)
+        }
         "advisories" => {
             checks::advisories::assess(&mut r, &serde_json::from_value(json()).unwrap())
         }

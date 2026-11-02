@@ -78,6 +78,9 @@ pub enum Request {
         against: Option<PathBuf>,
     },
     Changes,
+    /// Where packages come from: signatures, transport, key scope, priority
+    /// overrides and personal or third-party repositories.
+    PackageSources,
     /// Pending security updates from the distribution's data (fetches public data).
     Advisories {
         refresh: bool,

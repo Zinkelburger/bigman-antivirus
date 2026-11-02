@@ -1,0 +1,8 @@
+{
+  "driver": "channels",
+  "fires": [
+    "channel.expiry-check-off"
+  ],
+  "about": "The Debian archive with check-valid-until=no.",
+  "input": "input.json"
+}

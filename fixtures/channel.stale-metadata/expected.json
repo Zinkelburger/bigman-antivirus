@@ -1,0 +1,8 @@
+{
+  "driver": "channels",
+  "fires": [
+    "channel.stale-metadata"
+  ],
+  "about": "Fedora updates metadata published 30 days before now.",
+  "input": "input.json"
+}

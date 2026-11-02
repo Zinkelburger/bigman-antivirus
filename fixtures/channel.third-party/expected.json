@@ -1,0 +1,8 @@
+{
+  "driver": "channels",
+  "fires": [
+    "channel.third-party"
+  ],
+  "about": "A signed vendor dnf repository at the default priority.",
+  "input": "input.json"
+}

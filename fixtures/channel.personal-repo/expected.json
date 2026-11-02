@@ -1,0 +1,8 @@
+{
+  "driver": "channels",
+  "fires": [
+    "channel.personal-repo"
+  ],
+  "about": "A COPR project.",
+  "input": "input.json"
+}

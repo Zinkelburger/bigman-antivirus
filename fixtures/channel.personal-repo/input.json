@@ -1,0 +1,11 @@
+{
+  "channels": [
+    {
+      "manager": "dnf",
+      "name": "copr:copr.fedorainfracloud.org:me:tool",
+      "url": "https://download.copr.fedorainfracloud.org/results/me/tool/fedora-$releasever-$basearch/",
+      "file": "/etc/yum.repos.d/_copr:copr.fedorainfracloud.org:me:tool.repo",
+      "personal": true
+    }
+  ]
+}

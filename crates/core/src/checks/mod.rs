@@ -2,6 +2,7 @@
 pub mod advisories;
 pub mod canary;
 pub mod changes;
+pub mod channels;
 pub mod denials;
 pub mod doctor;
 pub mod hooks;

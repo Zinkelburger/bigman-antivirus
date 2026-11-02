@@ -1,0 +1,10 @@
+{
+  "pins": [
+    {
+      "file": "/etc/apt/preferences.d/vendor",
+      "package": "*",
+      "pin": "origin repo.vendor.example",
+      "priority": 1001
+    }
+  ]
+}
