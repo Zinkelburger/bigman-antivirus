@@ -1,0 +1,8 @@
+{
+  "driver": "lockfile",
+  "fires": [
+    "lockfile.install-hook"
+  ],
+  "about": "A pnpm lockfile where esbuild requires a build step.",
+  "input": "pnpm-lock.yaml"
+}

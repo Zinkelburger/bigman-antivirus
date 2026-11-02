@@ -71,6 +71,12 @@ pub enum Request {
     RepoCheck {
         path: PathBuf,
     },
+    /// A lockfile's non-registry sources, missing hashes and install hooks; with
+    /// `against`, only what changed since that older copy.
+    Lockfile {
+        path: PathBuf,
+        against: Option<PathBuf>,
+    },
     Changes,
     /// Pending security updates from the distribution's data (fetches public data).
     Advisories {

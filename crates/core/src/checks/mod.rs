@@ -7,6 +7,7 @@ pub mod doctor;
 pub mod hooks;
 pub mod inspect;
 pub mod integrations;
+pub mod lockfile;
 pub mod network;
 pub mod packages;
 pub mod pdf;

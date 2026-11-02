@@ -34,6 +34,9 @@ struct Expected {
     driver: String,
     fires: Vec<String>,
     input: Option<String>,
+    /// The older file a diff-mode fixture compares with.
+    #[serde(default)]
+    before: Option<String>,
     covered_by: Option<String>,
 }
 
@@ -170,6 +173,10 @@ fn run(dir: &Path, expected: &Expected) -> BTreeSet<String> {
             }
         }
         "receipt" => return receipt_rules(&input),
+        "lockfile" => {
+            let before = expected.before.as_ref().map(|b| dir.join(b));
+            return rules_fired(&checks::lockfile::lockfile(&input, before.as_deref()).unwrap());
+        }
         "repo" => {
             #[derive(Deserialize)]
             struct Repo {

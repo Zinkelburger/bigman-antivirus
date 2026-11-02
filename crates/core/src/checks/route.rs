@@ -1,7 +1,7 @@
 //! Picks the inspector for a target from the target itself, so the user does not
 //! have to. Deterministic: URL scheme, file type and the first bytes, nothing else.
 use crate::{
-    checks::{inspect, packages, pdf, repo},
+    checks::{inspect, lockfile, packages, pdf, repo},
     model::Report,
     runner::Cancel,
     store::Store,
@@ -12,6 +12,7 @@ use std::{fs, io::Read, path::Path};
 #[derive(Debug, PartialEq, Eq)]
 pub enum Inspector {
     Installer,
+    Lockfile,
     Packages,
     Pdf,
 }
@@ -25,6 +26,9 @@ pub fn choose(target: &str) -> Inspector {
         .file_name()
         .map(|n| n.to_string_lossy().to_lowercase())
         .unwrap_or_default();
+    if lockfile::format_of(path).is_some() {
+        return Inspector::Lockfile;
+    }
     match fs::symlink_metadata(path) {
         Ok(meta) if meta.is_dir() => Inspector::Packages,
         _ if name.ends_with(".tgz") || name.ends_with(".tar.gz") || name == "package.json" => {
@@ -48,6 +52,11 @@ fn starts_with(path: &Path, magic: &[u8]) -> bool {
 pub fn inspect_any(store: &Store, target: &str, stop: &Cancel) -> Result<Report> {
     match choose(target) {
         Inspector::Installer => inspect::inspect(store, target, stop),
+        Inspector::Lockfile => {
+            let r = lockfile::lockfile(Path::new(target), None)?;
+            store.save(&r)?;
+            Ok(r)
+        }
         Inspector::Packages if Path::new(target).is_dir() => project(store, Path::new(target)),
         Inspector::Packages => packages::packages(store, Path::new(target)),
         Inspector::Pdf => pdf::scan_pdf(store, Path::new(target), stop),
@@ -64,6 +73,34 @@ pub fn project(store: &Store, dir: &Path) -> Result<Report> {
     r.coverage.checked.extend(checked.coverage.checked);
     r.coverage.notes.extend(checked.coverage.notes);
     r.coverage.skipped.extend(checked.coverage.skipped);
+    // Lockfiles at the project root, linted in place.
+    for name in [
+        "package-lock.json",
+        "npm-shrinkwrap.json",
+        "yarn.lock",
+        "pnpm-lock.yaml",
+        "bun.lock",
+        "Cargo.lock",
+    ] {
+        let path = dir.join(name);
+        if !path.is_file() {
+            continue;
+        }
+        match lockfile::lockfile(&path, None) {
+            Ok(l) => {
+                r.findings.extend(l.findings);
+                r.coverage
+                    .checked
+                    .push(format!("{name}: {}", l.coverage.checked.join(", ")));
+            }
+            Err(e) => r.coverage.skipped.push(crate::model::Skipped {
+                what: name.into(),
+                why: crate::model::SkipReason::Unreadable,
+                detail: format!("{e:#}"),
+            }),
+        }
+    }
+    r.findings.sort_by_key(|f| std::cmp::Reverse(f.severity));
     store.save(&r)?;
     Ok(r)
 }

@@ -598,6 +598,49 @@
     ]
   },
   {
+    "id": "lockfile.non-registry",
+    "severity": "review",
+    "title": "A dependency comes from outside the registry",
+    "explanation": "The lockfile resolves a package from git, a plain URL or a local path, which skips the registry's checks and can change without a new version.",
+    "remediation": "Make sure the package is meant to come from there; prefer a registry release.",
+    "threats": [
+      "SC-02",
+      "SC-13"
+    ]
+  },
+  {
+    "id": "lockfile.missing-integrity",
+    "severity": "review",
+    "title": "A dependency has no integrity hash",
+    "explanation": "A registry package in the lockfile has no hash, so the package manager cannot tell if the download changed.",
+    "remediation": "Regenerate the lockfile with a current package manager.",
+    "threats": [
+      "SC-13"
+    ]
+  },
+  {
+    "id": "lockfile.install-hook",
+    "severity": "info",
+    "title": "A dependency runs an install script",
+    "explanation": "The lockfile records that this package runs a script during install (npm hasInstallScript, pnpm requiresBuild).",
+    "remediation": "Read the package's scripts, or install with --ignore-scripts.",
+    "threats": [
+      "SC-01"
+    ]
+  },
+  {
+    "id": "lockfile.new-install-hook",
+    "severity": "review",
+    "title": "A new dependency runs an install script",
+    "explanation": "Compared with the older lockfile, a package that runs an install script was added or changed version.",
+    "remediation": "Read the new package's scripts before installing, or install with --ignore-scripts.",
+    "threats": [
+      "SC-01",
+      "SC-06",
+      "SC-09"
+    ]
+  },
+  {
     "id": "canary.event",
     "severity": "high",
     "title": "A decoy file was opened or changed",

@@ -60,6 +60,10 @@ Every finding Bigman shows comes from one of these rules. Each has a synthetic f
 | `repo.hidden-instructions` | High | An AI instruction file contains invisible characters | SC-21, CR-19 |
 | `repo.workflow-unpinned` | Review | A workflow uses an action by tag | SC-15 |
 | `repo.workflow-pull-request-target` | Review | A workflow uses pull_request_target | SC-16 |
+| `lockfile.non-registry` | Review | A dependency comes from outside the registry | SC-02, SC-13 |
+| `lockfile.missing-integrity` | Review | A dependency has no integrity hash | SC-13 |
+| `lockfile.install-hook` | Info | A dependency runs an install script | SC-01 |
+| `lockfile.new-install-hook` | Review | A new dependency runs an install script | SC-01, SC-06, SC-09 |
 | `canary.event` | High | A decoy file was opened or changed | CR-22 |
 | `canary.verified` | Info | Local read detection verified | CR-22 |
 | `canary.notifications-unavailable` | Info | Desktop pop-ups are not available |  |
@@ -504,6 +508,38 @@ What you can do: Pin third-party actions to a full commit SHA.
 pull_request_target runs with the repository's secrets and write access. Checking out the pull request's own code in it is rated High.
 
 What you can do: Never check out or run the pull request's code in a pull_request_target workflow.
+
+## `lockfile.non-registry`
+
+**A dependency comes from outside the registry** (Review)
+
+The lockfile resolves a package from git, a plain URL or a local path, which skips the registry's checks and can change without a new version.
+
+What you can do: Make sure the package is meant to come from there; prefer a registry release.
+
+## `lockfile.missing-integrity`
+
+**A dependency has no integrity hash** (Review)
+
+A registry package in the lockfile has no hash, so the package manager cannot tell if the download changed.
+
+What you can do: Regenerate the lockfile with a current package manager.
+
+## `lockfile.install-hook`
+
+**A dependency runs an install script** (Info)
+
+The lockfile records that this package runs a script during install (npm hasInstallScript, pnpm requiresBuild).
+
+What you can do: Read the package's scripts, or install with --ignore-scripts.
+
+## `lockfile.new-install-hook`
+
+**A new dependency runs an install script** (Review)
+
+Compared with the older lockfile, a package that runs an install script was added or changed version.
+
+What you can do: Read the new package's scripts before installing, or install with --ignore-scripts.
 
 ## `canary.event`
 

@@ -71,6 +71,14 @@ enum Commands {
     RepoCheck {
         path: PathBuf,
     },
+    /// Non-registry sources, missing integrity hashes and install hooks in a
+    /// lockfile (npm, Yarn, pnpm, Bun, Cargo).
+    Lockfile {
+        path: PathBuf,
+        /// An older copy: report only what the change adds.
+        #[arg(long)]
+        against: Option<PathBuf>,
+    },
     /// Pending security updates for installed packages, from your distribution's
     /// own security data (Fedora, Debian, Arch). Shows the update command; never runs it.
     Advisories {
@@ -286,6 +294,11 @@ fn run() -> Result<()> {
                 Some(id) => changes::accept_reviewed_baseline(&store, &id)?,
                 None => changes::changes(&store, &runner::cancel())?,
             };
+            store.save(&r)?;
+            Some(r)
+        }
+        Some(Commands::Lockfile { path, against }) => {
+            let r = checks::lockfile::lockfile(&path, against.as_deref())?;
             store.save(&r)?;
             Some(r)
         }

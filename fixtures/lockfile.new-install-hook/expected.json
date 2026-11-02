@@ -1,0 +1,9 @@
+{
+  "driver": "lockfile",
+  "fires": [
+    "lockfile.new-install-hook"
+  ],
+  "about": "Diff mode: an update adds a dependency with an install script.",
+  "input": "package-lock.json",
+  "before": "before/package-lock.json"
+}

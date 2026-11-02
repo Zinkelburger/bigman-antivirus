@@ -1,0 +1,8 @@
+{
+  "driver": "lockfile",
+  "fires": [
+    "lockfile.missing-integrity"
+  ],
+  "about": "A yarn.lock registry entry without an integrity line.",
+  "input": "yarn.lock"
+}

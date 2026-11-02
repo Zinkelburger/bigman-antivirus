@@ -1,0 +1,7 @@
+lockfileVersion: '9.0'
+
+packages:
+
+  esbuild@0.21.5:
+    resolution: {integrity: sha512-abc}
+    requiresBuild: true

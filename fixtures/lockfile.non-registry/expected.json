@@ -1,0 +1,8 @@
+{
+  "driver": "lockfile",
+  "fires": [
+    "lockfile.non-registry"
+  ],
+  "about": "A dependency resolved from a GitHub tarball.",
+  "input": "package-lock.json"
+}
