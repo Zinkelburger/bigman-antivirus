@@ -1,7 +1,8 @@
 use anyhow::{bail, Result};
 use bigman_core::{
     checks::{
-        canary, changes, doctor, inspect, integrations, packages, pdf, route, scan, setup, shell,
+        self, canary, changes, doctor, inspect, integrations, packages, pdf, route, scan, setup,
+        shell,
     },
     ipc::{self, client::Client},
     model::{self, Report},
@@ -64,6 +65,16 @@ enum Commands {
     Changes {
         #[arg(long)]
         accept_baseline: Option<String>,
+    },
+    /// Pending security updates for installed packages, from your distribution's
+    /// own security data (Fedora, Debian, Arch). Shows the update command; never runs it.
+    Advisories {
+        /// Download the security data again even if it is less than a day old.
+        #[arg(long)]
+        refresh: bool,
+        /// Use cached data only; report incomplete if it is too old.
+        #[arg(long)]
+        offline: bool,
     },
     History {
         report: Option<String>,
@@ -273,6 +284,11 @@ fn run() -> Result<()> {
             store.save(&r)?;
             Some(r)
         }
+        Some(Commands::Advisories { refresh, offline }) => Some(checks::advisories::advisories(
+            &store,
+            checks::advisories::Options { refresh, offline },
+            &runner::cancel(),
+        )?),
         Some(Commands::History { report: Some(id) }) => Some(store.report(&id)?),
         Some(Commands::History { report: None }) => {
             let rs = store.history()?;

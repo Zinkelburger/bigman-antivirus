@@ -25,7 +25,7 @@
 | DP-17 | AppImage: unsigned, unsandboxed, self-updating executables | Medium | Partial (ClamAV) | AppImage header and embedded-signature inspection, desktop-integration audit |
 | DP-18 | `curl \| bash` and other pipe-to-shell installers | High | Partial (`bigman inspect`, shell.* rules, sandbox rehearsal) | Detect repo/key additions inside installers (`installer.adds-repo`) |
 | DP-19 | Homebrew on Linux and Nix: user-writable prefixes, executable formulae, store bugs | Medium | Gap | Inventory brew/nix installs; version check against advisories |
-| DP-20 | Stale systems: missing security updates or broken unattended upgrades | High | Gap | Pending-security-update report and auto-update health check |
+| DP-20 | Stale systems: missing security updates or broken unattended upgrades | High | Partial | Pending-security-update report and auto-update health check |
 | DP-21 | Installed files altered after install (package DB mismatch) | High | Gap | Wrap `dpkg --verify`/`debsums`, `rpm -Va`, `pacman -Qkk` with noise filtering |
 | DP-22 | Third-party repo overriding distro packages (pinning, priority, epoch) | Medium | Gap | Flag high `Pin-Priority`, dnf `priority`, and installed packages whose origin is not the distro |
 | DP-23 | Boot chain and kernel modules: Secure Boot off, MOK enrollment, unsigned modules | Medium | Gap | Read-only Secure Boot/MOK/taint report |
@@ -415,7 +415,7 @@
   - `apt-mark showhold` / `dnf versionlock list`.
   - `needrestart -b` or `dnf needs-restarting -r` (or `/run/reboot-required` on Debian/Ubuntu).
   - Running kernel (`uname -r`) compared with the newest installed kernel.
-- **Bigman today:** Gap. `bigman doctor` checks ClamAV signature age but not OS update state.
+- **Bigman today:** Partial. `bigman advisories` (Protect > Updates) matches installed packages against the distribution's own data (dnf updateinfo on Fedora, the Debian security tracker, the Arch security tracker), raises updates that fix a CISA KEV entry to High, and flags a pending reboot. Ubuntu, SUSE and Alpine data and broken unattended upgrades are not covered yet.
 - **Proposed mitigation / detection:** `bigman doctor` adds:
   - `updates.auto-disabled` (Medium)
   - `updates.last-success-old` (Medium, more than 14 days since the last successful run)

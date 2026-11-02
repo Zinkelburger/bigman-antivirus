@@ -480,3 +480,30 @@ fn new_transactions_get_a_receipt_with_what_started_listening_afterwards() {
         .iter()
         .any(|f| f.rule == "receipt.after.listener"));
 }
+
+#[test]
+fn security_updates_wait_after_install_then_follow_package_changes() {
+    let w = world();
+    let mut source = Updates;
+    let now = 100 * 86_400;
+    run(&w, &mut source, now).unwrap();
+    let first: u64 =
+        w.db.setting("advisories.last_run")
+            .unwrap()
+            .unwrap()
+            .parse()
+            .unwrap();
+    assert_eq!(
+        first + 86_400,
+        now + 600,
+        "the first check is ten minutes after the first start"
+    );
+    // Turned off, nothing runs.
+    w.db.set_setting(Preferences::KEY, r#"{"check_updates":false}"#)
+        .unwrap();
+    run(&w, &mut source, now + 700).unwrap();
+    assert_eq!(
+        w.db.setting("advisories.last_run").unwrap().unwrap(),
+        first.to_string()
+    );
+}

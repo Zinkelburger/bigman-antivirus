@@ -22,6 +22,21 @@ export function reportStatus(report: Report): ReportResult {
   return report.findings.some((f) => f.severity !== "info") ? "Findings to review" : "No findings from these checks";
 }
 
+const UPDATE_RULES = ["advisory.update-available", "advisory.exploited"];
+
+/**
+ * The one figure a report is known by, when its kind has one: "3 security
+ * updates", "No updates listed", "Release no longer supported". History keeps a
+ * report's 20 most severe findings, so past that the count is a floor.
+ */
+export function reportFigure(report: Report): string | null {
+  if (report.kind !== "Security updates") return null;
+  if (report.findings.some((f) => f.rule === "advisory.unsupported-release")) return "Release no longer supported";
+  const n = report.findings.filter((f) => UPDATE_RULES.includes(f.rule)).length;
+  if (n === 0) return reportStatus(report) === "Incomplete" ? "Not checked completely" : "No updates listed";
+  return (report.summary?.findings ?? 0) > report.findings.length ? `${String(n)}+ security updates` : plural(n, "security update");
+}
+
 /** Severity of a report as a whole: its most severe finding. */
 export function reportSeverity(report: Report) {
   return maxSeverity(report.findings.map((f) => f.severity));
@@ -30,6 +45,7 @@ export function reportSeverity(report: Report) {
 /** Plain names for report kinds, for headings and lists. */
 const KIND_TITLE: Record<string, string> = {
   "Persistence changes": "Startup files",
+  "Security updates": "Security updates",
   "Package script inventory": "Package scripts",
   "Restricted installer rehearsal": "Installer rehearsal",
   "Security checkup": "Checkup",
@@ -68,6 +84,8 @@ const KIND_VERB: Record<string, string> = {
 };
 
 function outcome(report: Report): string {
+  const figure = reportFigure(report);
+  if (figure) return figure.charAt(0).toLowerCase() + figure.slice(1);
   const result = reportStatus(report);
   if (result === "Incomplete") return "incomplete";
   if (result === "No findings from these checks") return "no findings";
@@ -179,9 +197,10 @@ export function FindingEvidence({ finding }: { finding: Finding }) {
         <p className="m-0 font-semibold text-ink">{finding.summary}</p>
       </div>
       <EvidenceBlock text={finding.evidence} label="Evidence" />
-      <section>
-        <h3 className="m-0 mb-1 text-small font-semibold text-ink-muted">What you can do</h3>
+      <section className="flex flex-col gap-2">
+        <h3 className="m-0 text-small font-semibold text-ink-muted">What you can do</h3>
         <p className="m-0 max-w-[56ch] text-ink">{finding.action}</p>
+        {finding.command && <EvidenceBlock text={finding.command} label="Command (Bigman does not run it)" />}
       </section>
       <AboutRule id={finding.rule} />
     </div>
@@ -197,7 +216,7 @@ export function ReportPanel({ report, now }: { report: Report; now: number }) {
       <KeyValue
         items={[
           { label: "Result", value: verifiesDetection(report) && status !== "Incomplete" ? "Detection verified" : status },
-          { label: "Checked", value: report.subject, mono: true },
+          { label: "Looked at", value: report.subject, mono: report.subject.startsWith("/") },
           { label: "Ran at", value: `${formatTime(report.created)}, ${ago(report.created, now)}` },
           ...(report.sha256 ? [{ label: "SHA-256", value: report.sha256, mono: true }] : []),
         ]}

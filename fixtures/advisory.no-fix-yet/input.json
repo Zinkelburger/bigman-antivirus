@@ -1,0 +1,27 @@
+{
+  "distro": {
+    "id": "debian",
+    "like": [],
+    "version_id": "13",
+    "codename": "trixie",
+    "pretty": "Debian GNU/Linux 13 (trixie)"
+  },
+  "applies": [
+    {
+      "id": "libtiff (Debian security tracker)",
+      "packages": [
+        {
+          "name": "libtiff6",
+          "installed": "4.7.0-3",
+          "fixed": null
+        }
+      ],
+      "cves": [
+        "CVE-2026-55501"
+      ],
+      "severity": "open",
+      "command": "",
+      "source": "Debian security tracker, trixie"
+    }
+  ]
+}

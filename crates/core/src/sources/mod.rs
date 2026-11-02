@@ -8,6 +8,7 @@ mod packages;
 mod reports;
 mod snapshot;
 mod throughput;
+mod updates;
 
 pub use connections::Connections;
 pub use denials::Denials;
@@ -16,6 +17,7 @@ pub use packages::{transaction_summary, Packages};
 pub use reports::Reports;
 pub use snapshot::{network_snapshot, ConnectionRow, ListenerRow, NetworkSnapshot};
 pub use throughput::Throughput;
+pub use updates::{Preferences, Updates};
 
 use crate::{
     model::{Observation, Sample, SkipReason},
@@ -75,6 +77,7 @@ pub fn label(name: &str) -> &'static str {
         "packages" => "Package installs and updates",
         "denials" => "SELinux and AppArmor denials",
         "reports" => "Checks you run",
+        "updates" => "Security updates, daily and after package changes",
         _ => "Other",
     }
 }
@@ -104,6 +107,7 @@ pub fn linux_sources(stop: crate::runner::Cancel) -> Vec<Box<dyn Source>> {
         Box::new(Listeners::new(Box::new(linux::ProcSockets))),
         Box::new(Denials::new(Box::new(linux::Journalctl { stop }))),
         Box::<Reports>::default(),
+        Box::<Updates>::default(),
     ];
     if let Some(history) = linux::package_history() {
         sources.push(Box::new(Packages::new(

@@ -357,6 +357,7 @@ fn finding(
         summary: summary.into(),
         evidence: crate::model::clean(&evidence),
         action: action.into(),
+        command: None,
     }
 }
 

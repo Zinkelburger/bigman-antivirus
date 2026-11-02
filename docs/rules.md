@@ -44,6 +44,12 @@ Every finding Bigman shows comes from one of these rules. Each has a synthetic f
 | `receipt.file.privileged` | Review | A package installed a program with raised privileges | HI-17, HI-18 |
 | `receipt.sensitive_package` | Info | A package that controls authentication, networking or boot changed | DP-01, DP-06 |
 | `receipt.after.listener` | Review | A program started listening right after a package change | NE-01, DP-09 |
+| `advisory.update-available` | Review | A security update is available | DP-20, HI-23, NE-04 |
+| `advisory.exploited` | High | A security update fixes a vulnerability known to be exploited | DP-20, HI-23, MW-20 |
+| `advisory.no-fix-yet` | Info | An installed package is affected and has no fix yet | DP-20, HI-23 |
+| `advisory.reboot-required` | Review | A restart finishes installing updates | HI-23 |
+| `advisory.untracked-package` | Info | Packages outside the distribution's security data | DP-10, DP-11, DP-12 |
+| `advisory.unsupported-release` | Review | This release no longer receives security updates | DP-20 |
 | `canary.event` | High | A decoy file was opened or changed | CR-22 |
 | `canary.verified` | Info | Local read detection verified | CR-22 |
 | `canary.notifications-unavailable` | Info | Desktop pop-ups are not available |  |
@@ -360,6 +366,54 @@ What you can do: Nothing to do when the update came from your distribution; it i
 Within a minute of a package transaction, a program began accepting network connections.
 
 What you can do: Check whether the package is meant to run a server, and who can reach it (Network > Listening programs).
+
+## `advisory.update-available`
+
+**A security update is available** (Review)
+
+Your distribution has published a fixed version of an installed package. The distribution's own security data decides this, so backported fixes are counted correctly.
+
+What you can do: Install the update with the command shown; Bigman never runs it for you.
+
+## `advisory.exploited`
+
+**A security update fixes a vulnerability known to be exploited** (High)
+
+A pending update fixes a vulnerability listed in CISA's Known Exploited Vulnerabilities catalog, which records flaws seen exploited in the wild.
+
+What you can do: Install this update before the others.
+
+## `advisory.no-fix-yet`
+
+**An installed package is affected and has no fix yet** (Info)
+
+Your distribution marks an installed package as affected by a vulnerability it has not fixed yet. It becomes Review when the vulnerability is being exploited.
+
+What you can do: Nothing to install yet. Avoid the affected feature where you can.
+
+## `advisory.reboot-required`
+
+**A restart finishes installing updates** (Review)
+
+A newer kernel is installed than the one running, or the distribution flagged that a restart is needed, so some fixes are not in effect yet.
+
+What you can do: Restart when convenient.
+
+## `advisory.untracked-package`
+
+**Packages outside the distribution's security data** (Info)
+
+These installed packages came from outside the distribution's repositories (the AUR, a vendor repository, a local file), so its security data cannot say whether they need updates.
+
+What you can do: Follow each project's own releases for security updates.
+
+## `advisory.unsupported-release`
+
+**This release no longer receives security updates** (Review)
+
+The distribution's security data has nothing for this release, which usually means it has reached its end of life.
+
+What you can do: Upgrade to a supported release.
 
 ## `canary.event`
 

@@ -1,0 +1,5 @@
+openssh 10.0p1-1
+vim 9.1.1-1
+libtiff 4.7.0-2
+curl 8.14.1-1
+firefox 159.0-1

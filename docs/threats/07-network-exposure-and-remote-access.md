@@ -9,7 +9,7 @@
 | NE-01 | Unexpected listening services and wildcard (0.0.0.0 / [::]) binds | High | Partial | Parse `ss`/`/proc/net/*` into findings with owner UID, unit, binary path and owning package; flag wildcard binds |
 | NE-02 | Weak SSH server configuration (password auth, root login, forwarding) | High | Gap | `ssh.config.*` audit of effective `sshd -T` output via an explicit, one-shot polkit read |
 | NE-03 | SSH brute force, password spraying and credential stuffing | Medium (High if password auth on) | Gap | Rootless journald summary of failed and accepted logins, grouped by source and user |
-| NE-04 | Vulnerable SSH daemons (regreSSHion, 2025 OpenSSH CVEs, Terrapin, Erlang/OTP SSH) | High | Gap | Feed-driven advisory keyed on the installed package version and the distro's fixed version |
+| NE-04 | Vulnerable SSH daemons (regreSSHion, 2025 OpenSSH CVEs, Terrapin, Erlang/OTP SSH) | High | Partial | Feed-driven advisory keyed on the installed package version and the distro's fixed version |
 | NE-05 | Unrecognised SSH keys and risky forwarding and agent settings | High | Partial | Already baselines `~/.ssh/authorized_keys`; add `AuthorizedKeysFile` and `sshd_config.d` drift and a forwarding audit |
 | NE-06 | Docker Engine API exposed on TCP (2375/2376) | Critical | Partial | `docker.api.tcp` from listeners, daemon flags, `daemon.json` and unit drop-ins |
 | NE-07 | Docker/Podman published ports bypassing ufw/firewalld | High | Gap | `docker.publish.wildcard` from `docker-proxy` or `rootlessport` command lines plus a firewall-backend explanation |
@@ -122,7 +122,7 @@
   - OpenSSH 10.3-10.6 (2026) shipped further security fixes, and the 10.6 notes (2026-10-06) say more frequent releases are coming. The OpenSSH `security.html` page lists advisories only up to April 2025, so do not rely on it alone.
   - The 2024 xz-utils backdoor targeted sshd via liblzma; see [distro packaging](./03-distro-packaging-and-install-channels.md).
 - **What a defender inspects (indicators):** the installed package version (`rpm -q openssh-server`, `dpkg-query -W openssh-server`); the distro security tracker entry for each CVE; `ssh -V`; whether sshd is enabled or listening (NE-01); and any Erlang or other embedded SSH servers listening on unusual ports.
-- **Bigman today:** Gap. OSV-Scanner integration covers project dependencies, not system packages.
+- **Bigman today:** Partial. `bigman advisories` (Protect > Updates) matches installed packages against the distribution's own data (dnf updateinfo on Fedora, the Debian security tracker, the Arch security tracker), raises updates that fix a CISA KEV entry to High, and flags a pending reboot. OpenSSH and Erlang SSH fixes appear there like any other package; embedded SSH servers outside packages are not covered.
 - **Proposed mitigation / detection:** A feed-driven advisory, `pkg.cve.ssh-server`. Compare the installed NEVRA or Debian version against the distro's own fixed-version data: Fedora Bodhi or updateinfo, Debian Security Tracker JSON, Ubuntu OVAL or USN. See [vulnerability feeds](../research/vulnerability-intelligence-and-feeds.md). Raise severity only when sshd is also enabled and listening beyond loopback. Show the vendor's interim mitigation text (for example `LoginGraceTime 0` for regreSSHion) with its trade-off.
 - **Test case idea:** A fixture feed entry ("openssh-server fixed in 9.6p1-1.fc40.x") and fixture installed versions above and below it, with a fake listener table that has 22/tcp on 0.0.0.0 or only on 127.0.0.1. Assert severity changes with exposure.
 - **References:**

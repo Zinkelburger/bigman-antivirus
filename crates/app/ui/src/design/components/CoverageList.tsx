@@ -56,7 +56,7 @@ export function CoverageList({ coverage, errors = [] }: { coverage: Coverage; er
           <h3 className="mb-1 text-small font-semibold text-ink">What these checks can tell you</h3>
           <ul className="flex flex-col gap-1 text-ink-muted">
             {coverage.notes.map((n, i) => (
-              <li key={i} className="max-w-[60ch]">
+              <li key={i} className="max-w-[56ch]">
                 {n}
               </li>
             ))}

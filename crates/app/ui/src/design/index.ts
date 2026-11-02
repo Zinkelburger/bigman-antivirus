@@ -39,6 +39,7 @@ export { applyTheme, storedTheme, type ThemeChoice } from "./theme";
 export {
   AboutRule,
   FindingEvidence,
+  reportFigure,
   reportOccurrence,
   reportOccurrences,
   ReportPanel,

@@ -1,0 +1,8 @@
+{
+  "driver": "advisories",
+  "fires": [
+    "advisory.update-available"
+  ],
+  "about": "A Fedora advisory for an installed package, not in KEV.",
+  "input": "input.json"
+}

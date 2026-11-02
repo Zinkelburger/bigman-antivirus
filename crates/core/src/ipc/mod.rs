@@ -17,7 +17,7 @@ use crate::{
     model::{Event, Report, Sample, SampleSeries, SourceId, Unread},
     notify::NotificationSettings,
     rules::RuleInfo,
-    sources::{NetworkSnapshot, SourceStatus},
+    sources::{NetworkSnapshot, Preferences, SourceStatus},
 };
 use anyhow::{bail, Context, Result};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
@@ -67,6 +67,11 @@ pub enum Request {
         path: PathBuf,
     },
     Changes,
+    /// Pending security updates from the distribution's data (fetches public data).
+    Advisories {
+        refresh: bool,
+        offline: bool,
+    },
     /// `lynis`, `osv` (project path) or `osquery`.
     Audit {
         tool: String,
@@ -130,6 +135,10 @@ pub enum Request {
     /// Each source's health, for Setup and the timeline's coverage.
     Sources,
     Notifications,
+    Preferences,
+    SetPreferences {
+        preferences: Preferences,
+    },
     SetNotifications {
         settings: NotificationSettings,
     },
@@ -169,6 +178,7 @@ pub enum Response {
     Network(Box<NetworkSnapshot>),
     Sources(Vec<SourceStatus>),
     Notifications(NotificationSettings),
+    Preferences(Preferences),
     Live(Live),
     Plan(Box<ActionPlan>),
     Done(Box<ActionOutcome>),

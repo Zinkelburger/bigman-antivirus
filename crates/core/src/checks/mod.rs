@@ -1,4 +1,5 @@
 //! One module per check. Each check produces a `Report` and owns no UI.
+pub mod advisories;
 pub mod canary;
 pub mod changes;
 pub mod denials;

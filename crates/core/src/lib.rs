@@ -2,6 +2,7 @@
 //! the CLI, daemon and native host are thin clients of this library.
 pub mod actions;
 pub mod checks;
+pub mod fetch;
 pub mod ipc;
 pub mod model;
 pub mod notify;

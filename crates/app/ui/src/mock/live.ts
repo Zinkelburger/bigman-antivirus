@@ -260,3 +260,43 @@ export function sourceStatuses(scenario: string): SourceStatus[] {
     ok("throughput", "Network throughput"),
   ];
 }
+
+const UPDATES_NOTE =
+  "The distribution's own security data decides what is affected and what fixes it; CISA's catalog of exploited vulnerabilities only raises the severity. Bigman shows the update command and never runs it. No package list leaves this computer.";
+
+/** What `bigman advisories` reports, per scenario: updates, none, or an unsupported system. */
+export function securityUpdates(scenario: string, id: string, at: number): Report {
+  const base = { id, created: at, kind: "Security updates", sha256: null, errors: [] };
+  if (scenario === "empty") {
+    return {
+      ...base,
+      subject: "Ubuntu 24.04 LTS",
+      findings: [],
+      details: "",
+      coverage: { checked: [], notes: [UPDATES_NOTE], skipped: [{ what: "Security data for Ubuntu 24.04 LTS", why: "not_applicable", detail: "Bigman reads Fedora, Debian and Arch Linux security data; other distributions are not supported yet." }] },
+    };
+  }
+  const coverage = { checked: ["3,314 installed rpm packages", "Fedora updateinfo through dnf", "CISA Known Exploited Vulnerabilities"], notes: [UPDATES_NOTE], skipped: [] };
+  if (scenario === "calm") return { ...base, subject: "Fedora Linux 44 (Workstation Edition)", findings: [], details: "", coverage };
+  const update = (rule: "advisory.update-available" | "advisory.exploited", id_: string, names: string, versions: string, cves: string, rating: string): Finding => ({
+    rule,
+    severity: rule === "advisory.exploited" ? "high" : "review",
+    summary: rule === "advisory.exploited" ? `Security update for ${names} fixes a vulnerability known to be exploited` : `Security update for ${names}`,
+    evidence: `${id_} (${rating})\n${versions}\nCVEs: ${cves}${rule === "advisory.exploited" ? `\nIn CISA's Known Exploited Vulnerabilities catalog: ${cves}` : ""}\nFrom dnf updateinfo (Fedora repository metadata)`,
+    action: rule === "advisory.exploited" ? "Install this update before the others, with this command or your desktop's software updater." : "Install the update with this command, or from your desktop's software updater.",
+    command: `sudo dnf upgrade --advisories=${id_}`,
+  });
+  return {
+    ...base,
+    subject: "Fedora Linux 44 (Workstation Edition)",
+    details: "sudo dnf upgrade --advisories=FEDORA-2026-4a1b2c3d4e,FEDORA-2026-31601794bf,FEDORA-2026-d732fb97a0",
+    coverage,
+    findings: [
+      update("advisory.exploited", "FEDORA-2026-4a1b2c3d4e", "openssh-server", "openssh-server: installed 0:10.0p1-5.fc44, fixed in 0:10.0p1-6.fc44", "CVE-2026-90001", "Important"),
+      update("advisory.update-available", "FEDORA-2026-31601794bf", "firefox and firefox-langpacks", "firefox: installed 0:158.0-2.fc44, fixed in 0:159.0-1.fc44\nfirefox-langpacks: installed 0:158.0-2.fc44, fixed in 0:159.0-1.fc44", "No CVE ids listed", "Critical"),
+      update("advisory.update-available", "FEDORA-2026-d732fb97a0", "gcc, cpp and 3 more", "gcc: installed 0:16.2.1-2.fc44, fixed in 0:16.2.1-3.fc44\ncpp: installed 0:16.2.1-2.fc44, fixed in 0:16.2.1-3.fc44", "CVE-2026-102010, CVE-2026-115455", "Moderate"),
+      { rule: "advisory.reboot-required", severity: "review", summary: "Restart to finish installing updates", evidence: "Running kernel 7.2.9-200.fc44.x86_64; kernel 7.2.13-200.fc44.x86_64 is installed and takes effect after a restart.", action: "Restart when convenient; until then the fixes in the newer kernel are not running." },
+      { rule: "advisory.untracked-package", severity: "info", summary: "2 packages are not covered by your distribution's security data", evidence: "chatgpt 26.1023.51421-1 (from openai-chatgpt)\nappimagelauncher 3.0.0-1 (from @commandline)", action: "These came from outside the distribution's repositories (for example the AUR or a local build). Follow their upstream for security updates." },
+    ],
+  };
+}

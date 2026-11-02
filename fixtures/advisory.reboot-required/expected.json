@@ -1,0 +1,8 @@
+{
+  "driver": "advisories",
+  "fires": [
+    "advisory.reboot-required"
+  ],
+  "about": "A newer kernel installed than the one running.",
+  "input": "input.json"
+}

@@ -107,6 +107,16 @@ export function ReportFollowUp({ report }: { report: Report }) {
           <ActionDialog action={{ kind: "package_policy", path: report.subject }} label="Disable automatic install scripts…" />
         </div>
       );
+    case "Security updates":
+      return report.details ? (
+        <section className="flex flex-col gap-2">
+          <h3 className="m-0 text-small font-semibold text-ink-muted">Install all security updates</h3>
+          <EvidenceBlock text={report.details} label="Command (Bigman does not run it)" />
+          <p className="m-0 max-w-[56ch] text-small text-ink-muted">
+            Your desktop&apos;s software updater (GNOME Software or Discover) installs the same updates.
+          </p>
+        </section>
+      ) : null;
     case "Persistence changes":
       return report.errors.length === 0 ? (
         <div>

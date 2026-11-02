@@ -425,6 +425,73 @@
     ]
   },
   {
+    "id": "advisory.update-available",
+    "severity": "review",
+    "title": "A security update is available",
+    "explanation": "Your distribution has published a fixed version of an installed package. The distribution's own security data decides this, so backported fixes are counted correctly.",
+    "remediation": "Install the update with the command shown; Bigman never runs it for you.",
+    "threats": [
+      "DP-20",
+      "HI-23",
+      "NE-04"
+    ]
+  },
+  {
+    "id": "advisory.exploited",
+    "severity": "high",
+    "title": "A security update fixes a vulnerability known to be exploited",
+    "explanation": "A pending update fixes a vulnerability listed in CISA's Known Exploited Vulnerabilities catalog, which records flaws seen exploited in the wild.",
+    "remediation": "Install this update before the others.",
+    "threats": [
+      "DP-20",
+      "HI-23",
+      "MW-20"
+    ]
+  },
+  {
+    "id": "advisory.no-fix-yet",
+    "severity": "info",
+    "title": "An installed package is affected and has no fix yet",
+    "explanation": "Your distribution marks an installed package as affected by a vulnerability it has not fixed yet. It becomes Review when the vulnerability is being exploited.",
+    "remediation": "Nothing to install yet. Avoid the affected feature where you can.",
+    "threats": [
+      "DP-20",
+      "HI-23"
+    ]
+  },
+  {
+    "id": "advisory.reboot-required",
+    "severity": "review",
+    "title": "A restart finishes installing updates",
+    "explanation": "A newer kernel is installed than the one running, or the distribution flagged that a restart is needed, so some fixes are not in effect yet.",
+    "remediation": "Restart when convenient.",
+    "threats": [
+      "HI-23"
+    ]
+  },
+  {
+    "id": "advisory.untracked-package",
+    "severity": "info",
+    "title": "Packages outside the distribution's security data",
+    "explanation": "These installed packages came from outside the distribution's repositories (the AUR, a vendor repository, a local file), so its security data cannot say whether they need updates.",
+    "remediation": "Follow each project's own releases for security updates.",
+    "threats": [
+      "DP-10",
+      "DP-11",
+      "DP-12"
+    ]
+  },
+  {
+    "id": "advisory.unsupported-release",
+    "severity": "review",
+    "title": "This release no longer receives security updates",
+    "explanation": "The distribution's security data has nothing for this release, which usually means it has reached its end of life.",
+    "remediation": "Upgrade to a supported release.",
+    "threats": [
+      "DP-20"
+    ]
+  },
+  {
     "id": "canary.event",
     "severity": "high",
     "title": "A decoy file was opened or changed",

@@ -1,0 +1,6 @@
+openssl	3.5.4-1~deb13u1	openssl	3.5.4-1~deb13u1	ii 
+libssl3t64:amd64	3.5.4-1~deb13u1	openssl	3.5.4-1~deb13u1	ii 
+xz-utils	5.8.1-1	xz-utils	5.8.1-1	ii 
+libtiff6:amd64	4.7.0-3	libtiff	4.7.0-3	ii 
+curl	8.14.1-2	curl	8.14.1-2	ii 
+oldpkg	1.0-1	oldpkg	1.0-1	rc 

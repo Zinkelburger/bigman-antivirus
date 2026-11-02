@@ -1,0 +1,10 @@
+{
+  "distro": {
+    "id": "debian",
+    "like": [],
+    "version_id": "10",
+    "codename": "buster",
+    "pretty": "Debian GNU/Linux 10 (buster)"
+  },
+  "unsupported_release": "The Debian security tracker has no entries for buster."
+}

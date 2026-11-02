@@ -1,0 +1,10 @@
+{
+  "distro": {
+    "id": "fedora",
+    "like": [],
+    "version_id": "44",
+    "codename": "",
+    "pretty": "Fedora Linux 44"
+  },
+  "reboot": "Running kernel 7.2.9-200.fc44.x86_64; kernel 7.2.13-200.fc44.x86_64 is installed and takes effect after a restart."
+}

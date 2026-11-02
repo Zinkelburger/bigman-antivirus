@@ -1,9 +1,10 @@
-import { create } from "zustand";
+import { useShell, type ProtectView } from "@/shell/store";
 
-export type ProtectView = "scans" | "quarantine" | "startup" | "canaries" | "audits";
+export type { ProtectView };
 
-/** The open sub-view survives switching tabs. */
-export const useProtectView = create<{ view: ProtectView; setView: (view: ProtectView) => void }>((set) => ({
-  view: "scans",
-  setView: (view) => set({ view }),
-}));
+/** The open sub-view, kept in the shell store so other tabs can open one. */
+export function useProtectView() {
+  const view = useShell((s) => s.protectView);
+  const setView = useShell((s) => s.setProtectView);
+  return { view, setView };
+}

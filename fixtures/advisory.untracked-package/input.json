@@ -1,0 +1,13 @@
+{
+  "distro": {
+    "id": "fedora",
+    "like": [],
+    "version_id": "44",
+    "codename": "",
+    "pretty": "Fedora Linux 44"
+  },
+  "untracked": [
+    "chatgpt 26.1023.51421-1 (from openai-chatgpt)",
+    "appimagelauncher 3.0.0-1 (from @commandline)"
+  ]
+}

@@ -5,117 +5,25 @@ use crate::{
     store::{digest, read_file, Store, MAX_INPUT},
 };
 use anyhow::{bail, Context, Result};
-use std::{
-    fs,
-    net::{IpAddr, ToSocketAddrs},
-    path::Path,
-    process::Command,
-};
-use url::Url;
+use std::{fs, path::Path, process::Command};
 
-pub fn public_ip(ip: IpAddr) -> bool {
-    match ip {
-        IpAddr::V4(v) => {
-            let o = v.octets();
-            !(v.is_private()
-                || v.is_loopback()
-                || v.is_link_local()
-                || v.is_unspecified()
-                || v.is_multicast()
-                || v.is_broadcast()
-                || v.is_documentation()
-                || o[0] == 0
-                || o[0] >= 240
-                || (o[0] == 100 && (64..=127).contains(&o[1]))
-                || (o[0] == 198 && (o[1] == 18 || o[1] == 19)))
-        }
-        // Restrict fetches to global IPv6 unicast, exclude documentation and transition ranges.
-        IpAddr::V6(v) => {
-            let s = v.segments();
-            (s[0] & 0xe000) == 0x2000
-                && !(s[0] == 0x2001 && (s[1] < 0x0200 || s[1] == 0x0db8))
-                && s[0] != 0x2002
-        }
-    }
-}
+pub use crate::fetch::public_ip;
+
+/// The installer's exact bytes, at most 8 MiB, and the redirect chain that led there.
 fn remote(store: &Store, input: &str, stop: &Cancel) -> Result<(Vec<u8>, Vec<String>)> {
-    let mut url = Url::parse(input)?;
-    let mut chain = vec![];
-    for _ in 0..6 {
-        if url.scheme() != "https" || !url.username().is_empty() || url.password().is_some() {
-            bail!("Installer URLs must use HTTPS without embedded credentials");
-        }
-        let host = url.host_str().context("URL has no hostname")?;
-        let port = url.port_or_known_default().unwrap_or(443);
-        let addresses: Vec<_> = (host, port).to_socket_addrs()?.collect();
-        if addresses.is_empty() || addresses.iter().any(|a| !public_ip(a.ip())) {
-            bail!("Refusing private, local, reserved or unresolved destination");
-        }
-        let addr = addresses[0].ip();
-        let addr = if addr.is_ipv6() {
-            format!("[{addr}]")
-        } else {
-            addr.to_string()
-        };
-        let tmp = tempfile::tempdir_in(&store.root)?;
-        let body = tmp.path().join("body");
-        let headers = tmp.path().join("headers");
-        let output = runner::run(
-            Command::new("curl")
-                .args([
-                    "--disable",
-                    "--silent",
-                    "--show-error",
-                    "--proto",
-                    "=https",
-                    "--noproxy",
-                    "*",
-                    "--connect-timeout",
-                    "10",
-                    "--max-time",
-                    "30",
-                    "--max-filesize",
-                    "8388608",
-                    "--resolve",
-                    &format!("{host}:{port}:{addr}"),
-                    "--dump-header",
-                ])
-                .arg(&headers)
-                .arg("--output")
-                .arg(&body)
-                .arg("--")
-                .arg(url.as_str()),
-            35,
-            stop,
-        )?;
-        if !output.ok() {
-            bail!("Download failed: {}", output.stderr);
-        }
-        let h = String::from_utf8_lossy(&read_file(&headers, 65536)?).into_owned();
-        let status = h
-            .lines()
-            .find(|l| l.starts_with("HTTP/"))
-            .and_then(|l| l.split_whitespace().nth(1))
-            .unwrap_or("");
-        chain.push(url.to_string());
-        if ["301", "302", "303", "307", "308"].contains(&status) {
-            let location = h
-                .lines()
-                .find_map(|l| {
-                    l.split_once(':')
-                        .filter(|(k, _)| k.eq_ignore_ascii_case("location"))
-                        .map(|(_, v)| v.trim())
-                })
-                .context("Redirect without Location")?;
-            url = url.join(location)?;
-            continue;
-        }
-        if status != "200" {
-            bail!("Server returned HTTP {status}");
-        }
-        return Ok((read_file(&body, MAX_INPUT)?, chain));
-    }
-    bail!("Too many redirects")
+    let tmp = tempfile::tempdir_in(&store.root)?;
+    let body = tmp.path().join("body");
+    let fetched = crate::fetch::download(
+        input,
+        &body,
+        &crate::fetch::Limits {
+            bytes: 8 * 1024 * 1024,
+            seconds: 30,
+        },
+        None,
+        stop,
+    )?;
+    Ok((read_file(&body, MAX_INPUT)?, fetched.chain))
 }
 
 fn inspect_inner(store: &Store, target: &str, stop: &Cancel) -> Result<Report> {

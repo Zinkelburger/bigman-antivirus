@@ -1,0 +1,8 @@
+{
+  "driver": "advisories",
+  "fires": [
+    "advisory.no-fix-yet"
+  ],
+  "about": "An open Debian CVE with no fixed version yet.",
+  "input": "input.json"
+}

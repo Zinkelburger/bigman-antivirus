@@ -23,6 +23,10 @@ pub struct Finding {
     pub summary: String,
     pub evidence: String,
     pub action: String,
+    /// A command the action refers to, shown as copyable machine text. Never run.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub command: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -52,6 +56,16 @@ pub struct SummaryCounts {
     /// Findings at Review or High severity.
     pub to_review: u32,
     pub errors: u32,
+}
+
+/// "3 hours", "2 days": a duration in seconds for coverage notes.
+pub fn age(seconds: u64) -> String {
+    let (n, unit) = match seconds {
+        s if s < 3_600 => (s / 60, "minute"),
+        s if s < 86_400 => (s / 3_600, "hour"),
+        s => (s / 86_400, "day"),
+    };
+    format!("{n} {unit}{}", if n == 1 { "" } else { "s" })
 }
 
 pub fn now() -> u64 {
@@ -101,7 +115,23 @@ impl Report {
             summary: summary.into(),
             evidence: clean(&evidence.to_string()),
             action: action.into(),
+            command: None,
         });
+    }
+    /// Like `add`, for a finding whose remedy is a command for you to run.
+    pub fn add_command(
+        &mut self,
+        rule: &str,
+        severity: Severity,
+        summary: &str,
+        evidence: impl ToString,
+        action: &str,
+        command: &str,
+    ) {
+        self.add(rule, severity, summary, evidence, action);
+        if let Some(f) = self.findings.last_mut() {
+            f.command = (!command.is_empty()).then(|| command.to_string());
+        }
     }
     /// Tool errors or skipped coverage make a result incomplete.
     pub fn is_incomplete(&self) -> bool {

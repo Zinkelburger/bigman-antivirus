@@ -25,6 +25,8 @@ import {
   useHealth,
   useNotifications,
   useOpenTool,
+  usePreferences,
+  useSetPreferences,
   useSetNotifications,
   useSources,
   useStatus,
@@ -139,6 +141,21 @@ function Notifications({ disabled }: { disabled: boolean }) {
       ))}
       {save.isError && <IncompleteNotice title="The change was not saved" errors={[save.error.message]} />}
     </div>
+  );
+}
+
+function AutoUpdates({ disabled }: { disabled: boolean }) {
+  const prefs = usePreferences();
+  const save = useSetPreferences();
+  if (disabled || !prefs.data) return null;
+  return (
+    <Toggle
+      label="Check for security updates on its own"
+      description="Once a day and two minutes after package changes. Uses the network for public data only; no package list is sent."
+      checked={prefs.data.check_updates}
+      disabled={save.isPending}
+      onChange={(check_updates) => save.mutate({ ...prefs.data, check_updates })}
+    />
   );
 }
 
@@ -263,6 +280,7 @@ export function SetupPage() {
               Activity rather than reporting nothing.
             </p>
             <Sources disabled={down} />
+            <AutoUpdates disabled={down} />
           </Item>
 
           <Item title="Notifications" done={null}>

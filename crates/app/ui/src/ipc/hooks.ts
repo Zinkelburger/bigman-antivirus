@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef } from "react";
 import type { Action } from "./generated/Action";
 import type { NotificationSettings } from "./generated/NotificationSettings";
+import type { Preferences } from "./generated/Preferences";
 import type { Request } from "./generated/Request";
 import type { SourceId } from "./generated/SourceId";
 import { call, DisconnectedError, transport } from "./transport";
@@ -83,7 +84,7 @@ function useRefreshAll() {
 
 type CheckRequest = Extract<
   Request,
-  { type: "doctor" | "scan" | "update_signatures" | "pdf" | "inspect" | "inspect_any" | "packages" | "changes" | "audit" | "yara" | "canary_test" }
+  { type: "doctor" | "scan" | "update_signatures" | "pdf" | "inspect" | "inspect_any" | "packages" | "changes" | "audit" | "yara" | "canary_test" | "advisories" }
 >;
 
 /**
@@ -202,6 +203,18 @@ export function useSources() {
     queryKey: ["sources"],
     queryFn: () => call({ type: "sources" }, "sources"),
     refetchInterval: (query) => poll(10_000)(query),
+  });
+}
+
+export function usePreferences() {
+  return useQuery({ queryKey: ["preferences"], queryFn: () => call({ type: "preferences" }, "preferences") });
+}
+
+export function useSetPreferences() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (preferences: Preferences) => call({ type: "set_preferences", preferences }, "preferences"),
+    onSuccess: (preferences) => client.setQueryData(["preferences"], preferences),
   });
 }
 

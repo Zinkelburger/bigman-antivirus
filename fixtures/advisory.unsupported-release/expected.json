@@ -1,0 +1,8 @@
+{
+  "driver": "advisories",
+  "fires": [
+    "advisory.unsupported-release"
+  ],
+  "about": "A Debian release the tracker no longer lists.",
+  "input": "input.json"
+}

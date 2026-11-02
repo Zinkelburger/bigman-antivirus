@@ -19,7 +19,7 @@ import {
 } from "@/ipc";
 import rules from "@/ipc/generated/rules.json";
 import { checkup, history, NOW, report, scanWithFinding, statusScenarios } from "./fixtures";
-import { INTERFACES, networkSnapshot, RECEIPTS, reportEvent, sampleAt, samplesFor, seedEvents, sourceStatuses } from "./live";
+import { INTERFACES, networkSnapshot, RECEIPTS, securityUpdates, reportEvent, sampleAt, samplesFor, seedEvents, sourceStatuses } from "./live";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const id = () => crypto.randomUUID();
@@ -43,6 +43,7 @@ class MockDaemon {
   notifications: NotificationSettings = { findings: true, new_connections: false, new_listeners: false, packages: false, denials: false, paused_until: null };
   subscribers = new Set<(live: Live) => void>();
   hook = false;
+  preferences = { check_updates: true };
 
   constructor(
     readonly scenario: string,
@@ -51,6 +52,10 @@ class MockDaemon {
   ) {
     this.monitor = (statusScenarios[scenario] ?? statusScenarios.findings)?.monitor != null && scenario !== "empty";
     this.reports = scenario === "empty" ? [] : history(scenario);
+    // A calm machine has its daily security-updates check on record.
+    if (scenario === "calm") {
+      this.reports = [...this.reports, securityUpdates("calm", "3f6c2a1e-0000-4000-8000-500000000001", NOW - 3 * 3_600)].sort((a, b) => b.created - a.created);
+    }
     this.events = seedEvents(scenario, this.reports);
     // Everything older than an hour was looked at already.
     this.seenThrough = this.events.filter((e) => e.at < NOW - 3_600).reduce((m, e) => Math.max(m, e.id), 0);
@@ -224,6 +229,7 @@ class MockDaemon {
       }
       case "inspect": return r(await this.check(token, 900, () => report({ id: id(), created: now(), kind: "Installer inspection", subject: request.target, sha256: "4397ea1f9014f4ae085fb4f108db3aaa16f00d5711ff5070fb36d4117b18f87e", findings: [{ rule: "shell.execute-download", severity: "high", summary: "Downloads and executes code", evidence: "Line 4: curl -fsSL https://example.org/setup.sh | sh", action: "Save and inspect the exact downloaded bytes first." }, { rule: "shell.privilege", severity: "review", summary: "Requests elevated privileges", evidence: "Line 5: sudo install -m 0755 /tmp/tool /usr/local/bin/tool", action: "Check why this operation needs administrator access." }], coverage: { checked: ["Capability rules", "ShellCheck"], notes: ["Static capability rules only. No code was executed."], skipped: [] }, details: '#!/bin/sh\necho "Installing example tool"\ncurl -fsSL https://example.org/tool.tar.gz -o /tmp/tool.tar.gz\ncurl -fsSL https://example.org/setup.sh | sh\nsudo install -m 0755 /tmp/tool /usr/local/bin/tool' }), "Installer inspection", request.target));
       case "packages": return r(await this.check(token, 700, () => report({ id: id(), created: now(), kind: "Package script inventory", subject: request.path, coverage: { checked: ["Package manifests", "Referenced scripts"], notes: ["Reads package manifests and script source as data; never runs npm or lifecycle hooks."], skipped: [] }, findings: [{ rule: "package.lifecycle", severity: "review", summary: "fixture@1.0.0: postinstall", evidence: `${request.path}/package.json\nnode scripts/setup.js`, action: "Review referenced source. Installation approvals do not constrain later runtime behavior." }] }), "Package script inventory", request.path));
+      case "advisories": return r(await this.check(token, 1_400, () => securityUpdates(this.scenario, id(), now()), "Security updates", "Fedora Linux 44 (Workstation Edition)"));
       case "changes": return r(await this.check(token, 600, () => report({ id: id(), created: now(), kind: "Persistence changes", subject: "Startup and system configuration", coverage: { checked: ["Startup and configuration files", "Package attribution (rpm)"], notes: ["Records content, mode, owner and file capabilities of startup, scheduling, login, PAM, loader, kernel-module, udev, SSH, name-resolution and desktop-handler files. Baseline means previously observed, not trusted; it does not identify the writer."], skipped: [] }, findings: [
         { rule: "persistence.sensitive_modified", severity: "high", summary: "/etc/pam.d/sudo differs from what sudo-1.9.17-10.p2.fc44 installed", evidence: "/etc/pam.d/sudo\nPAM authentication\nOwned by sudo-1.9.17-10.p2.fc44 (a configuration file), but modified: size, content\nmode 0644, owner 0:0\nSHA-256 30273a0ee8c676cd83d1f725ca2eb628d92715e22a92b8fec73cf30834f7a3a2", action: "Compare it with the package's version (rpm -V, dpkg --verify or pacman -Qkk) and restore it if you did not make the change." },
         { rule: "persistence.change", severity: "review", summary: "/home/sam/.bashrc changed", evidence: "/home/sam/.bashrc\nshell profile or environment\nNot owned by any package\nmode 0644, owner 1000:1000\nSHA-256 9a1d0c3fbb4ce2d1b9f2a4e5b7c8d9e0f1a2b3c4d5e6f708192a3b4c5d6e7f80", action: "Review the file and the package that owns it before accepting a new baseline." },
@@ -268,6 +274,8 @@ class MockDaemon {
       }
       case "sources": return { type: "sources", value: sourceStatuses(this.scenario) };
       case "notifications": return { type: "notifications", value: this.notifications };
+      case "preferences": return { type: "preferences", value: this.preferences };
+      case "set_preferences": this.preferences = request.preferences; return { type: "preferences", value: this.preferences };
       case "set_notifications": this.notifications = request.settings; return { type: "notifications", value: this.notifications };
       case "subscribe": return { type: "error", value: { message: "Subscribe needs a connection of its own" } };
       case "preview": return { type: "plan", value: this.plan(request.action) };

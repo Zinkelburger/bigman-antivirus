@@ -74,6 +74,13 @@ impl Daemon {
                 Request::InspectAny { target } => report(route::inspect_any(store, &target, stop)),
                 Request::Inspect { target } => report(inspect::inspect(store, &target, stop)),
                 Request::Packages { path } => report(packages::packages(store, &path)),
+                Request::Advisories { refresh, offline } => {
+                    report(bigman_core::checks::advisories::advisories(
+                        store,
+                        bigman_core::checks::advisories::Options { refresh, offline },
+                        stop,
+                    ))
+                }
                 Request::Changes => {
                     let r = changes::changes(store, stop)?;
                     store.save(&r)?;
@@ -156,6 +163,16 @@ impl Daemon {
                 ))),
                 Request::Sources => Response::Sources(self.timeline.statuses()),
                 Request::Notifications => Response::Notifications(self.timeline.notifications()),
+                Request::Preferences => Response::Preferences(
+                    bigman_core::sources::Preferences::load(&self.timeline.db),
+                ),
+                Request::SetPreferences { preferences } => {
+                    self.timeline.db.set_setting(
+                        bigman_core::sources::Preferences::KEY,
+                        &serde_json::to_string(&preferences)?,
+                    )?;
+                    Response::Preferences(preferences)
+                }
                 Request::SetNotifications { settings } => {
                     self.timeline.set_notifications(&settings)?;
                     Response::Notifications(settings)

@@ -32,7 +32,7 @@
 | HI-20 | Loaded kernel modules not owned by a package, unsigned or tainting | High | Gap | `/proc/modules` to `modinfo` to package owner; decode taint bits; signer inventory |
 | HI-21 | Secure Boot, lockdown, signature enforcement and boot chain state | Medium | Gap | Read SB/lockdown/cmdline; MOK list diff; `/boot` package verify; fwupd HSI if present |
 | HI-22 | Package-file verification (modified or unowned system files) | High | Partial | Scheduled `rpm -Va` / `dpkg --verify` / `pacman -Qkk` with the diff noise explained |
-| HI-23 | Kernel and userspace patch status; well-known Linux LPE CVEs | High | Gap (Partial via optional Lynis) | Distro advisory query, running vs installed kernel, reboot-needed, KEV-driven checklist |
+| HI-23 | Kernel and userspace patch status; well-known Linux LPE CVEs | High | Partial | Distro advisory query, running vs installed kernel, reboot-needed, KEV-driven checklist |
 | HI-24 | Audit, journal and integrity-tool health | Medium | Partial | Report auditd, journald persistence, AIDE DB age, and its own monitor heartbeat in `doctor` |
 | HI-25 | Kernel attack-surface sysctls and rarely used module blocklists | Medium | Gap | Read-only sysctl report with desktop trade-offs (user namespaces are needed by sandboxes) |
 
@@ -704,7 +704,7 @@ Each entry adds two fields to the standard template. **Normal state** describes 
   - CIS Ubuntu 24.04: 1.2.2.1 (updates and patches installed)
   - SSG: `security_patches_up_to_date`
   - osquery: `vuln-management` pack, `rpm_packages`/`deb_packages`
-- **Bigman today:** Gap for OS packages. `bigman audit osv` covers project dependencies only. The optional Lynis integration may surface PKGS-7392/KRNL-5830 suggestions.
+- **Bigman today:** Partial. `bigman advisories` (Protect > Updates) matches installed packages against the distribution's own data (dnf updateinfo on Fedora, the Debian security tracker, the Arch security tracker), raises updates that fix a CISA KEV entry to High, and flags a pending reboot. A newer installed kernel than the running one is `advisory.reboot-required`. Well-known LPE checks beyond the distribution data are not implemented.
 - **Proposed mitigation / detection:**
   - Rootless `doctor` check `patch.status`: run the distro-native advisory query read-only, with dnf/apt cache-only flags so `doctor` never refreshes metadata without consent.
   - Rules: `patch.security-pending` (Review, listing advisory IDs and CVEs) and `patch.reboot-pending` (Review; running kernel older than installed, or `reboot-required` present).

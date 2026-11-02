@@ -1,0 +1,69 @@
+[
+ {
+  "name": "AVG-3001",
+  "packages": [
+   "openssh"
+  ],
+  "status": "Fixed",
+  "severity": "High",
+  "type": "arbitrary command execution",
+  "affected": "10.0p1-1",
+  "fixed": "10.0p1-2",
+  "ticket": null,
+  "issues": [
+   "CVE-2026-90001"
+  ],
+  "advisories": [
+   "ASA-202610-1"
+  ]
+ },
+ {
+  "name": "AVG-3002",
+  "packages": [
+   "vim",
+   "gvim"
+  ],
+  "status": "Fixed",
+  "severity": "Medium",
+  "type": "unknown",
+  "affected": "9.1.0-1",
+  "fixed": "9.1.1-1",
+  "ticket": null,
+  "issues": [
+   "CVE-2026-90002"
+  ],
+  "advisories": []
+ },
+ {
+  "name": "AVG-3003",
+  "packages": [
+   "libtiff"
+  ],
+  "status": "Vulnerable",
+  "severity": "Low",
+  "type": "denial of service",
+  "affected": "4.7.0-1",
+  "fixed": null,
+  "ticket": null,
+  "issues": [
+   "CVE-2026-55501"
+  ],
+  "advisories": []
+ },
+ {
+  "name": "AVG-3004",
+  "packages": [
+   "curl"
+  ],
+  "status": "Not affected",
+  "severity": "Low",
+  "type": "unknown",
+  "affected": "8.0.0-1",
+  "fixed": null,
+  "ticket": null,
+  "issues": [
+   "CVE-2026-2001"
+  ],
+  "advisories": []
+ }
+]

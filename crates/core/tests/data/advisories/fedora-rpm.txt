@@ -1,0 +1,8 @@
+firefox	0:158.0-2.fc44
+firefox-langpacks	0:158.0-2.fc44
+gcc	0:16.2.1-2.fc44
+cpp	0:16.2.1-2.fc44
+vim-enhanced	1:9.1.1-1.fc44
+zlib-ng	0:2.2.6-1.fc44
+gpg-pubkey	0:abcdef-1
+bash	0:5.3.0-2.fc44

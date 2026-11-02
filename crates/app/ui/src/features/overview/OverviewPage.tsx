@@ -12,6 +12,7 @@ import {
   PageHeader,
   plural,
   ProgressRow,
+  reportFigure,
   ReportById,
   ReportPanel,
   reportSeverity,
@@ -30,10 +31,12 @@ import {
   DisconnectedError,
   useCheck,
   useEvents,
+  useHistory,
   useStatus,
   useUnread,
   type Event,
   type ProtectionStatus,
+  type Report,
   type ToolState,
   type Unread,
 } from "@/ipc";
@@ -150,6 +153,35 @@ function sinceLastLook(unread: Unread | undefined) {
   };
 }
 
+/** A result older than a day is shown as such; past a week it no longer counts. */
+const DAY = 86_400;
+
+function updatesTile(r: Report | undefined, now: number) {
+  if (!r) return { state: "empty" as const, value: "Not checked", detail: "Check for security updates.", severity: null };
+  const age = now - r.created;
+  const exploited = r.findings.filter((f) => f.rule === "advisory.exploited").length;
+  const restart = r.findings.some((f) => f.rule === "advisory.reboot-required");
+  const cves = new Set(r.findings.flatMap((f) => f.evidence.match(/CVE-\d{4}-\d{4,}/g) ?? [])).size;
+  const incomplete = reportStatus(r) === "Incomplete";
+  if (age > 7 * DAY) {
+    return { state: "incomplete" as const, value: "Incomplete", detail: `Last checked ${ago(r.created, now)}; check again.`, severity: null };
+  }
+  const parts = [
+    exploited === 1 ? "1 update fixes an exploited vulnerability" : exploited > 1 ? `${String(exploited)} updates fix exploited vulnerabilities` : "",
+    cves ? plural(cves, "CVE") : "",
+    restart ? "restart needed" : "",
+    incomplete ? "not every source was read" : "",
+    age > DAY ? `checked ${ago(r.created, now)}, check again` : `checked ${ago(r.created, now)}`,
+  ];
+  return {
+    state: incomplete && !r.findings.some((f) => f.severity !== "info") ? ("incomplete" as const) : ("ready" as const),
+    value: reportFigure(r) ?? reportStatus(r),
+    detail: parts.filter(Boolean).join(" · "),
+    // An old figure keeps its words but loses its colour.
+    severity: age > DAY ? null : reportSeverity(r),
+  };
+}
+
 /** Days are loaded from the start of an hour so the query stays put as time passes. */
 const hourFloor = (t: number) => Math.floor(t / 3_600) * 3_600;
 
@@ -159,7 +191,7 @@ export function OverviewPage() {
   const doctor = useCheck();
   const open = useDrilldown((s) => s.open);
   const toast = useToasts((s) => s.push);
-  const { range, setRange, openUnread } = useShell();
+  const { range, setRange, openUnread, openProtect } = useShell();
   const now = nowSeconds();
 
   const overviewRange: Range = range === "7d" ? "7d" : "24h";
@@ -172,6 +204,8 @@ export function OverviewPage() {
   const data = status.data;
   const tools = data ? readiness(data, now) : null;
   const scan = data?.last_scan ?? null;
+  const lastUpdates = useHistory().data?.find((r) => r.kind === "Security updates");
+  const updates = updatesTile(lastUpdates, now);
   const scanStatus = scan ? reportStatus(scan) : null;
   const scanSeverity = scan ? reportSeverity(scan) : null;
   const inRange = (events.data ?? []).filter((e) => e.at >= since);
@@ -267,9 +301,17 @@ export function OverviewPage() {
           />
           <StatusTile
             label="Updates"
-            state={ready ? "empty" : tileState}
-            value="Not checked"
-            detail={ready ? "Pending security updates and the CVEs they fix will be listed here." : undefined}
+            state={ready ? updates.state : tileState}
+            value={updates.value}
+            detail={ready ? updates.detail : undefined}
+            severity={updates.severity === "info" ? null : updates.severity}
+            onOpen={
+              !ready
+                ? undefined
+                : lastUpdates
+                  ? () => open({ title: "Security updates", content: <ReportById id={lastUpdates.id} /> })
+                  : () => openProtect("updates")
+            }
           />
         </section>
 

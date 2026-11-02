@@ -1,0 +1,27 @@
+{
+  "distro": {
+    "id": "fedora",
+    "like": [],
+    "version_id": "44",
+    "codename": "",
+    "pretty": "Fedora Linux 44"
+  },
+  "applies": [
+    {
+      "id": "FEDORA-2026-fe33d29b75",
+      "packages": [
+        {
+          "name": "libreswan",
+          "installed": "0:5.3-2.fc44",
+          "fixed": "0:5.3-3.fc44"
+        }
+      ],
+      "cves": [
+        "CVE-2026-94453"
+      ],
+      "severity": "Moderate",
+      "command": "sudo dnf upgrade --advisories=FEDORA-2026-fe33d29b75",
+      "source": "dnf updateinfo (Fedora repository metadata)"
+    }
+  ]
+}

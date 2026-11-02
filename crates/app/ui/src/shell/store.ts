@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import { useDrilldown } from "@/design";
 
+export type ProtectView = "scans" | "updates" | "quarantine" | "startup" | "canaries" | "audits";
+
 export const TAB_IDS = ["overview", "network", "activity", "inspect", "sandboxes", "protect", "setup"] as const;
 export type TabId = (typeof TAB_IDS)[number];
 
@@ -12,6 +14,11 @@ interface ShellStore {
   range: Range;
   /** Activity opens filtered to entries since the last look (from Overview's tile). */
   unreadOnly: boolean;
+  /** The open Protect sub-view; it survives switching tabs. */
+  protectView: ProtectView;
+  setProtectView: (view: ProtectView) => void;
+  /** Overview's tiles open a Protect sub-view directly. */
+  openProtect: (view: ProtectView) => void;
   setTab: (tab: TabId) => void;
   openUnread: () => void;
   setUnreadOnly: (on: boolean) => void;
@@ -22,6 +29,12 @@ export const useShell = create<ShellStore>((set) => ({
   tab: "overview",
   range: "24h",
   unreadOnly: false,
+  protectView: "scans",
+  setProtectView: (protectView) => set({ protectView }),
+  openProtect: (protectView) => {
+    useDrilldown.getState().close();
+    set({ tab: "protect", protectView });
+  },
   openUnread: () => {
     useDrilldown.getState().close();
     set({ tab: "activity", unreadOnly: true });

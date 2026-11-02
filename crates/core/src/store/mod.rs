@@ -79,6 +79,7 @@ impl Store {
             "artifacts",
             "quarantine",
             "canaries",
+            "advisories",
         ] {
             private_dir(&root.join(name))?;
         }

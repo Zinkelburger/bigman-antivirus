@@ -1,0 +1,81 @@
+{
+ "openssl": {
+  "CVE-2026-1001": {
+   "releases": {
+    "trixie": {
+     "status": "resolved",
+     "fixed_version": "3.5.4-1~deb13u2",
+     "urgency": "medium",
+     "repositories": {
+      "trixie": "3.5.4-1~deb13u2"
+     }
+    },
+    "sid": {
+     "status": "resolved",
+     "fixed_version": "3.6.0-1",
+     "urgency": "medium"
+    }
+   }
+  },
+  "CVE-2026-1002": {
+   "releases": {
+    "trixie": {
+     "status": "resolved",
+     "fixed_version": "3.5.4-1~deb13u1",
+     "urgency": "high"
+    }
+   }
+  }
+ },
+ "xz-utils": {
+  "CVE-2024-3094": {
+   "releases": {
+    "trixie": {
+     "status": "resolved",
+     "fixed_version": "0",
+     "urgency": "unimportant"
+    }
+   }
+  }
+ },
+ "libtiff": {
+  "CVE-2026-55501": {
+   "releases": {
+    "trixie": {
+     "status": "open",
+     "urgency": "medium"
+    }
+   }
+  },
+  "CVE-2026-55502": {
+   "releases": {
+    "trixie": {
+     "status": "open",
+     "urgency": "unimportant"
+    }
+   }
+  }
+ },
+ "curl": {
+  "CVE-2026-2001": {
+   "releases": {
+    "trixie": {
+     "status": "resolved",
+     "fixed_version": "8.14.1-2",
+     "urgency": "low"
+    }
+   }
+  }
+ },
+ "notinstalled": {
+  "CVE-2026-3001": {
+   "releases": {
+    "trixie": {
+     "status": "resolved",
+     "fixed_version": "1.0-2",
+     "urgency": "high"
+    }
+   }
+  }
+ }
+}

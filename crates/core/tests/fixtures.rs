@@ -5,7 +5,7 @@
 //!   rule is used somewhere;
 //! - `docs/rules.md` matches the registry.
 use bigman_core::{
-    checks::receipt,
+    checks::{self, receipt},
     platform::{Attribution, PackageDb, PackageScript, Transaction},
 };
 use bigman_core::{
@@ -170,6 +170,9 @@ fn run(dir: &Path, expected: &Expected) -> BTreeSet<String> {
             }
         }
         "receipt" => return receipt_rules(&input),
+        "advisories" => {
+            checks::advisories::assess(&mut r, &serde_json::from_value(json()).unwrap())
+        }
         "denial" => {
             for line in text().lines() {
                 denials::finding(&mut r, &denials::parse(line).expect("a denial record"));

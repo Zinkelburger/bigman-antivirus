@@ -1,0 +1,8 @@
+{
+  "driver": "advisories",
+  "fires": [
+    "advisory.untracked-package"
+  ],
+  "about": "Packages from a vendor repository and a local file.",
+  "input": "input.json"
+}
