@@ -133,7 +133,9 @@ impl Store {
         )];
         summary.coverage.skipped.truncate(20);
         // Most severe first, so truncation never drops a High finding behind lesser ones.
-        summary.findings.sort_by_key(|f| std::cmp::Reverse(f.severity));
+        summary
+            .findings
+            .sort_by_key(|f| std::cmp::Reverse(f.severity));
         summary.findings.truncate(20);
         summary.summary = Some(crate::model::SummaryCounts {
             findings: r.findings.len() as u32,

@@ -95,39 +95,19 @@ pub fn changes(store: &Store) -> Result<Report> {
     r.errors = current.errors.clone();
     r.sha256 = Some(digest(&serde_json::to_vec(&current.entries)?));
     r.coverage.push("Hashes selected user/system startup files and symlink destinations. Baseline means previously observed, not trusted. Does not identify the writer or cover every persistence mechanism; inspect initial entries too.".into());
-    if store.root.join("baseline.json").exists() {
-        let old: Baseline = store.read("baseline.json")?;
-        for (p, v) in &current.entries {
-            if old.entries.get(p) != Some(v) {
-                r.add(
-                    "persistence.change",
-                    Severity::Review,
-                    if old.entries.contains_key(p) {
-                        "Startup entry changed"
-                    } else {
-                        "New startup entry"
-                    },
-                    format!("{}\nSHA-256 {}", p.display(), v.hash),
-                    "Review the file and its owning package before accepting a new baseline.",
-                );
-            }
-        }
-        if current.errors.is_empty() {
-            for p in old
-                .entries
-                .keys()
-                .filter(|p| !current.entries.contains_key(*p))
-            {
-                r.add(
-                    "persistence.removed",
-                    Severity::Review,
-                    "Startup entry removed",
-                    p.display(),
-                    "Check whether an intentional configuration or package change explains this.",
-                );
-            }
-        }
+    let old = if store.root.join("baseline.json").exists() {
+        Some(store.read::<Baseline>("baseline.json")?)
     } else {
+        None
+    };
+    compare(&mut r, old.as_ref(), &current);
+    Ok(r)
+}
+
+/// The startup-file rules: what is new, changed or removed against the baseline,
+/// or the initial inventory when there is none.
+pub fn compare(r: &mut Report, old: Option<&Baseline>, current: &Baseline) {
+    let Some(old) = old else {
         for (p, e) in &current.entries {
             r.add(
                 "persistence.initial",
@@ -140,8 +120,39 @@ pub fn changes(store: &Store) -> Result<Report> {
         r.coverage.push(
             "No baseline exists yet. Accept baseline only after reviewing this inventory.".into(),
         );
+        return;
+    };
+    for (p, v) in &current.entries {
+        if old.entries.get(p) != Some(v) {
+            r.add(
+                "persistence.change",
+                Severity::Review,
+                if old.entries.contains_key(p) {
+                    "Startup entry changed"
+                } else {
+                    "New startup entry"
+                },
+                format!("{}\nSHA-256 {}", p.display(), v.hash),
+                "Review the file and its owning package before accepting a new baseline.",
+            );
+        }
     }
-    Ok(r)
+    // An unreadable entry is not evidence that it was removed.
+    if current.errors.is_empty() {
+        for p in old
+            .entries
+            .keys()
+            .filter(|p| !current.entries.contains_key(*p))
+        {
+            r.add(
+                "persistence.removed",
+                Severity::Review,
+                "Startup entry removed",
+                p.display(),
+                "Check whether an intentional configuration or package change explains this.",
+            );
+        }
+    }
 }
 /// Puts back the baseline that the last acceptance replaced.
 pub fn restore_previous_baseline(store: &Store) -> Result<()> {

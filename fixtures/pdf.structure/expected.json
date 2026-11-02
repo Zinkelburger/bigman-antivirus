@@ -1,0 +1,8 @@
+{
+  "driver": "pdf",
+  "fires": [
+    "pdf.structure"
+  ],
+  "about": "A minimal PDF with one link.",
+  "input": "input.pdf"
+}

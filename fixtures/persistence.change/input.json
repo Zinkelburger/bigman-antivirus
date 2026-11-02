@@ -1,0 +1,22 @@
+{
+  "old": {
+    "created": 1,
+    "entries": {
+      "/home/user/.bashrc": {
+        "hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "bytes": 24
+      }
+    },
+    "errors": []
+  },
+  "current": {
+    "created": 2,
+    "entries": {
+      "/home/user/.bashrc": {
+        "hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "bytes": 24
+      }
+    },
+    "errors": []
+  }
+}

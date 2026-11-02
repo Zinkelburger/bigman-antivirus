@@ -82,6 +82,7 @@ impl Daemon {
                 Request::Quarantined => Response::Quarantined(scan::quarantined(store)?),
                 Request::Canaries => Response::Canaries(Box::new(canary::state(store)?)),
                 Request::ToolGroups => Response::ToolGroups(setup::tool_groups()),
+                Request::Rules => Response::Rules(bigman_core::rules::infos()),
                 Request::OpenTool { tool } => {
                     setup::open_tool(&tool)?;
                     Response::Done(Box::new(actions::ActionOutcome {

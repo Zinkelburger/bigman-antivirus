@@ -1,0 +1,8 @@
+{
+  "driver": "canary",
+  "fires": [
+    "canary.event"
+  ],
+  "about": "A read of a decoy.",
+  "input": "input.json"
+}

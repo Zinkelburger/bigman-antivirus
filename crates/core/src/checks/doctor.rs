@@ -68,9 +68,21 @@ pub fn signatures(store: &Store) -> Option<SignatureState> {
     })
 }
 
-pub fn doctor(store: &Store, stop: &Cancel) -> Result<Report> {
-    let mut r = Report::new("Security checkup", "Local Linux workstation");
-    for tool in tools() {
+/// What the checkup's rules read. Gathered by `doctor`; fixtures supply it directly.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DoctorInputs {
+    pub now: u64,
+    pub tools: Vec<ToolState>,
+    pub signatures: Option<SignatureState>,
+    /// The monitor heartbeat, only when it is fresh.
+    pub monitor: Option<crate::checks::canary::Health>,
+    /// Global git credential helpers, or None when git is not installed.
+    pub git_helpers: Option<Vec<String>>,
+}
+
+/// The checkup's rules, over gathered inputs. No commands, no paths.
+pub fn assess(r: &mut Report, inputs: &DoctorInputs) {
+    for tool in &inputs.tools {
         if tool.available {
             r.details
                 .push_str(&format!("Available: {} — {}\n", tool.name, tool.purpose));
@@ -78,7 +90,7 @@ pub fn doctor(store: &Store, stop: &Cancel) -> Result<Report> {
             r.add("tool.missing",Severity::Info,&format!("{} is not installed", tool.name),&tool.purpose,"Open Setup for an installation plan. Optional tools are not required for unrelated features.");
         }
     }
-    match signatures(store) {
+    match &inputs.signatures {
         None => r.add(
             "clamav.no-definitions",
             Severity::High,
@@ -86,27 +98,27 @@ pub fn doctor(store: &Store, stop: &Cancel) -> Result<Report> {
             "Private Bigman signatures and /var/lib/clamav checked",
             "Update definitions or confirm a custom ClamAV database location.",
         ),
-        Some(sig) if now().saturating_sub(sig.updated) > 3 * 86400 => r.add(
+        Some(sig) if inputs.now.saturating_sub(sig.updated) > 3 * 86400 => r.add(
             "clamav.stale",
             Severity::Review,
             "Definitions appear stale",
             format!(
                 "Daily database file is {} days old",
-                now().saturating_sub(sig.updated) / 86400
+                inputs.now.saturating_sub(sig.updated) / 86400
             ),
             "Update definitions. File age is a freshness signal, not a verified database version.",
         ),
         Some(_) => {}
     }
-    match store.read::<crate::checks::canary::Health>("monitor-health.json") {
-        Ok(h) if now().saturating_sub(h.updated) < 10 => {
+    match &inputs.monitor {
+        Some(h) => {
             r.details.push_str(&format!(
                 "Canary monitor: {}/{} configured paths watched\n",
                 h.watched, h.configured
             ));
-            r.errors.extend(h.errors);
+            r.errors.extend(h.errors.iter().cloned());
         }
-        _ => r.add(
+        None => r.add(
             "monitor.stopped",
             Severity::Review,
             "Canary monitoring is not reporting a fresh heartbeat",
@@ -114,20 +126,44 @@ pub fn doctor(store: &Store, stop: &Cancel) -> Result<Report> {
             "Start monitoring from Canaries or enable the user service.",
         ),
     }
-    if runner::available("git") {
-        if let Ok(o) = runner::run(
+    if inputs
+        .git_helpers
+        .iter()
+        .flatten()
+        .any(|l| l.trim() == "store" || l.trim().starts_with("store "))
+    {
+        r.add(
+            "git.plaintext-credentials",
+            Severity::Review,
+            "Git uses plaintext credential storage",
+            "Global credential.helper includes store; credential contents were not read",
+            "Migrate credentials to a supported desktop keyring helper and revoke obsolete tokens.",
+        );
+    }
+}
+
+pub fn doctor(store: &Store, stop: &Cancel) -> Result<Report> {
+    let mut r = Report::new("Security checkup", "Local Linux workstation");
+    let git_helpers = runner::available("git").then(|| {
+        runner::run(
             Command::new("git").args(["config", "--global", "--get-all", "credential.helper"]),
             5,
             stop,
-        ) {
-            if o.stdout
-                .lines()
-                .any(|l| l.trim() == "store" || l.trim().starts_with("store "))
-            {
-                r.add("git.plaintext-credentials",Severity::Review,"Git uses plaintext credential storage","Global credential.helper includes store; credential contents were not read","Migrate credentials to a supported desktop keyring helper and revoke obsolete tokens.");
-            }
-        }
-    }
+        )
+        .map(|o| o.stdout.lines().map(String::from).collect())
+        .unwrap_or_default()
+    });
+    let inputs = DoctorInputs {
+        now: now(),
+        tools: tools(),
+        signatures: signatures(store),
+        monitor: store
+            .read::<crate::checks::canary::Health>("monitor-health.json")
+            .ok()
+            .filter(|h| now().saturating_sub(h.updated) < 10),
+        git_helpers,
+    };
+    assess(&mut r, &inputs);
     for (name, args) in [
         ("getenforce", vec![]),
         ("ss", vec!["-lntup"]),

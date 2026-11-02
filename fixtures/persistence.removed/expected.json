@@ -1,0 +1,8 @@
+{
+  "driver": "changes",
+  "fires": [
+    "persistence.removed"
+  ],
+  "about": "An autostart entry that is gone.",
+  "input": "input.json"
+}

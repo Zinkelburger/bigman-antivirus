@@ -1,0 +1,8 @@
+{
+  "driver": "trace",
+  "fires": [
+    "trace.network"
+  ],
+  "about": "strace line: a failed connection to a documentation address.",
+  "input": "input.txt"
+}

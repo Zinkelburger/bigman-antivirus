@@ -1,0 +1,8 @@
+{
+  "driver": "shell",
+  "fires": [
+    "shell.persistence"
+  ],
+  "about": "Appends to a shell profile.",
+  "input": "input.sh"
+}

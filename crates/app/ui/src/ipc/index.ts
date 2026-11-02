@@ -13,6 +13,7 @@ export type { MonitorHealth } from "./generated/MonitorHealth";
 export type { ProtectionStatus } from "./generated/ProtectionStatus";
 export type { Quarantined } from "./generated/Quarantined";
 export type { Report } from "./generated/Report";
+export type { RuleInfo } from "./generated/RuleInfo";
 export type { Request } from "./generated/Request";
 export type { Response } from "./generated/Response";
 export type { ScanItem } from "./generated/ScanItem";

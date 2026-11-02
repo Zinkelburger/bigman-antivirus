@@ -1,0 +1,8 @@
+{
+  "driver": "packages",
+  "fires": [
+    "package.unresolved-hook"
+  ],
+  "about": "The lockfile names an install script for a package not on disk.",
+  "input": "input"
+}

@@ -1,0 +1,8 @@
+{
+  "driver": "shell",
+  "fires": [
+    "shell.dynamic"
+  ],
+  "about": "Evaluates generated text.",
+  "input": "input.sh"
+}

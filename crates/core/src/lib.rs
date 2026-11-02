@@ -4,5 +4,6 @@ pub mod actions;
 pub mod checks;
 pub mod ipc;
 pub mod model;
+pub mod rules;
 pub mod runner;
 pub mod store;

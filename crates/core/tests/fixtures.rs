@@ -1,0 +1,210 @@
+//! Rules, fixtures and the rules document stay in step (plan Part H):
+//! - every registered rule has `fixtures/<rule-id>/expected.json`;
+//! - each fixture's input fires exactly the rules it lists, and no others;
+//! - every rule ID written in core's source is registered, and every registered
+//!   rule is used somewhere;
+//! - `docs/rules.md` matches the registry.
+use bigman_core::{
+    checks::{canary, changes, doctor, inspect, integrations, packages, pdf, scan, shell},
+    model::Report,
+    rules, runner,
+    store::Store,
+};
+use serde::Deserialize;
+use std::{
+    collections::BTreeSet,
+    fs,
+    path::{Path, PathBuf},
+};
+
+fn repo() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
+}
+
+#[derive(Deserialize)]
+struct Expected {
+    driver: String,
+    fires: Vec<String>,
+    input: Option<String>,
+    covered_by: Option<String>,
+}
+
+fn rules_fired(report: &Report) -> BTreeSet<String> {
+    report.findings.iter().map(|f| f.rule.clone()).collect()
+}
+
+/// Runs one fixture through the check its driver names and returns what fired.
+fn run(dir: &Path, expected: &Expected) -> BTreeSet<String> {
+    let input = dir.join(expected.input.as_deref().expect("fixture input"));
+    let text = || fs::read_to_string(&input).unwrap();
+    let json = || serde_json::from_str::<serde_json::Value>(&text()).unwrap();
+    let state = tempfile::tempdir().unwrap();
+    let store = Store::open(Some(state.path().join("state"))).unwrap();
+    let mut r = Report::new("Fixture", dir.display());
+    match expected.driver.as_str() {
+        "shell" => return rules_fired(&shell::analyze_content(&text())),
+        "packages" => return rules_fired(&packages::packages(&store, &input).unwrap()),
+        "pdf" => return rules_fired(&pdf::scan_pdf(&store, &input, &runner::cancel()).unwrap()),
+        "trace" => inspect::trace_findings(&mut r, &text()),
+        "shellcheck" => inspect::shellcheck_findings(&mut r, &text()).unwrap(),
+        "clamav" => {
+            let snapshot = PathBuf::from("/fixture/snapshot-0");
+            let mut items = vec![scan::ScanItem {
+                path: "/home/user/Downloads/sample.bin".into(),
+                hash: "0".repeat(64),
+                detected: false,
+                signature: String::new(),
+            }];
+            let output = text().replace("{snapshot}", &snapshot.to_string_lossy());
+            scan::record_matches(&mut r, &mut items, &[snapshot], &output);
+        }
+        "doctor" => doctor::assess(&mut r, &serde_json::from_value(json()).unwrap()),
+        "changes" => {
+            let value = json();
+            let old: Option<changes::Baseline> =
+                serde_json::from_value(value["old"].clone()).unwrap();
+            let current: changes::Baseline =
+                serde_json::from_value(value["current"].clone()).unwrap();
+            changes::compare(&mut r, old.as_ref(), &current);
+        }
+        "canary" => {
+            let mask = json()["mask"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|m| match m.as_str().unwrap() {
+                    "IN_ACCESS" => libc::IN_ACCESS,
+                    "IN_MODIFY" => libc::IN_MODIFY,
+                    "IN_ATTRIB" => libc::IN_ATTRIB,
+                    "IN_DELETE" => libc::IN_DELETE,
+                    other => panic!("unknown inotify mask {other}"),
+                })
+                .fold(0, |a, b| a | b);
+            canary::event_finding(&mut r, "fixture", &canary::event_kinds(mask));
+        }
+        "lynis" => integrations::lynis_findings(&mut r, &text()),
+        "osv" => assert!(integrations::osv_findings(&mut r, &text())),
+        "yara" => integrations::yara_findings(&mut r, &text()),
+        other => panic!("{}: unknown driver {other}", dir.display()),
+    }
+    rules_fired(&r)
+}
+
+#[test]
+fn every_rule_has_a_fixture_that_fires_exactly_its_rules() {
+    let mut problems = vec![];
+    for rule in rules::RULES {
+        let dir = repo().join("fixtures").join(rule.id);
+        let Ok(raw) = fs::read_to_string(dir.join("expected.json")) else {
+            problems.push(format!(
+                "{}: no fixtures/{}/expected.json",
+                rule.id, rule.id
+            ));
+            continue;
+        };
+        let expected: Expected = serde_json::from_str(&raw).unwrap();
+        if expected.driver == "integration" {
+            // Rules that need a real monitor are proved by a named integration test.
+            let test = expected.covered_by.as_deref().expect("covered_by");
+            let source = fs::read_to_string(repo().join(test)).unwrap_or_default();
+            if !source.contains(rule.id) {
+                problems.push(format!("{}: {test} does not assert this rule", rule.id));
+            }
+            continue;
+        }
+        let fired = run(&dir, &expected);
+        let wanted: BTreeSet<String> = expected.fires.iter().cloned().collect();
+        if !wanted.contains(rule.id) {
+            problems.push(format!(
+                "{}: its fixture does not list the rule itself",
+                rule.id
+            ));
+        }
+        if fired != wanted {
+            problems.push(format!("{}: fired {fired:?}, expected {wanted:?}", rule.id));
+        }
+    }
+    assert!(problems.is_empty(), "\n{}", problems.join("\n"));
+}
+
+#[test]
+fn every_fixture_belongs_to_a_registered_rule() {
+    let stray: Vec<String> = fs::read_dir(repo().join("fixtures"))
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+        .filter(|name| rules::get(name).is_none())
+        .collect();
+    assert!(stray.is_empty(), "fixtures without a rule: {stray:?}");
+}
+
+fn source_files(dir: &Path, out: &mut Vec<PathBuf>) {
+    for entry in fs::read_dir(dir).unwrap() {
+        let path = entry.unwrap().path();
+        if path.is_dir() {
+            source_files(&path, out);
+        } else if path.extension().is_some_and(|e| e == "rs") && !path.ends_with("rules/mod.rs") {
+            out.push(path);
+        }
+    }
+}
+
+#[test]
+fn rule_ids_in_source_and_registry_match() {
+    let families: BTreeSet<&str> = rules::RULES
+        .iter()
+        .map(|r| r.id.split('.').next().unwrap())
+        .collect();
+    let literal = regex::Regex::new(r#""([a-z]+(?:\.[a-z][a-z0-9-]*)+)""#).unwrap();
+    let mut files = vec![];
+    source_files(&repo().join("crates/core/src"), &mut files);
+    let mut used = BTreeSet::new();
+    for file in files {
+        for cap in literal.captures_iter(&fs::read_to_string(&file).unwrap()) {
+            let id = cap[1].to_string();
+            let file_name = [".json", ".lock", ".log", ".dat", ".sh", ".py"]
+                .iter()
+                .any(|s| id.ends_with(s));
+            if !file_name && families.contains(id.split('.').next().unwrap()) {
+                used.insert(id);
+            }
+        }
+    }
+    let registered: BTreeSet<String> = rules::RULES.iter().map(|r| r.id.to_string()).collect();
+    let unregistered: Vec<_> = used.difference(&registered).collect();
+    let unused: Vec<_> = registered.difference(&used).collect();
+    assert!(
+        unregistered.is_empty(),
+        "rule IDs used but not registered: {unregistered:?}"
+    );
+    assert!(
+        unused.is_empty(),
+        "registered rules never produced: {unused:?}"
+    );
+    let ids: BTreeSet<_> = rules::RULES.iter().map(|r| r.id).collect();
+    assert_eq!(ids.len(), rules::RULES.len(), "duplicate rule IDs");
+}
+
+#[test]
+fn ui_rules_snapshot_is_current() {
+    // Browser dev mode has no daemon; its mock serves this copy of the registry.
+    let path = repo().join("crates/app/ui/src/ipc/generated/rules.json");
+    let generated = serde_json::to_string_pretty(&rules::infos()).unwrap() + "\n";
+    if std::env::var_os("BIGMAN_UPDATE_RULES_DOC").is_some() {
+        fs::write(&path, &generated).unwrap();
+    }
+    assert_eq!(fs::read_to_string(&path).unwrap_or_default(), generated, "rules.json is stale; run BIGMAN_UPDATE_RULES_DOC=1 cargo test -p bigman-core --test fixtures");
+}
+
+#[test]
+fn rules_document_is_current() {
+    let path = repo().join("docs/rules.md");
+    let generated = rules::markdown();
+    if std::env::var_os("BIGMAN_UPDATE_RULES_DOC").is_some() {
+        fs::write(&path, &generated).unwrap();
+    }
+    assert_eq!(
+        fs::read_to_string(&path).unwrap_or_default(),
+        generated,
+        "docs/rules.md is stale; run BIGMAN_UPDATE_RULES_DOC=1 cargo test -p bigman-core --test fixtures"
+    );
+}

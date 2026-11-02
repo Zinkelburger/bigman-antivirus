@@ -1,0 +1,8 @@
+{
+  "driver": "shell",
+  "fires": [
+    "shell.permissions"
+  ],
+  "about": "Makes a file world-writable.",
+  "input": "input.sh"
+}

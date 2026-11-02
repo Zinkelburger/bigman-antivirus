@@ -1,0 +1,2 @@
+{snapshot}: Bigman.Test.Fixture FOUND
+Scanned files: 1

@@ -1,0 +1,6 @@
+{
+  "driver": "integration",
+  "fires": [],
+  "about": "Needs a real monitor and a missing notify-send.",
+  "covered_by": "tests/canary_onboarding.py"
+}

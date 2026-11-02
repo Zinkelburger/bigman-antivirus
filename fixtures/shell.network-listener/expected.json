@@ -1,0 +1,8 @@
+{
+  "driver": "shell",
+  "fires": [
+    "shell.network-listener"
+  ],
+  "about": "Starts a listener on loopback.",
+  "input": "input.sh"
+}

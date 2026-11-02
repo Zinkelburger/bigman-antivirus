@@ -7,7 +7,8 @@ import type { ErrorBody } from "./ErrorBody";
 import type { ProtectionStatus } from "./ProtectionStatus";
 import type { Quarantined } from "./Quarantined";
 import type { Report } from "./Report";
+import type { RuleInfo } from "./RuleInfo";
 import type { ScanItem } from "./ScanItem";
 import type { ToolGroup } from "./ToolGroup";
 
-export type Response = { "type": "health", "value": DaemonHealth } | { "type": "status", "value": ProtectionStatus } | { "type": "report", "value": Report } | { "type": "history", "value": Array<Report> } | { "type": "scan_items", "value": Array<ScanItem> } | { "type": "quarantined", "value": Array<Quarantined> } | { "type": "canaries", "value": CanaryState } | { "type": "tool_groups", "value": Array<ToolGroup> } | { "type": "plan", "value": ActionPlan } | { "type": "done", "value": ActionOutcome } | { "type": "error", "value": ErrorBody };
+export type Response = { "type": "health", "value": DaemonHealth } | { "type": "status", "value": ProtectionStatus } | { "type": "report", "value": Report } | { "type": "history", "value": Array<Report> } | { "type": "scan_items", "value": Array<ScanItem> } | { "type": "quarantined", "value": Array<Quarantined> } | { "type": "canaries", "value": CanaryState } | { "type": "tool_groups", "value": Array<ToolGroup> } | { "type": "rules", "value": Array<RuleInfo> } | { "type": "plan", "value": ActionPlan } | { "type": "done", "value": ActionOutcome } | { "type": "error", "value": ErrorBody };

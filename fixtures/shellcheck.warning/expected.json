@@ -1,0 +1,8 @@
+{
+  "driver": "shellcheck",
+  "fires": [
+    "shellcheck.warning"
+  ],
+  "about": "ShellCheck JSON with one SC2086 note.",
+  "input": "input.json"
+}

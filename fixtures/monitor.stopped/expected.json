@@ -1,0 +1,8 @@
+{
+  "driver": "doctor",
+  "fires": [
+    "monitor.stopped"
+  ],
+  "about": "No fresh monitor heartbeat.",
+  "input": "input.json"
+}

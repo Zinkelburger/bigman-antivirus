@@ -1,0 +1,8 @@
+{
+  "driver": "shell",
+  "fires": [
+    "shell.privilege"
+  ],
+  "about": "A privileged install.",
+  "input": "input.sh"
+}

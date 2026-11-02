@@ -1,0 +1,8 @@
+{
+  "driver": "shell",
+  "fires": [
+    "shell.credentials"
+  ],
+  "about": "Reads a cloud credential path.",
+  "input": "input.sh"
+}

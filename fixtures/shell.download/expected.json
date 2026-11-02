@@ -1,0 +1,8 @@
+{
+  "driver": "shell",
+  "fires": [
+    "shell.download"
+  ],
+  "about": "A download that is saved, not executed.",
+  "input": "input.sh"
+}

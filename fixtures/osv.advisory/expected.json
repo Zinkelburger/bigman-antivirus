@@ -1,0 +1,8 @@
+{
+  "driver": "osv",
+  "fires": [
+    "osv.advisory"
+  ],
+  "about": "OSV JSON with one advisory.",
+  "input": "input.json"
+}

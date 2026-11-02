@@ -1,0 +1,25 @@
+{
+  "now": 1793300000,
+  "tools": [
+    {
+      "name": "clamscan",
+      "purpose": "Known-malware file scanning",
+      "available": true
+    }
+  ],
+  "signatures": {
+    "updated": 1792868000,
+    "location": "/var/lib/clamav"
+  },
+  "monitor": {
+    "updated": 1793300000,
+    "pid": 4121,
+    "watched": 1,
+    "configured": 1,
+    "errors": [],
+    "watched_ids": []
+  },
+  "git_helpers": [
+    "cache"
+  ]
+}

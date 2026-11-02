@@ -1,0 +1,8 @@
+{
+  "driver": "clamav",
+  "fires": [
+    "clamav.match"
+  ],
+  "about": "ClamAV output naming one snapshot.",
+  "input": "input.txt"
+}

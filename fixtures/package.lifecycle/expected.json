@@ -1,0 +1,8 @@
+{
+  "driver": "packages",
+  "fires": [
+    "package.lifecycle"
+  ],
+  "about": "A postinstall hook whose referenced file is absent.",
+  "input": "input"
+}

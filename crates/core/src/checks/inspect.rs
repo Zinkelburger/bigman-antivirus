@@ -149,18 +149,7 @@ fn inspect_inner(store: &Store, target: &str, stop: &Cancel) -> Result<Report> {
             r.errors
                 .push(format!("ShellCheck did not complete: {}", o.stderr));
         } else {
-            let messages: serde_json::Value = serde_json::from_str(&o.stdout)?;
-            if let Some(ms) = messages.as_array() {
-                for m in ms {
-                    r.add(
-                        "shellcheck",
-                        Severity::Review,
-                        &format!("ShellCheck SC{}", m["code"]),
-                        format!("Line {}: {}", m["line"], m["message"]),
-                        "Review the shell correctness warning; it is not a malware verdict.",
-                    );
-                }
-            }
+            shellcheck_findings(&mut r, &o.stdout)?;
         }
     } else {
         r.errors
@@ -274,7 +263,19 @@ pub fn sandbox(store: &Store, id: &str, hash: &str, stop: &Cancel) -> Result<Rep
             .push("strace missing: syscall observation unavailable".into());
     }
     r.coverage.push("Process count is constrained relative to current usage of your Unix user, not by a dedicated per-job cgroup. Do not use this feature for arbitrary malware detonation.".into());
-    for line in output.stderr.lines().take(2000) {
+    trace_findings(&mut r, &output.stderr);
+    r.details = format!(
+        "Output:\n{}\nTrace/errors:\n{}",
+        output.stdout, output.stderr
+    );
+    store.save(&r)?;
+    Ok(r)
+}
+
+/// The rehearsal rules, over strace output: sensitive paths, network attempts and
+/// started programs.
+pub fn trace_findings(r: &mut Report, trace: &str) {
+    for line in trace.lines().take(2000) {
         if r.findings.len() >= 100 {
             r.errors.push("Trace finding limit reached".into());
             break;
@@ -309,12 +310,21 @@ pub fn sandbox(store: &Store, id: &str, hash: &str, stop: &Cancel) -> Result<Rep
             );
         }
     }
-    r.details = format!(
-        "Output:\n{}\nTrace/errors:\n{}",
-        output.stdout, output.stderr
-    );
-    store.save(&r)?;
-    Ok(r)
+}
+
+/// ShellCheck's JSON as findings. Errors when the output is not ShellCheck JSON.
+pub fn shellcheck_findings(r: &mut Report, json: &str) -> Result<()> {
+    let messages: serde_json::Value = serde_json::from_str(json)?;
+    for m in messages.as_array().into_iter().flatten() {
+        r.add(
+            "shellcheck.warning",
+            Severity::Review,
+            &format!("ShellCheck SC{}", m["code"]),
+            format!("Line {}: {}", m["line"], m["message"]),
+            "Review the shell correctness warning; it is not a malware verdict.",
+        );
+    }
+    Ok(())
 }
 
 pub fn inspect(store: &Store, target: &str, stop: &Cancel) -> Result<Report> {

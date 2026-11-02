@@ -1,0 +1,8 @@
+{
+  "driver": "doctor",
+  "fires": [
+    "git.plaintext-credentials"
+  ],
+  "about": "Global credential.helper is store.",
+  "input": "input.json"
+}

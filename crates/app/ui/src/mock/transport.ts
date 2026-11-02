@@ -8,10 +8,12 @@ import {
   type Quarantined,
   type Report,
   type Request,
+  type RuleInfo,
   type Response,
   type ScanItem,
   type Transport,
 } from "@/ipc";
+import rules from "@/ipc/generated/rules.json";
 import { checkup, history, NOW, report, scanWithFinding, statusScenarios } from "./fixtures";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -188,6 +190,7 @@ class MockDaemon {
         { id: "lynis", label: "Lynis", purpose: "System hardening audit", installed: false },
         { id: "firewall", label: "OpenSnitch", purpose: "Application firewall", installed: false },
       ] };
+      case "rules": return { type: "rules", value: rules as RuleInfo[] };
       case "open_tool": return { type: "done", value: { message: "Opened.", report: null, undo: null } };
       case "preview": return { type: "plan", value: this.plan(request.action) };
       case "apply": await sleep(700 * this.speed); return { type: "done", value: this.apply(request.action) };

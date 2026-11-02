@@ -1,0 +1,8 @@
+{
+  "driver": "trace",
+  "fires": [
+    "trace.process"
+  ],
+  "about": "strace line: a program start.",
+  "input": "input.txt"
+}

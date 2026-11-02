@@ -1,0 +1,8 @@
+{
+  "driver": "trace",
+  "fires": [
+    "trace.sensitive-path"
+  ],
+  "about": "strace line: an attempted SSH key read.",
+  "input": "input.txt"
+}

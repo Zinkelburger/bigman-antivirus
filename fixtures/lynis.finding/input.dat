@@ -1,0 +1,3 @@
+report_version_major=1
+warning[]=AUTH-9286|Example warning text|-|-|
+hostname=fixture

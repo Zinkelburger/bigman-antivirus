@@ -37,6 +37,8 @@ with tempfile.TemporaryDirectory(prefix='bigman onboarding ') as work:
         # Default local path, detached process survives CLI exit, fresh read receipt.
         first = run('arm', '--session-only')
         assert verified(first) and not first['errors']
+        # PATH has no notify-send here, so alerts are History-only and the report says so.
+        assert any(f['rule'] == 'canary.notifications-unavailable' for f in first['findings'])
         canaries = run('list')
         assert len(canaries) == 1
         token = canaries[0]

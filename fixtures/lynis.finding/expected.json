@@ -1,0 +1,8 @@
+{
+  "driver": "lynis",
+  "fires": [
+    "lynis.finding"
+  ],
+  "about": "One Lynis warning line.",
+  "input": "input.dat"
+}

@@ -263,6 +263,34 @@ impl Watcher {
         Ok(out)
     }
 }
+/// What an inotify event mask means for a decoy, in plain words.
+pub fn event_kinds(mask: u32) -> Vec<&'static str> {
+    let mut kinds = vec![];
+    if mask & libc::IN_ACCESS != 0 {
+        kinds.push("content read");
+    }
+    if mask & libc::IN_MODIFY != 0 {
+        kinds.push("content changed");
+    }
+    if mask & libc::IN_ATTRIB != 0 {
+        kinds.push("metadata changed");
+    }
+    if mask & (libc::IN_DELETE | libc::IN_DELETE_SELF | libc::IN_MOVED_FROM | libc::IN_MOVE_SELF)
+        != 0
+    {
+        kinds.push("removed or moved");
+    }
+    if mask & (libc::IN_CREATE | libc::IN_MOVED_TO) != 0 {
+        kinds.push("created or replaced");
+    }
+    kinds
+}
+
+/// The canary rule: a decoy was touched while the monitor ran.
+pub fn event_finding(r: &mut Report, canary_id: &str, kinds: &[&str]) {
+    r.add("canary.event",Severity::High,"A decoy file was accessed or changed",format!("Canary {}: {}",canary_id,kinds.join(", ")),"Check recent activity. Backup/indexing tools and the Test button can also trigger decoys. inotify cannot identify the responsible process.");
+}
+
 pub fn watch(store: &Store, stop: &Cancel) -> Result<()> {
     let lock = fs::OpenOptions::new()
         .read(true)
@@ -356,33 +384,12 @@ pub fn watch(store: &Store, stop: &Cancel) -> Result<()> {
                         continue;
                     }
                     last.insert(c.id.clone(), Instant::now());
-                    let mut kinds = vec![];
-                    if mask & libc::IN_ACCESS != 0 {
-                        kinds.push("content read");
-                    }
-                    if mask & libc::IN_MODIFY != 0 {
-                        kinds.push("content changed");
-                    }
-                    if mask & libc::IN_ATTRIB != 0 {
-                        kinds.push("metadata changed");
-                    }
-                    if mask
-                        & (libc::IN_DELETE
-                            | libc::IN_DELETE_SELF
-                            | libc::IN_MOVED_FROM
-                            | libc::IN_MOVE_SELF)
-                        != 0
-                    {
-                        kinds.push("removed or moved");
-                    }
-                    if mask & (libc::IN_CREATE | libc::IN_MOVED_TO) != 0 {
-                        kinds.push("created or replaced");
-                    }
+                    let kinds = event_kinds(mask);
                     if kinds.is_empty() {
                         continue;
                     }
                     let mut r = Report::new("Canary triggered", c.path.display());
-                    r.add("canary.event",Severity::High,"A decoy file was accessed or changed",format!("Canary {}: {}",c.id,kinds.join(", ")),"Check recent activity. Backup/indexing tools and the Test button can also trigger decoys. inotify cannot identify the responsible process.");
+                    event_finding(&mut r, &c.id, &kinds);
                     r.coverage.push("Local events while monitor is running only; not access prevention, reader attribution, or proof of exfiltration. Repeated events within three seconds are grouped.".into());
                     store.save(&r)?;
                     notify(

@@ -1,0 +1,9 @@
+{
+  "driver": "shell",
+  "fires": [
+    "shell.download",
+    "shell.execute-download"
+  ],
+  "about": "A download piped into a shell is also a download.",
+  "input": "input.sh"
+}

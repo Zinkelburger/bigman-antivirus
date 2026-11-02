@@ -1,0 +1,8 @@
+{
+  "driver": "changes",
+  "fires": [
+    "persistence.initial"
+  ],
+  "about": "No baseline yet.",
+  "input": "input.json"
+}

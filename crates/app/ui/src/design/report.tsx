@@ -3,7 +3,7 @@
 // Composed only from design components.
 import type { ColumnDef } from "@tanstack/react-table";
 import { BellRing, FileSearch, FolderSearch, ListChecks, ScanSearch, Stethoscope, type LucideIcon } from "lucide-react";
-import type { Finding, Report } from "@/ipc";
+import { useRules, type Finding, type Report } from "@/ipc";
 import { CoverageList } from "./components/CoverageList";
 import { DataTable } from "./components/DataTable";
 import { EvidenceBlock } from "./components/EvidenceBlock";
@@ -152,6 +152,24 @@ const columns: ColumnDef<IndexedFinding>[] = [
   },
 ];
 
+/** The registry's explanation of a finding's rule, so every finding says what it means. */
+function AboutRule({ id }: { id: string }) {
+  const rule = useRules().data?.find((r) => r.id === id);
+  if (!rule) return <KeyValue items={[{ label: "Rule", value: id, mono: true }]} />;
+  return (
+    <section aria-label="About this rule" className="flex flex-col gap-2 border-t border-rule pt-3">
+      <h3 className="m-0 text-small font-semibold text-ink-muted">About this rule</h3>
+      <p className="m-0 max-w-[56ch] text-ink">{rule.explanation}</p>
+      <KeyValue
+        items={[
+          { label: "Rule", value: rule.id, mono: true },
+          ...(rule.threats.length ? [{ label: "Threats", value: rule.threats.join(", ") }] : []),
+        ]}
+      />
+    </section>
+  );
+}
+
 export function FindingEvidence({ finding }: { finding: Finding }) {
   return (
     <div className="flex flex-col gap-4">
@@ -164,7 +182,7 @@ export function FindingEvidence({ finding }: { finding: Finding }) {
         <h3 className="m-0 mb-1 text-small font-semibold text-ink-muted">What you can do</h3>
         <p className="m-0 max-w-[56ch] text-ink">{finding.action}</p>
       </section>
-      <KeyValue items={[{ label: "Rule", value: finding.rule, mono: true }]} />
+      <AboutRule id={finding.rule} />
     </div>
   );
 }

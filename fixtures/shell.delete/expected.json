@@ -1,0 +1,8 @@
+{
+  "driver": "shell",
+  "fires": [
+    "shell.delete"
+  ],
+  "about": "Recursive delete.",
+  "input": "input.sh"
+}

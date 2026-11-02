@@ -1,0 +1,346 @@
+[
+  {
+    "id": "shell.download",
+    "severity": "review",
+    "title": "Downloads remote content",
+    "explanation": "The script fetches something from the network with curl or wget. What it fetches is not part of this inspection.",
+    "remediation": "Inspect each downloaded payload and confirm where it comes from before running the script.",
+    "threats": [
+      "DP-18"
+    ]
+  },
+  {
+    "id": "shell.execute-download",
+    "severity": "high",
+    "title": "Downloads and runs code",
+    "explanation": "The script pipes downloaded content straight into a shell, so whatever the server sends at that moment runs on your machine.",
+    "remediation": "Download the payload separately, inspect the exact bytes, and run only what you reviewed.",
+    "threats": [
+      "DP-18",
+      "PH-17"
+    ]
+  },
+  {
+    "id": "shell.privilege",
+    "severity": "review",
+    "title": "Asks for administrator rights",
+    "explanation": "The script runs commands with sudo, doas or su. Those commands can change anything on the system.",
+    "remediation": "Check why each privileged command is needed and whether it could run without administrator rights.",
+    "threats": [
+      "DP-18"
+    ]
+  },
+  {
+    "id": "shell.credentials",
+    "severity": "high",
+    "title": "Touches credentials or browser data",
+    "explanation": "The script refers to SSH keys, cloud or registry tokens, or browser profile data. Installers rarely need these.",
+    "remediation": "Run it without your real credentials present, and find out why it reads these paths.",
+    "threats": [
+      "CR-01",
+      "CR-02",
+      "CR-03",
+      "CR-18",
+      "SC-23"
+    ]
+  },
+  {
+    "id": "shell.persistence",
+    "severity": "review",
+    "title": "Sets something up to run later",
+    "explanation": "The script writes cron jobs, systemd units, autostart entries, shell profiles or SSH authorized keys, so its effect outlasts the install.",
+    "remediation": "Review exactly what will run in future sessions and compare the startup files afterwards.",
+    "threats": [
+      "HI-02",
+      "HI-03",
+      "HI-04",
+      "HI-05",
+      "HI-10"
+    ]
+  },
+  {
+    "id": "shell.dynamic",
+    "severity": "review",
+    "title": "Runs code that is built or decoded at run time",
+    "explanation": "The script uses eval, source, base64 or an interpreter on generated input. Static rules cannot see what that code will be.",
+    "remediation": "Decode or expand the dynamic part by hand and inspect it before running the script.",
+    "threats": [
+      "DP-18"
+    ]
+  },
+  {
+    "id": "shell.permissions",
+    "severity": "high",
+    "title": "Sets broad or privileged file permissions",
+    "explanation": "The script makes files world-writable or setuid. Either can let other programs or users gain access they should not have.",
+    "remediation": "Prefer the narrowest permissions the program needs, and never setuid a file you did not build.",
+    "threats": [
+      "HI-17"
+    ]
+  },
+  {
+    "id": "shell.delete",
+    "severity": "review",
+    "title": "Deletes files recursively or by wildcard",
+    "explanation": "The script removes files with rm -r, rm -f or a wildcard. A wrong variable can expand to the wrong path.",
+    "remediation": "Check what each deleted path expands to before running the script.",
+    "threats": [
+      "DP-18"
+    ]
+  },
+  {
+    "id": "shell.network-listener",
+    "severity": "review",
+    "title": "Uses a tool that can open or forward network connections",
+    "explanation": "The script runs nc, ncat, netcat or socat, which can listen for connections or relay a shell.",
+    "remediation": "Check which address and port it uses, and whether it listens to the whole network.",
+    "threats": [
+      "NE-14"
+    ]
+  },
+  {
+    "id": "shellcheck.warning",
+    "severity": "review",
+    "title": "ShellCheck warning",
+    "explanation": "ShellCheck found a shell correctness problem. It is about how the script is written, not whether it is malicious.",
+    "remediation": "Read the ShellCheck code linked in the message to see what can go wrong.",
+    "threats": [
+      "DP-18"
+    ]
+  },
+  {
+    "id": "package.lifecycle",
+    "severity": "review",
+    "title": "Package runs a script during install",
+    "explanation": "A preinstall, install, postinstall or prepare script runs automatically when the package is installed.",
+    "remediation": "Read the script and the files it calls. Turning off automatic install scripts for the project stops them running.",
+    "threats": [
+      "SC-01"
+    ]
+  },
+  {
+    "id": "package.script",
+    "severity": "info",
+    "title": "Package defines a script",
+    "explanation": "A script that runs only when you ask for it, for example npm test.",
+    "remediation": "Read it before you run it.",
+    "threats": [
+      "SC-01"
+    ]
+  },
+  {
+    "id": "package.unresolved-hook",
+    "severity": "review",
+    "title": "Lockfile lists an install script that is not on disk",
+    "explanation": "The lockfile says a dependency has an install script, but the package is not installed here, so its script could not be read.",
+    "remediation": "Inspect that package's archive without running its scripts.",
+    "threats": [
+      "SC-01",
+      "SC-02"
+    ]
+  },
+  {
+    "id": "trace.sensitive-path",
+    "severity": "review",
+    "title": "The rehearsal touched a sensitive path",
+    "explanation": "While running in the offline sandbox, the installer opened or looked for credential or browser paths. The sandbox has no real ones.",
+    "remediation": "Check the system call result; the access may have failed. Find out why the installer wanted that path.",
+    "threats": [
+      "CR-18",
+      "CR-22"
+    ]
+  },
+  {
+    "id": "trace.network",
+    "severity": "review",
+    "title": "The rehearsal tried to connect to the network",
+    "explanation": "While running in the offline sandbox, the installer attempted a network connection. The sandbox has no network.",
+    "remediation": "Find out what it was trying to reach and why.",
+    "threats": [
+      "NE-14"
+    ]
+  },
+  {
+    "id": "trace.process",
+    "severity": "info",
+    "title": "The rehearsal started a program",
+    "explanation": "A program started while the installer ran in the offline sandbox.",
+    "remediation": "Review the program and its arguments.",
+    "threats": [
+      "DP-18"
+    ]
+  },
+  {
+    "id": "pdf.structure",
+    "severity": "info",
+    "title": "The PDF contains an active or external element",
+    "explanation": "The document has an open action, JavaScript, a launch action, an embedded file, a link or encryption. JavaScript and launch actions are Review; the rest are Info.",
+    "remediation": "Check the parser output and the link destinations. A tag alone is not evidence of malware.",
+    "threats": [
+      "DS-12"
+    ]
+  },
+  {
+    "id": "clamav.match",
+    "severity": "high",
+    "title": "A file matches a ClamAV signature",
+    "explanation": "ClamAV recognised the file as matching a known-malware or heuristic signature. Limit or encryption signatures mean the content was not fully examined.",
+    "remediation": "If you did not expect the file, quarantine it; Bigman keeps a recovery copy you can restore.",
+    "threats": [
+      "DP-08",
+      "MW-01"
+    ]
+  },
+  {
+    "id": "clamav.no-definitions",
+    "severity": "high",
+    "title": "No malware signatures found",
+    "explanation": "Neither Bigman's private signature folder nor /var/lib/clamav has ClamAV definitions, so file scans cannot run.",
+    "remediation": "Update signatures from Protect > Scans, or point ClamAV at your own database.",
+    "threats": [
+      "DP-20"
+    ]
+  },
+  {
+    "id": "clamav.stale",
+    "severity": "review",
+    "title": "Malware signatures are out of date",
+    "explanation": "The newest ClamAV definitions file is more than three days old. File age is a freshness signal, not a verified version.",
+    "remediation": "Update signatures from Protect > Scans.",
+    "threats": [
+      "DP-20"
+    ]
+  },
+  {
+    "id": "tool.missing",
+    "severity": "info",
+    "title": "An optional tool is not installed",
+    "explanation": "One of the tools Bigman can use is not installed. Only the checks that need it are affected.",
+    "remediation": "Install it from Setup if you want those checks.",
+    "threats": []
+  },
+  {
+    "id": "monitor.stopped",
+    "severity": "review",
+    "title": "Canary monitoring is not reporting",
+    "explanation": "The canary monitor has not written a heartbeat in the last ten seconds, so reads of decoy files are not being noticed.",
+    "remediation": "Start monitoring from Protect > Canaries, or install the background services from Setup.",
+    "threats": [
+      "CR-22",
+      "HI-24"
+    ]
+  },
+  {
+    "id": "git.plaintext-credentials",
+    "severity": "review",
+    "title": "Git stores credentials in plain text",
+    "explanation": "Git's global credential helper is 'store', which writes tokens unencrypted to ~/.git-credentials. The file itself was not read.",
+    "remediation": "Switch to your desktop keyring's credential helper and revoke tokens you no longer use.",
+    "threats": [
+      "CR-01",
+      "CR-08"
+    ]
+  },
+  {
+    "id": "persistence.change",
+    "severity": "review",
+    "title": "A startup file changed",
+    "explanation": "A file that starts programs for you (a systemd unit, autostart entry, shell profile, cron file) is new or different from the baseline you accepted.",
+    "remediation": "Review the file and the package that owns it before accepting it into the baseline.",
+    "threats": [
+      "HI-01",
+      "HI-02",
+      "HI-03",
+      "HI-04",
+      "HI-05",
+      "HI-10"
+    ]
+  },
+  {
+    "id": "persistence.removed",
+    "severity": "review",
+    "title": "A startup file was removed",
+    "explanation": "A startup file in your baseline is gone.",
+    "remediation": "Check whether an update or your own change explains it.",
+    "threats": [
+      "HI-01",
+      "HI-02",
+      "HI-03",
+      "HI-04",
+      "HI-05"
+    ]
+  },
+  {
+    "id": "persistence.initial",
+    "severity": "info",
+    "title": "Startup file recorded for the first baseline",
+    "explanation": "There is no baseline yet, so every startup file is listed for review.",
+    "remediation": "Review the list, then accept it as the baseline to compare future changes against.",
+    "threats": [
+      "HI-01",
+      "HI-02",
+      "HI-03",
+      "HI-04",
+      "HI-05"
+    ]
+  },
+  {
+    "id": "canary.event",
+    "severity": "high",
+    "title": "A decoy file was opened or changed",
+    "explanation": "A canary decoy was read, changed, moved or removed while the monitor was running. inotify cannot say which program did it.",
+    "remediation": "Check what was running at that time. Backups, indexers and your own tests can also trigger decoys.",
+    "threats": [
+      "CR-22"
+    ]
+  },
+  {
+    "id": "canary.verified",
+    "severity": "info",
+    "title": "Local read detection verified",
+    "explanation": "A deliberate read of the decoy produced a fresh receipt from the running monitor, so local detection works.",
+    "remediation": "Leave monitoring running.",
+    "threats": [
+      "CR-22"
+    ]
+  },
+  {
+    "id": "canary.notifications-unavailable",
+    "severity": "info",
+    "title": "Desktop pop-ups are not available",
+    "explanation": "notify-send is not installed, so canary alerts appear in Activity but not as pop-ups.",
+    "remediation": "Install your distribution's desktop notification utilities if you want pop-ups.",
+    "threats": []
+  },
+  {
+    "id": "lynis.finding",
+    "severity": "review",
+    "title": "Lynis recommendation",
+    "explanation": "Lynis reported a warning or suggestion. The line is shown exactly as Lynis wrote it.",
+    "remediation": "Look up the Lynis test ID before changing configuration.",
+    "threats": [
+      "HI-24"
+    ]
+  },
+  {
+    "id": "osv.advisory",
+    "severity": "review",
+    "title": "A dependency has a published advisory",
+    "explanation": "OSV lists a known vulnerability for a version this project depends on. A vulnerability is not evidence of malware.",
+    "remediation": "Read the advisory's affected and fixed versions and update the dependency.",
+    "threats": [
+      "SC-05",
+      "SC-10"
+    ]
+  },
+  {
+    "id": "yara.output",
+    "severity": "review",
+    "title": "YARA-X rules matched",
+    "explanation": "Rules you supplied matched the target. A match is the result of those rules, not proof of malware.",
+    "remediation": "Check where the rules came from and what they look for.",
+    "threats": [
+      "MW-01"
+    ]
+  }
+]

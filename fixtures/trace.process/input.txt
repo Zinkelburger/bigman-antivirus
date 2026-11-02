@@ -1,0 +1,1 @@
+execve("/usr/bin/uname", ["uname", "-m"], 0x7ffc8 /* 3 vars */) = 0

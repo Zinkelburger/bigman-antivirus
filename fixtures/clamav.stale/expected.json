@@ -1,0 +1,8 @@
+{
+  "driver": "doctor",
+  "fires": [
+    "clamav.stale"
+  ],
+  "about": "Signatures five days old.",
+  "input": "input.json"
+}

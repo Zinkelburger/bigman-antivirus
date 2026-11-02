@@ -14,6 +14,7 @@ use crate::{
         setup::ToolGroup,
     },
     model::Report,
+    rules::RuleInfo,
 };
 use anyhow::{bail, Context, Result};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
@@ -82,6 +83,8 @@ pub enum Request {
     Quarantined,
     Canaries,
     ToolGroups,
+    /// The rule registry: what each finding's rule means and what to do.
+    Rules,
     /// Opens a desktop tool; currently only `firewall` (OpenSnitch).
     OpenTool {
         tool: String,
@@ -107,6 +110,7 @@ pub enum Response {
     Quarantined(Vec<Quarantined>),
     Canaries(Box<CanaryState>),
     ToolGroups(Vec<ToolGroup>),
+    Rules(Vec<RuleInfo>),
     Plan(Box<ActionPlan>),
     Done(Box<ActionOutcome>),
     Error(ErrorBody),

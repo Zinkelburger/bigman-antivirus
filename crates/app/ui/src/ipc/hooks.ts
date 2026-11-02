@@ -64,6 +64,11 @@ export function useCanaries() {
   });
 }
 
+/** The rule registry; it only changes with Bigman itself. */
+export function useRules() {
+  return useQuery({ queryKey: ["rules"], queryFn: () => call({ type: "rules" }, "rules"), staleTime: Infinity });
+}
+
 export function useToolGroups() {
   return useQuery({ queryKey: ["tool-groups"], queryFn: () => call({ type: "tool_groups" }, "tool_groups") });
 }

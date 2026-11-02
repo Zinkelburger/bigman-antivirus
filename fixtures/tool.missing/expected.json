@@ -1,0 +1,8 @@
+{
+  "driver": "doctor",
+  "fires": [
+    "tool.missing"
+  ],
+  "about": "One optional tool absent.",
+  "input": "input.json"
+}

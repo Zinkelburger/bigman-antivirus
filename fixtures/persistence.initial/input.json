@@ -1,0 +1,13 @@
+{
+  "old": null,
+  "current": {
+    "created": 2,
+    "entries": {
+      "/home/user/.profile": {
+        "hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "bytes": 24
+      }
+    },
+    "errors": []
+  }
+}

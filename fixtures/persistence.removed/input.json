@@ -1,0 +1,17 @@
+{
+  "old": {
+    "created": 1,
+    "entries": {
+      "/home/user/.config/autostart/old.desktop": {
+        "hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "bytes": 24
+      }
+    },
+    "errors": []
+  },
+  "current": {
+    "created": 2,
+    "entries": {},
+    "errors": []
+  }
+}

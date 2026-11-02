@@ -42,38 +42,67 @@ pub fn integration(store: &Store, tool: &str, target: &Path, stop: &Cancel) -> R
     r.details = format!("{}\n{}", o.stdout, o.stderr);
     if tool == "lynis" {
         if let Ok(bytes) = read_file(&tmp.path().join("lynis-report.dat"), MAX_INPUT) {
-            for line in String::from_utf8_lossy(&bytes)
-                .lines()
-                .filter(|l| l.starts_with("warning[]=") || l.starts_with("suggestion[]="))
-            {
-                r.add(
-                    "lynis.finding",
-                    Severity::Review,
-                    "Lynis recommendation",
-                    line,
-                    "Review the upstream test ID before changing configuration.",
-                );
-            }
+            lynis_findings(&mut r, &String::from_utf8_lossy(&bytes));
         }
     }
     if tool == "osv" {
-        match serde_json::from_str::<serde_json::Value>(&o.stdout) {
-            Ok(v) if v["results"].is_array() => {
-                for source in v["results"].as_array().unwrap() {
-                    if let Some(packages)=source["packages"].as_array() {
-                        for package in packages { if let Some(vulns)=package["vulnerabilities"].as_array() { for vuln in vulns {
-                            r.add("osv.advisory", Severity::Review, vuln["id"].as_str().unwrap_or("Dependency advisory"), format!("{}@{}\n{}", package["package"]["name"], package["package"]["version"], vuln["summary"]), "Review affected and fixed versions in the advisory. A vulnerability is not evidence of installed malware.");
-                        } } }
-                    }
-                }
-            }
-            _ => r.errors.push("OSV JSON output could not be interpreted; inspect raw output and installed tool version".into()),
+        if !osv_findings(&mut r, &o.stdout) {
+            r.errors.push("OSV JSON output could not be interpreted; inspect raw output and installed tool version".into());
         }
         r.coverage.push("OSV performs deterministic advisory matching and may contact vulnerability services. Dependency vulnerabilities and malware are different findings. Raw JSON retained.".into());
     }
     store.save(&r)?;
     Ok(r)
 }
+/// Lynis warnings and suggestions from its report file, kept verbatim.
+pub fn lynis_findings(r: &mut Report, report_dat: &str) {
+    for line in report_dat
+        .lines()
+        .filter(|l| l.starts_with("warning[]=") || l.starts_with("suggestion[]="))
+    {
+        r.add(
+            "lynis.finding",
+            Severity::Review,
+            "Lynis recommendation",
+            line,
+            "Review the upstream test ID before changing configuration.",
+        );
+    }
+}
+
+/// Advisories from `osv-scanner --format=json`. False when the output is not OSV JSON.
+pub fn osv_findings(r: &mut Report, json: &str) -> bool {
+    let Ok(v) = serde_json::from_str::<serde_json::Value>(json) else {
+        return false;
+    };
+    let Some(results) = v["results"].as_array() else {
+        return false;
+    };
+    for package in results
+        .iter()
+        .filter_map(|s| s["packages"].as_array())
+        .flatten()
+    {
+        for vuln in package["vulnerabilities"].as_array().into_iter().flatten() {
+            r.add("osv.advisory", Severity::Review, vuln["id"].as_str().unwrap_or("Dependency advisory"), format!("{}@{}\n{}", package["package"]["name"], package["package"]["version"], vuln["summary"]), "Review affected and fixed versions in the advisory. A vulnerability is not evidence of installed malware.");
+        }
+    }
+    true
+}
+
+/// YARA-X prints one line per match; any output is a match to review.
+pub fn yara_findings(r: &mut Report, stdout: &str) {
+    if !stdout.trim().is_empty() {
+        r.add(
+            "yara.output",
+            Severity::Review,
+            "YARA-X returned output",
+            stdout,
+            "Review matched rule provenance and evidence; rule matches are not proof of malware.",
+        );
+    }
+}
+
 pub fn yara(store: &Store, rules: &Path, target: &Path, stop: &Cancel) -> Result<Report> {
     let rules = fs::canonicalize(rules)?;
     let target = fs::canonicalize(target)?;
@@ -87,15 +116,7 @@ pub fn yara(store: &Store, rules: &Path, target: &Path, stop: &Cancel) -> Result
         r.errors
             .push(format!("YARA-X incomplete: {:?} {}", o.code, o.stderr));
     }
-    if !o.stdout.trim().is_empty() {
-        r.add(
-            "yara.output",
-            Severity::Review,
-            "YARA-X returned output",
-            &o.stdout,
-            "Review matched rule provenance and evidence; rule matches are not proof of malware.",
-        );
-    }
+    yara_findings(&mut r, &o.stdout);
     r.details = o.stderr;
     store.save(&r)?;
     Ok(r)

@@ -1,0 +1,8 @@
+{
+  "driver": "changes",
+  "fires": [
+    "persistence.change"
+  ],
+  "about": "A shell profile whose hash changed.",
+  "input": "input.json"
+}

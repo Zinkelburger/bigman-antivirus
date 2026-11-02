@@ -1,0 +1,8 @@
+{
+  "driver": "doctor",
+  "fires": [
+    "clamav.no-definitions"
+  ],
+  "about": "No signature files anywhere.",
+  "input": "input.json"
+}

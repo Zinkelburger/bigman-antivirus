@@ -1,0 +1,6 @@
+{
+  "driver": "integration",
+  "fires": [],
+  "about": "Needs a real monitor and a real read.",
+  "covered_by": "tests/canary_onboarding.py"
+}

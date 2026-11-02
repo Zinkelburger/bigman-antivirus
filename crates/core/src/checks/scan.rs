@@ -152,26 +152,7 @@ fn scan_inner(store: &Store, path: &Path, stop: &Cancel) -> Result<Report> {
                 r.errors
                     .push("ClamAV did not confirm examination of every submitted snapshot".into());
             }
-            for (index, p) in scan_paths.iter().enumerate() {
-                let prefix = format!("{}: ", p.display());
-                for line in o.stdout.lines() {
-                    if let Some(signature) = line
-                        .strip_prefix(&prefix)
-                        .and_then(|s| s.strip_suffix(" FOUND"))
-                    {
-                        items[index].detected = true;
-                        items[index].signature = signature.into();
-                        r.add("clamav.match",Severity::High,"A file matches a ClamAV signature",format!("{}\n{}\nSHA-256 {}",items[index].path.display(),signature,items[index].hash),"If you did not expect this file, quarantine it: Bigman keeps a private recovery copy you can restore. A Limits or Encrypted signature means the content was not fully examined.");
-                        if signature.contains("Limits.Exceeded") || signature.contains("Encrypted")
-                        {
-                            r.errors.push(format!(
-                                "Content inspection limited for {}",
-                                items[index].path.display()
-                            ));
-                        }
-                    }
-                }
-            }
+            record_matches(&mut r, &mut items, &scan_paths, &o.stdout);
             if o.code == Some(1) && !items.iter().any(|i| i.detected) {
                 r.errors.push(
                     "ClamAV reported detections that could not be mapped to a snapshot".into(),
@@ -189,6 +170,37 @@ fn scan_inner(store: &Store, path: &Path, stop: &Cancel) -> Result<Report> {
     store.save(&r)?;
     Ok(r)
 }
+/// The ClamAV rule: map each `SNAPSHOT: SIGNATURE FOUND` line back to the original
+/// file it was copied from. Pure, so fixtures can feed it ClamAV output directly.
+pub fn record_matches(
+    r: &mut Report,
+    items: &mut [ScanItem],
+    scan_paths: &[PathBuf],
+    stdout: &str,
+) {
+    for (index, p) in scan_paths.iter().enumerate() {
+        let prefix = format!("{}: ", p.display());
+        for line in stdout.lines() {
+            let Some(signature) = line
+                .strip_prefix(&prefix)
+                .and_then(|s| s.strip_suffix(" FOUND"))
+            else {
+                continue;
+            };
+            let item = &mut items[index];
+            item.detected = true;
+            item.signature = signature.into();
+            r.add("clamav.match",Severity::High,"A file matches a ClamAV signature",format!("{}\n{}\nSHA-256 {}",item.path.display(),signature,item.hash),"If you did not expect this file, quarantine it: Bigman keeps a private recovery copy you can restore. A Limits or Encrypted signature means the content was not fully examined.");
+            if signature.contains("Limits.Exceeded") || signature.contains("Encrypted") {
+                r.errors.push(format!(
+                    "Content inspection limited for {}",
+                    item.path.display()
+                ));
+            }
+        }
+    }
+}
+
 pub fn update(store: &Store, stop: &Cancel) -> Result<Report> {
     let mut r = Report::new("Signature update", "Private ClamAV definitions");
     let db = store.root.join("signatures");

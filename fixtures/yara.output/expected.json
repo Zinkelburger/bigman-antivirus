@@ -1,0 +1,8 @@
+{
+  "driver": "yara",
+  "fires": [
+    "yara.output"
+  ],
+  "about": "One YARA-X match line.",
+  "input": "input.txt"
+}

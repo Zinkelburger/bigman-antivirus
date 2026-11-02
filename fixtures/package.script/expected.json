@@ -1,0 +1,8 @@
+{
+  "driver": "packages",
+  "fires": [
+    "package.script"
+  ],
+  "about": "An on-demand script only.",
+  "input": "input"
+}

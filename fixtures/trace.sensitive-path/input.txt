@@ -1,0 +1,1 @@
+openat(AT_FDCWD, "/home/user/.ssh/id_ed25519", O_RDONLY) = -1 ENOENT (No such file or directory)
