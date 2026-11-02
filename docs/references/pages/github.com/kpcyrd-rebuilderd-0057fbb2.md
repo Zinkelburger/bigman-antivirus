@@ -1,0 +1,302 @@
+---
+url: "https://github.com/kpcyrd/rebuilderd"
+title: "GitHub - kpcyrd/rebuilderd: Independent verification of binary packages - Reproducible Builds"
+site: "GitHub"
+captured: "2026-11-02T19:04:40Z"
+via: "live"
+sha256: "fbc8d57a122be65f189bd23c4fe2073d6264bbaf571f910e657f3058212fb588"
+wayback: "https://web.archive.org/web/20261014224454/https://github.com/kpcyrd/rebuilderd"
+cited_in:
+  - "docs/threats/03-distro-packaging-and-install-channels.md"
+---
+
+# GitHub - kpcyrd/rebuilderd: Independent verification of binary packages - Reproducible Builds
+
+> Archived copy of a third-party page, kept so Bigman's findings survive if the original goes away. Copyright stays with the original publisher; cite the original URL.
+>
+> Original: <https://github.com/kpcyrd/rebuilderd>
+> Snapshot: <https://web.archive.org/web/20261014224454/https://github.com/kpcyrd/rebuilderd>
+
+# rebuilderd(1) https://crates.io/crates/rebuilderd https://cloud-native.slack.com/messages/rebuilderd/ https://web.libera.chat/#archlinux-reproducible
+
+https://github.com/kpcyrd/rebuilderd#rebuilderd1---
+
+Independent verification system of binary packages.
+
+https://github.com/kpcyrd/rebuilderd/blob/main/.github/assets/Vx35qrG.png
+
+- [Accessing a rebuilderd instance in your browser](https://github.com/kpcyrd/rebuilderd#accessing-a-rebuilderd-instance-in-your-browser)
+- [Scripting access to a rebuilderd instance](https://github.com/kpcyrd/rebuilderd#scripting-access-to-a-rebuilderd-instance)
+- [Running a rebuilderd instance yourself](https://github.com/kpcyrd/rebuilderd#running-a-rebuilderd-instance-yourself)
+
+- [Rebuilding Arch Linux](https://github.com/kpcyrd/rebuilderd#rebuilding-arch-linux) (Supported)
+- [Rebuilding Tails](https://github.com/kpcyrd/rebuilderd/blob/main/docs/setup-tails.md)
+
+- [Development](https://github.com/kpcyrd/rebuilderd#development)
+
+- [Dependencies](https://github.com/kpcyrd/rebuilderd#dependencies)
+
+- [Funding](https://github.com/kpcyrd/rebuilderd#funding)
+- [License](https://github.com/kpcyrd/rebuilderd#license)
+
+rebuilderd monitors the package repository of a linux distribution and uses rebuilder backends like [archlinux-repro](https://github.com/archlinux/archlinux-repro) to verify the provided binary packages can be reproduced from the given source code.
+
+It tracks the state of successfully verified packages and optionally generates a report of differences with [diffoscope](https://diffoscope.org/) for debugging. Note that due to the early state of this technology a failed rebuild is more likely due to an undeterministic build process instead of a supply chain compromise, but if multiple rebuilders you trust report 100% reproducible for the set of packages you use you can be confident that the binaries on your system haven't been tampered with. People are encouraged to run their own rebuilders if they can afford to.
+
+## Status
+
+https://github.com/kpcyrd/rebuilderd#status
+
+|   | Status  | Docker  | Doesn't need --privileged  | Doesn't need /dev/kvm  | Backend
+
+| Arch Linux  | ✔️ supported  | ❌  | -  | ✔️  | [archlinux-repro](https://github.com/archlinux/archlinux-repro)
+
+| Debian  | ✔️ supported  | ✔️ (not working yet)  | ❌  | ✔️  | [debrebuild](https://salsa.debian.org/debian/devscripts/-/blob/main/scripts/debrebuild.pl)
+
+| Tails  | 🚀 experimental  | ❌  | -  | ❌  | [docs](https://tails.boum.org/contribute/build/) ([script](https://github.com/kpcyrd/rebuilderd/blob/main/worker/rebuilder-tails.sh))
+
+| Alpine  | ✨ planned  | -  | -  | -  | -
+
+| Fedora  | 🚀 experimental  | ❌  | ❌  | ✔️  | [fedora-repro-build](https://github.com/keszybz/fedora-repro-build/)
+
+Docker: There's a docker-compose example setup in this repository, but not all rebuilder backends support running inside of a docker container (for example because it's creating containers itself).
+
+Doesn't need --privileged: Some rebuilder backends create containers in a way that works inside of a docker container, if they're granted the required kernel capabilities to do so. This may have security implications for other containers running on that system or the code running inside the container may reconfigure the system outside of the docker container.
+
+Doesn't need /dev/kvm: Some build tools may need to start a virtual machine and depend on /dev/kvm to be available. This is a special requirement for the hosting environment, you either need a VPS with Nested KVM or dedicated non-virtualized hardware.
+
+# Accessing a rebuilderd instance in your browser
+
+https://github.com/kpcyrd/rebuilderd#accessing-a-rebuilderd-instance-in-your-browser
+
+Many instances run a web frontend to display their results. [rebuilderd-website](https://gitlab.archlinux.org/archlinux/rebuilderd-website) is a very good choice and the software powering the Arch Linux rebuilderd instance:
+
+https://reproducible.archlinux.org/
+
+Loading the index of all packages may take a short time.
+
+# Scripting access to a rebuilderd instance
+
+https://github.com/kpcyrd/rebuilderd#scripting-access-to-a-rebuilderd-instance
+
+https://repology.org/project/rebuilderd/versions
+
+It's also possible to query and manage a rebuilderd instance in a scriptable way. It's recommended to install the rebuildctl commandline util to do this (instructions for your system may vary, see packaging status to the right):
+
+```
+pacman -S rebuilderd-tools
+
+```
+
+You can then query a rebuilderd instance for the status of a specific package:
+
+```
+rebuildctl -H https://reproducible.archlinux.org pkgs ls --name rebuilderd
+
+```
+
+You have to specify which instance you want to query because there's no definite truth™. You could ask multiple instances though, including one you operate yourself.
+
+If the rebuilder seems to have outdated data or lists a package as unknown the update may still be in the build queue. You can query the build queue of an instance like this:
+
+```
+rebuildctl -H https://reproducible.archlinux.org queue ls --head
+
+```
+
+If there's no output that means the build queue is empty.
+
+If you're the administrator of this instance you can also run commands like:
+
+```
+rebuildctl status
+
+```
+
+Or immediately retry all failed rebuild attempts (there's an automatic retry on by default):
+
+```
+rebuildctl pkgs requeue --status BAD --reset
+
+```
+
+# Running a rebuilderd instance yourself
+
+https://github.com/kpcyrd/rebuilderd#running-a-rebuilderd-instance-yourself
+
+https://github.com/kpcyrd/rebuilderd/blob/main/.github/assets/mOWZt75.png
+
+"I compile everything from source" - a significant amount of real world binary packages can already be reproduced today. The more people run rebuilders, the harder it is to compromise all of them.
+
+At the current stage of the project we're interested in every rebuilder there is! Most rebuilderd discussion currently happens in #archlinux-reproducible on libera, feel free to drop by if you're running a instance or considering setting one up. Having a few unreproducible packages is normal (even if it's slightly more than the official rebuilder), but having additional people confirm successful rebuilds is very helpful.
+
+## Rebuilding Arch Linux
+
+https://github.com/kpcyrd/rebuilderd#rebuilding-arch-linux
+
+Please see the setup instructions in the [Arch Linux Wiki](https://wiki.archlinux.org/index.php/Rebuilderd).
+
+# Development with docker
+
+https://github.com/kpcyrd/rebuilderd#development-with-docker
+
+There is a docker-compose setup in the repo, to start a basic stack simply clone the repository and run:
+
+```
+docker compose up
+```
+
+The initial build is going to take some time.
+
+To recompile your changes (you can optionally specify a specific image to build):
+
+```
+docker compose build
+```
+
+The auth cookie has strict permissions, for development simply change them with:
+
+```
+sudo chmod 0644 secret/auth
+```
+
+Check you can successfully run administrative tasks, use this command to compile and run the rebuildctl binary:
+
+```
+REBUILDERD_COOKIE_PATH=secret/auth cargo run -p rebuildctl -- -v status
+```
+
+There are no packages in the database yet, there's an example profile that we can load. It only contains one lightweight package and should successfully rebuild out-of-the-box in our docker-compose setup.
+
+```
+REBUILDERD_COOKIE_PATH=secret/auth cargo run -p rebuildctl -- pkgs sync-profile --sync-config contrib/confs/rebuilderd-sync.conf debian-anarchism
+```
+
+Check the package was successfully added to the database with status UNKWN:
+
+```
+REBUILDERD_COOKIE_PATH=secret/auth cargo run -p rebuildctl -- pkgs ls
+```
+
+You can display the build queue with this command, it's also going to display a timer for jobs that are currently in progress:
+
+```
+REBUILDERD_COOKIE_PATH=secret/auth cargo run -p rebuildctl -- queue ls --head
+```
+
+You can use a combination of the commands mentioned to monitor your rebuilder. The packages should eventually show up as GOOD in rebuildctl pkgs ls.
+
+# Development
+
+https://github.com/kpcyrd/rebuilderd#development
+
+If you want to build from source or you want to run rebuilderd built from a specific commit this section contains instructions for that.
+
+A rebuilder consists of the rebuilderd daemon and >= 1 workers:
+
+First we switch into the daemon/ folder and run our rebuilderd daemon:
+
+```
+cd daemon; cargo run
+```
+
+This takes a moment but the api should now be available at http://127.0.0.1:8484/api/v0/dashboard.
+
+This daemon needs to run in the background, so we're starting a new terminal to continue with the next steps.
+
+Next we're going to build the rebuildctl binary and confirm it's able to connect to the api. If we don't get an error message this means it's working.
+
+```
+cd tools; cargo run -- status
+```
+
+We didn't connect any workers yet so this output is empty.
+
+Next we want to connect a rebuilder. rebuilderd only does the scheduling for you, so you need to install additional software here (called a rebuilder backend):
+
+- Arch Linux: pacman -S archlinux-repro or git clone https://github.com/archlinux/archlinux-repro && cd archlinux-repro/ && make && sudo make install. Note that on debian buster you need to install systemd from buster-backports.
+
+With a rebuilder backend installed we're now going to run our first worker:
+
+```
+cd worker; cargo run -- connect http://127.0.0.1:8484
+```
+
+This rebuilder should now show up in our rebuildctl status output:
+
+```
+cd tools; cargo run -- status
+```
+
+Next we're going to import some packages:
+
+```
+cd tools; cargo run -- pkgs sync archlinux community \
+    'https://ftp.halifax.rwth-aachen.de/archlinux/$repo/os/$arch' \
+    --architecture x86_64 --maintainer kpcyrd
+```
+
+The --maintainer option is optional and allows you to rebuild packages by a specific maintainer only.
+
+To show the current status of our imported packages run:
+
+```
+cd tools; cargo run -- pkgs ls
+```
+
+To monitor your workers are picking up tasks:
+
+```
+cd tools; cargo build && CLICOLOR_FORCE=1 watch -c ../target/debug/rebuildctl status
+```
+
+To inspect the queue run:
+
+```
+cd tools; cargo run -- queue ls
+```
+
+An easy way to test the package import is using a command like this:
+
+```
+cargo watch -- cargo run --bin rebuildctl -- pkgs sync-profile --print-json --sync-config contrib/confs/rebuilderd-sync.conf tails
+```
+
+Build a package directly:
+
+```
+cargo run --bin rebuilderd-worker -- \
+	build debian 'http://deb.debian.org/debian/pool/main/a/anarchism/anarchism_15.3-3_all.deb' \
+	--input-url 'https://buildinfos.debian.net/buildinfo-pool/a/anarchism/anarchism_15.3-3_all.buildinfo' \
+	--backend 'debian=./rebuilder-debian.sh'
+```
+
+## Dependencies
+
+https://github.com/kpcyrd/rebuilderd#dependencies
+
+Debian: pkg-config liblzma-dev libsqlite3-dev libzstd-dev
+
+# AI Policy
+
+https://github.com/kpcyrd/rebuilderd#ai-policy
+
+Using LLMs for contributions is allowed, but contributors are expected to review, understand and personally vouch for the code they submit, regardless of which tools they use.
+
+You may disclose AI usage in the PR text, or the Git commit message, but you may not credit an AI model as co-author; authorship is reserved for humans.
+
+# Funding
+
+https://github.com/kpcyrd/rebuilderd#funding
+
+Rebuilderd development is currently funded by:
+
+- kpcyrd's savings account
+- Google and The Linux Foundation
+- People like you and me on [github sponsors](https://github.com/sponsors/kpcyrd)
+
+# License
+
+https://github.com/kpcyrd/rebuilderd#license
+
+GPL-3.0-or-later
