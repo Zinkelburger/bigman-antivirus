@@ -11,14 +11,14 @@ The prioritised plan built from these files is in [research/roadmap.md](../resea
 | File | Prefix | Entries | Covered | Partial | Gap |
 |---|---|---|---|---|---|
 | [01 Phishing and social engineering](./01-phishing-social-engineering.md) | PH- | 21 | 1 | 11 | 9 |
-| [02 Package registry supply chain](./02-supply-chain-packages.md) | SC- | 23 | 0 | 6 | 17 |
-| [03 Distro packaging and install channels](./03-distro-packaging-and-install-channels.md) | DP- | 23 | 0 | 6 | 17 |
-| [04 Host integrity and hardening audit](./04-host-integrity-and-hardening-audit.md) | HI- | 25 | 0 | 17 | 8 |
+| [02 Package registry supply chain](./02-supply-chain-packages.md) | SC- | 23 | 1 | 15 | 7 |
+| [03 Distro packaging and install channels](./03-distro-packaging-and-install-channels.md) | DP- | 23 | 3 | 10 | 10 |
+| [04 Host integrity and hardening audit](./04-host-integrity-and-hardening-audit.md) | HI- | 25 | 0 | 16 | 9 |
 | [05 Malware families and detection](./05-malware-families-and-detection.md) | MW- | 24 | 0 | 15 | 9 |
-| [06 Credential and secret protection](./06-credential-and-secret-protection.md) | CR- | 22 | 0 | 4 | 18 |
+| [06 Credential and secret protection](./06-credential-and-secret-protection.md) | CR- | 22 | 0 | 5 | 17 |
 | [07 Network exposure and remote access](./07-network-exposure-and-remote-access.md) | NE- | 22 | 0 | 11 | 11 |
 | [08 Desktop and sandboxing](./08-desktop-and-sandboxing.md) | DS- | 21 | 0 | 7 | 14 |
-| **Total** | | **181** | **1** | **77** | **103** |
+| **Total** | | **181** | **5** | **90** | **86** |
 
 "Partial" usually means an existing workflow (ClamAV scans, `bigman inspect`, the startup baseline, the canary or the browser extension) catches some indicators but not the threat as a whole.
 

@@ -7,27 +7,27 @@
 | ID | Attack | Severity for a Linux desktop/dev user | Bigman today | Proposed |
 |---|---|---|---|---|
 | DP-01 | Upstream maintainer takeover and backdoored release (xz-utils, CVE-2024-3094) | High | Gap | Feed-driven "known-bad package version" advisory, plus a tarball-vs-tag diff helper for maintainers |
-| DP-02 | Unsigned, HTTP or signature-disabled repositories (`[trusted=yes]`, `gpgcheck=0`, `SigLevel = Never`) | High | Gap | `bigman repos` audit over apt/dnf/zypper/pacman/flatpak config |
-| DP-03 | Third-party repo key in the global keyring (no `signed-by` scoping) | Medium | Gap | Flag keys in `trusted.gpg`/`trusted.gpg.d` and sources without `signed-by` |
+| DP-02 | Unsigned, HTTP or signature-disabled repositories (`[trusted=yes]`, `gpgcheck=0`, `SigLevel = Never`) | High | Covered | `bigman repos` audit over apt/dnf/zypper/pacman/flatpak config |
+| DP-03 | Third-party repo key in the global keyring (no `signed-by` scoping) | Medium | Covered | Flag keys in `trusted.gpg`/`trusted.gpg.d` and sources without `signed-by` |
 | DP-04 | Package-manager verification and parser bugs (apt, rpm, pacman, dpkg CVEs) | Medium (historic, patched) | Gap | Version check of apt/dpkg/rpm/pacman against advisories |
-| DP-05 | Freeze, rollback, replay and malicious-mirror attacks | Medium | Gap | Flag disabled `Valid-Until` checks, stale metadata, plain-HTTP mirrors |
+| DP-05 | Freeze, rollback, replay and malicious-mirror attacks | Medium | Partial | Flag disabled `Valid-Until` checks, stale metadata, plain-HTTP mirrors |
 | DP-06 | Distribution infrastructure or signing-host compromise | High (rare) | Gap | Feed-driven advisories; key fingerprint inventory with change alerts |
 | DP-07 | Tampered ISO or installer on an official download site | High | Partial (ClamAV scan of the file) | Checksum plus signature verification helper for ISOs and downloads |
-| DP-08 | Fake or trojanized vendor `.deb`/`.rpm` downloads | High | Partial (ClamAV, browser link checks) | Static `.deb`/`.rpm` inspection before install |
+| DP-08 | Fake or trojanized vendor `.deb`/`.rpm` downloads | High | Partial | Static `.deb`/`.rpm` inspection before install |
 | DP-09 | Root-run maintainer scripts and RPM scriptlets | High | Partial | Extract and lint `preinst/postinst/%post/.install` without installing |
-| DP-10 | Abandoned third-party repos whose domains expire | High | Gap | Repo domain inventory; flag NXDOMAIN, unreachable or newly re-registered hosts |
+| DP-10 | Abandoned third-party repos whose domains expire | High | Partial | Repo domain inventory; flag NXDOMAIN, unreachable or newly re-registered hosts |
 | DP-11 | Malicious or hijacked AUR packages (PKGBUILD and orphan adoption) | High on Arch | Partial | PKGBUILD/`.install` static inspection; AUR-package inventory with feed match |
-| DP-12 | Personal repos: PPA, COPR, OBS home projects | Medium | Gap | Inventory personal repos and warn when they replace distro packages |
+| DP-12 | Personal repos: PPA, COPR, OBS home projects | Medium | Covered | Inventory personal repos and warn when they replace distro packages |
 | DP-13 | Scam and impersonation apps in app stores (Snap Store wallets, miners) | High for crypto users | Gap | Snap/Flatpak inventory with publisher and verification status |
 | DP-14 | Store publisher account takeover via expired publisher domain | Medium | Gap | Highlight long-dormant snaps that suddenly update; feed-driven removal notices |
 | DP-15 | Flatpak permission over-breadth and unverified Flathub apps | Medium | Gap | Permission inventory (`filesystem=host`, `home`, session/system bus, `devices=all`) |
 | DP-16 | Snap classic/devmode confinement and snapd/Flatpak sandbox-escape CVEs | Medium | Gap | List classic/devmode snaps; version check snapd/flatpak against advisories |
-| DP-17 | AppImage: unsigned, unsandboxed, self-updating executables | Medium | Partial (ClamAV) | AppImage header and embedded-signature inspection, desktop-integration audit |
+| DP-17 | AppImage: unsigned, unsandboxed, self-updating executables | Medium | Partial | AppImage header and embedded-signature inspection, desktop-integration audit |
 | DP-18 | `curl \| bash` and other pipe-to-shell installers | High | Partial (`bigman inspect`, shell.* rules, sandbox rehearsal) | Detect repo/key additions inside installers (`installer.adds-repo`) |
 | DP-19 | Homebrew on Linux and Nix: user-writable prefixes, executable formulae, store bugs | Medium | Gap | Inventory brew/nix installs; version check against advisories |
 | DP-20 | Stale systems: missing security updates or broken unattended upgrades | High | Partial | Pending-security-update report and auto-update health check |
 | DP-21 | Installed files altered after install (package DB mismatch) | High | Gap | Wrap `dpkg --verify`/`debsums`, `rpm -Va`, `pacman -Qkk` with noise filtering |
-| DP-22 | Third-party repo overriding distro packages (pinning, priority, epoch) | Medium | Gap | Flag high `Pin-Priority`, dnf `priority`, and installed packages whose origin is not the distro |
+| DP-22 | Third-party repo overriding distro packages (pinning, priority, epoch) | Medium | Partial | Flag high `Pin-Priority`, dnf `priority`, and installed packages whose origin is not the distro |
 | DP-23 | Boot chain and kernel modules: Secure Boot off, MOK enrollment, unsigned modules | Medium | Gap | Read-only Secure Boot/MOK/taint report |
 
 ## Attacks
@@ -78,7 +78,7 @@
   - **pacman:** `/etc/pacman.conf` with `SigLevel = Never`, or `Optional TrustAll`, globally or per repo.
   - **Flatpak:** `flatpak remotes --show-details` and `/var/lib/flatpak/repo/config` / `~/.local/share/flatpak/repo/config` with `gpg-verify=false` or `gpg-verify-summary=false`.
   - Read-only commands: `grep -rnE 'trusted=yes|allow-insecure' /etc/apt/`, `grep -rn 'gpgcheck *= *0' /etc/yum.repos.d /etc/zypp/repos.d`, `grep -n SigLevel /etc/pacman.conf`, `flatpak remotes --show-details`.
-- **Bigman today:** Gap. `bigman setup` intentionally never adds repos, but nothing audits existing ones.
+- **Bigman today:** Covered. `bigman package-sources` (Protect > Updates) reports `channel.signature-disabled` and `channel.plain-http` for apt, dnf, zypper, pacman, Flatpak and Nix, from configuration only. Package files that would add a source are reported before install (`pkg.adds-source`).
 - **Proposed mitigation / detection:** New CLI check `bigman repos`, also called from `bigman doctor`. It is a pure parser of the files above, rootless because they are world-readable. Rules:
   - `repo.signature-disabled` (High)
   - `repo.plain-http` (Medium; lower if signed, since apt and dnf still verify signatures over HTTP, but metadata freshness and privacy suffer)
@@ -105,7 +105,7 @@
   - Expired keys, and keys using weak algorithms (1024-bit DSA/RSA).
   - On RPM systems, the list of imported keys: `rpm -q gpg-pubkey --qf '%{NAME}-%{VERSION}-%{RELEASE}\t%{SUMMARY}\n'`.
   - Read-only commands: `ls -l /etc/apt/trusted.gpg* /etc/apt/keyrings /usr/share/keyrings`, `gpg --show-keys --with-fingerprint FILE`, `sq inspect FILE`.
-- **Bigman today:** Gap.
+- **Bigman today:** Covered. `channel.unscoped-key` (third-party apt source without signed-by) and `channel.global-key` (third-party key in the global keyrings); package files that ship or import a key are reported before install (`pkg.adds-key`).
 - **Proposed mitigation / detection:** In `bigman repos`:
   - `repo.global-key` (Medium): a key in a global keyring that does not belong to the distro archive keyring package. Ownership is resolved with `dpkg -S`.
   - `repo.unscoped-source` (Medium): a source with no `signed-by`.
@@ -154,7 +154,7 @@
   - dnf `metadata_expire=-1` or very long values.
   - Unofficial mirrors in `mirrorlist`/`baseurl`/`/etc/pacman.d/mirrorlist` that are not on the distro's mirror list.
   - Plain-HTTP mirrors. They are signed, but a network attacker can still freeze or replay them.
-- **Bigman today:** Gap.
+- **Bigman today:** Partial. `channel.expiry-check-off`, `channel.stale-metadata` (distribution metadata older than 14 days) and `channel.plain-http`. A malicious mirror serving fresh-looking but replayed metadata is not detectable from configuration.
 - **Proposed mitigation / detection:** In `bigman repos`:
   - `repo.validity-check-disabled` (Medium).
   - `repo.metadata-stale` (Medium): the newest `Date:` in cached `Release`/`InRelease` files, or the dnf/pacman cache timestamp, is more than N days old. This relies only on what is already on disk and needs no network.
@@ -205,7 +205,7 @@
   - Maintainer scripts that write cron jobs, systemd units or binaries outside the package's own paths.
   - Files under `/etc/cron.d`, `/etc/systemd/system` and `/usr/local` that no package owns (`dpkg -S`, `rpm -qf`).
   - The download domain compared with the vendor's real domain.
-- **Bigman today:** Partial. `bigman scan` (ClamAV) may detect known samples, and the browser extension flags lookalike domains and scans completed downloads. Nothing parses `.deb`/`.rpm` structure.
+- **Bigman today:** Partial. Inspect parses `.deb` and `.rpm` files in Rust without dpkg or rpm: identity (name, version, maintainer, homepage, rpm signature presence), `pkg.install-script`, `pkg.adds-source`, `pkg.adds-key`, `pkg.setuid`, `pkg.startup-path` and `pkg.user-path`; the Downloads watch routes downloaded packages there. ClamAV and the browser link checks remain. Not yet: the `pkg.orphan-file` monitor check and vendor-domain comparison.
 - **Proposed mitigation / detection:**
   - Extend `bigman inspect FILE` to recognize `.deb` (ar + control.tar.* + data.tar.*) and `.rpm` (lead + header + cpio payload) and parse them in pure Rust without running dpkg or rpm (see DP-09).
   - Report the declared package name, maintainer, homepage and version.
@@ -224,7 +224,7 @@
   - Arch: read `PKGBUILD` and the `.install` file before building. For built packages, `bsdtar -xOf pkg.pkg.tar.zst .INSTALL`, and `pacman -Qip` for metadata.
   - Already installed: `/var/lib/dpkg/info/<pkg>.{preinst,postinst,prerm,postrm}`, `rpm -q --scripts <pkg>`, `/var/lib/pacman/local/<pkg>/install`, `/usr/share/libalpm/hooks/` and `/etc/pacman.d/hooks/`.
   - Suspicious content: network fetch, `systemctl enable` of units not in the package, writing to `~` of real users, adding repos or keys, `chmod +s`, base64 or eval blobs, disabling SELinux/AppArmor, or edits to `/etc/ld.so.preload`.
-- **Bigman today:** Partial. Every package transaction (dnf5 history, pacman or dpkg log) gets an install receipt with each installed package's scripts verbatim; `receipt.hook.sensitive_path`, `receipt.hook.download`, `receipt.hook.obfuscation` and `receipt.hook.changed` mark lines and changes. Receipts are built after the transaction; the pre-transaction preview hooks are opt-in from Setup.
+- **Bigman today:** Partial. Every package transaction (dnf5 history, pacman or dpkg log) gets an install receipt with each installed package's scripts verbatim; `receipt.hook.sensitive_path`, `receipt.hook.download`, `receipt.hook.obfuscation` and `receipt.hook.changed` mark lines and changes. Receipts are built after the transaction; the pre-transaction preview hooks are opt-in from Setup. Before install, Inspect reads maintainer scripts straight from `.deb`, `.rpm` and Arch package files and PKGBUILD `.install` files (`pkg.install-script`) and applies the same `receipt.hook.*` line rules. `bigman audit installed-scripts` is not built yet.
 - **Proposed mitigation / detection:**
   - Reuse the `shell.*` rule engine on extracted maintainer scripts, with new rule IDs `pkg.maintainer-script` (Info: present) and `pkg.maintainer-script.<capability>` (Review), mirroring `package.lifecycle`.
   - Add `bigman audit installed-scripts` to scan `/var/lib/dpkg/info/*.{pre,post}*`, `/var/lib/pacman/local/*/install` and RPM scripts via `rpm -qa --scripts`. List installed non-distro packages whose scripts reach network or persistence capabilities. Rootless.
@@ -244,7 +244,7 @@
   - **2026, Helm's community apt mirror `baltocdn.com`:** decommissioned in September 2025 and re-registered by a third party on 2026-05-19. Helm's 2026-05-29 notice says to remove such sources and treat any system that ran binaries from it after that date as potentially compromised (https://blog.helm.sh/blog/security-notice-baltocdn).
   - **2026, Snap Store:** the same pattern used against store accounts (DP-14).
 - **What a defender inspects (indicators):** every host in apt/dnf/zypper/pacman/flatpak repo configs, whether it still resolves, whether it serves valid signed metadata (`apt-get update` errors such as `NO_PUBKEY`, `EXPKEYSIG`, 404 or NXDOMAIN in `/var/log/apt/term.log`), the last successful fetch time per source, and advisories naming a repo domain.
-- **Bigman today:** Gap.
+- **Bigman today:** Partial. `channel.third-party` (Info) inventories every third-party source so abandoned ones can be removed by hand. Domain lookups (NXDOMAIN, re-registration) need the network and are not done.
 - **Proposed mitigation / detection:**
   - `bigman repos --online` (opt-in, because it makes DNS queries) resolves each repo host and reports `repo.host-unresolvable` (Medium) and `repo.host-changed` (Medium/High when the A/AAAA or NS records differ from the baseline).
   - Offline mode reports `repo.never-refreshed` for sources with no `/var/lib/apt/lists` entry.
@@ -265,7 +265,7 @@
   - For each, compare installed version and maintainer with the AUR RPC metadata and the published affected-package lists.
   - Check whether the AUR maintainer changed recently (adoption), whether the PKGBUILD `source=` points to a personal GitHub repo or paste site rather than the upstream project, and whether a `-bin` package's sources differ from the upstream's official release URLs.
   - Check the helper's configuration (for example yay/paru settings that skip diff review).
-- **Bigman today:** Partial. pacman `.install` scripts of installed packages are read into receipts and triaged by the `receipt.hook.*` rules. PKGBUILDs and AUR helpers are not inspected yet.
+- **Bigman today:** Partial. Inspect reads a PKGBUILD as text: the installer rules on its code (metadata and `$pkgdir` housekeeping left out), `pkgbuild.skip-checksum` for non-VCS downloads with SKIP, and its install file with `pkg.install-script` and the receipt line rules; built `.pkg.tar.*` files are read like other package files. pacman `.install` scripts of installed packages are in receipts. Not yet: `pacman -Qm` matched against incident lists.
 - **Proposed mitigation / detection:**
   - `bigman packages` gains a PKGBUILD mode that statically parses the `source=`, `sha256sums=`, `install=` and `pkgver` fields (no `makepkg`, no sourcing bash) and runs `shell.*` rules on `prepare/build/package` function bodies and the `.install` file.
   - New rules: `aur.source-not-upstream` (Review), `aur.skip-checksum` (`SKIP` for non-VCS sources), `aur.install-script`.
@@ -282,7 +282,7 @@
   - Fedora: `/etc/yum.repos.d/_copr:*.repo`.
   - openSUSE: `download.opensuse.org/repositories/home:` in `/etc/zypp/repos.d`.
   - For each: last-modified date of its metadata, which installed packages come from it (`apt-cache policy <pkg>`, `dnf repoquery --installed --qf '%{name} %{from_repo}'`, `zypper se -i -r <alias>`), and whether any of those shadow distro packages.
-- **Bigman today:** Gap.
+- **Bigman today:** Covered. `channel.personal-repo` (Info) names PPA, COPR and OBS home sources and `channel.priority-override` (Review) reports those ranked above the distribution.
 - **Proposed mitigation / detection:**
   - `bigman repos` classifies sources as distro, vendor, personal or unknown using host patterns.
   - Report `repo.personal` (Info) with the list of installed packages it supplies.
@@ -362,7 +362,7 @@
   - Whether each carries an embedded signature section (`.sha256_sig`, `.sig_key` ELF sections) and its update-information section (`.upd_info`).
   - `.desktop` files in `~/.local/share/applications` and `~/.config/autostart` whose `Exec=` points to an AppImage.
   - Whether AppImageLauncher-style integration moved files.
-- **Bigman today:** Partial. `bigman scan` and the daily Downloads scan run ClamAV on AppImages, but ClamAV may not unpack squashfs.
+- **Bigman today:** Partial. Inspect recognises AppImages (`AI\x02`) and reads their ELF sections: `appimage.unsigned` (Info) and `appimage.update-url` (Info). The squashfs contents and autostart entries pointing at AppImages are not checked yet.
 - **Proposed mitigation / detection:**
   - `bigman inspect` recognizes AppImage type 2 and reports `appimage.unsigned` (Info), `appimage.update-url` (Info, shows host), and `appimage.autostart` (Review when an autostart entry targets it).
   - It lists the squashfs contents' `.desktop` and `AppRun` and runs `shell.*` rules on a shell `AppRun` (squashfs reading in Rust, or via `unsquashfs -l` under existing bwrap).
@@ -457,7 +457,7 @@
   - dnf `priority=`, `exclude=` and `includepkgs=` in `.repo` files.
   - zypper `priority`.
   - Installed packages whose origin is not the distro: `apt list --installed` with origin fields, `dnf repoquery --installed --qf '%{name} %{from_repo}'`, `pacman -Qm`.
-- **Bigman today:** Gap.
+- **Bigman today:** Partial. `channel.priority-override` reports apt pins above 500 and dnf or zypper priorities above the distribution's; `advisory.untracked-package` lists installed packages outside the distribution's data. Epochs are not compared.
 - **Proposed mitigation / detection:**
   - `repo.high-pin` (Review)
   - `repo.overrides-core` (High when a non-distro origin supplies a package in a curated core list)

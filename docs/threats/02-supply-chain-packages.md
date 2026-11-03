@@ -16,27 +16,27 @@
 | ID | Attack | Severity for a Linux desktop/dev user | Bigman today | Proposed |
 |---|---|---|---|---|
 | SC-01 | npm-family install-time lifecycle scripts | High | Partial | Add missing hooks, implicit `binding.gyp` builds, JS-aware rules, pnpm/yarn/bun lockfiles, approval-state check |
-| SC-02 | Phantom, URL and git-commit dependencies | High | Gap | Flag non-registry specifiers and "added dependency never imported" in manifest and lockfile diffs |
-| SC-03 | Python install-time and interpreter-startup code (`setup.py`, build backends, `.pth`) | High | Gap | `bigman packages` for sdist/wheel/site-packages: flag `.pth` with code, setup-time network/exec |
-| SC-04 | Rust `build.rs` and proc-macro execution at build time | High | Gap | `.crate`/`Cargo.lock` inspector: build scripts, proc-macros, new transitive crates |
+| SC-02 | Phantom, URL and git-commit dependencies | High | Partial | Flag non-registry specifiers and "added dependency never imported" in manifest and lockfile diffs |
+| SC-03 | Python install-time and interpreter-startup code (`setup.py`, build backends, `.pth`) | High | Partial | `bigman packages` for sdist/wheel/site-packages: flag `.pth` with code, setup-time network/exec |
+| SC-04 | Rust `build.rs` and proc-macro execution at build time | High | Partial | `.crate`/`Cargo.lock` inspector: build scripts, proc-macros, new transitive crates |
 | SC-05 | Maintainer account takeover and publish-token theft | High | Partial (OSV only) | Provenance-drift check ("release published without trusted-publisher provenance") |
 | SC-06 | Self-propagating registry worms (Shai-Hulud family) | High | Partial | Worm IOC sweep; repo-injected AI/IDE hooks; credential canaries |
 | SC-07 | Typosquatting and combosquatting | Medium | Gap | Offline edit-distance and confusable check against popular-name lists |
 | SC-08 | Dependency confusion (public package shadows a private name) | Medium | Gap | Registry-scope audit of `.npmrc`/`pip.conf`/`uv.toml`/`GOPRIVATE` |
-| SC-09 | Slopsquatting (AI-hallucinated package names) | Medium | Gap | "Young or near-zero-download package" warning; manifest-diff review |
+| SC-09 | Slopsquatting (AI-hallucinated package names) | Medium | Partial | "Young or near-zero-download package" warning; manifest-diff review |
 | SC-10 | Abandoned-package revival and expired maintainer domain takeover | Medium | Gap | Maintainer-ownership change flag in lockfile diffs; feed advisory |
 | SC-11 | Protestware and maintainer sabotage | Medium | Partial (OSV) | Same pipeline as SC-05; locale/geo-conditional code rule |
 | SC-12 | Compromised hosted script or CDN dependency (polyfill.io, connect-kit) | Medium | Gap | Static scan of project HTML/JS for third-party `<script src>` without SRI |
 | SC-13 | Lockfile tampering and integrity drift | Medium | Partial | Lockfile linter: resolved host, integrity presence, non-registry tarballs |
 | SC-14 | Registry and proxy-specific persistence (Go proxy cache, RubyGems, Cargo tar issues) | Medium | Gap | Ecosystem advisories via feeds; `go env` and toolchain-version checks |
-| SC-15 | Compromised or retagged third-party GitHub Actions and CI tools | High (maintainers) | Gap | Workflow scan: unpinned `uses:`; feed-driven compromised-action list |
-| SC-16 | `pull_request_target`, script injection and cache poisoning ("pwn requests") | High (maintainers) | Gap | Workflow scan for dangerous trigger, expression and cache patterns |
+| SC-15 | Compromised or retagged third-party GitHub Actions and CI tools | High (maintainers) | Partial | Workflow scan: unpinned `uses:`; feed-driven compromised-action list |
+| SC-16 | `pull_request_target`, script injection and cache poisoning ("pwn requests") | High (maintainers) | Partial | Workflow scan for dangerous trigger, expression and cache patterns |
 | SC-17 | Malicious workflow commits pushed with stolen accounts (GhostAction) | High (maintainers) | Gap | Diff `.github/workflows` against a baseline; flag new secret-referencing workflows |
 | SC-18 | Poisoned or stale container images | Medium | Gap | Image reference audit: tag vs digest; signature verification guidance |
-| SC-19 | Malicious or hijacked VS Code / Open VSX extensions | High | Gap | `.vsix` inspector and installed-extension inventory |
-| SC-20 | Repo-open triggers (IDE tasks, git hooks, `.envrc`, devcontainers) | High | Gap | `bigman repo-check DIR` before trusting a workspace |
-| SC-21 | Poisoned AI coding-tool configuration (agent hooks, project MCP, rules files) | High | Gap | Repo-check rules for `.claude/`, `.mcp.json`, `.cursor/`, instruction files, hidden Unicode |
-| SC-22 | Malicious MCP servers and AI-tool packages | Medium | Gap | MCP config inventory; flag unpinned `npx`/`uvx` servers and unknown publishers |
+| SC-19 | Malicious or hijacked VS Code / Open VSX extensions | High | Partial | `.vsix` inspector and installed-extension inventory |
+| SC-20 | Repo-open triggers (IDE tasks, git hooks, `.envrc`, devcontainers) | High | Covered | `bigman repo-check DIR` before trusting a workspace |
+| SC-21 | Poisoned AI coding-tool configuration (agent hooks, project MCP, rules files) | High | Partial | Repo-check rules for `.claude/`, `.mcp.json`, `.cursor/`, instruction files, hidden Unicode |
+| SC-22 | Malicious MCP servers and AI-tool packages | Medium | Partial | MCP config inventory; flag unpinned `npx`/`uvx` servers and unknown publishers |
 | SC-23 | Credential harvesting and exfiltration channels (cross-cutting) | High | Partial (`shell.credentials`, canary) | Extend credential regex set; exfil-channel rules; more decoy canaries |
 
 ## Attacks
@@ -61,7 +61,7 @@
   - A runtime download of Bun or another interpreter from inside an install script.
   - Detached child processes that outlive `npm install`.
   - Read-only commands: `npm query ':attr(scripts, [postinstall])'`, `npm query ':attr(scripts, [preinstall])'`, `npm ls --all`, `npm config get ignore-scripts`, `npm config get allow-scripts`, `pnpm ignored-builds` (pnpm 10+), `find node_modules -name binding.gyp -not -path '*/node_modules/*/node_modules/*/node_modules/*'`.
-- **Bigman today:** Partial.
+- **Bigman today:** Partial. Lockfiles add `lockfile.install-hook` and, in diff mode, `lockfile.new-install-hook`; npm packages with a `binding.gyp` and no install script get `package.gyp-build`, since npm builds them at install.
   - Covered: `package.lifecycle`, `package.script` and the `shell.*` rules on script text and referenced files, `.tgz` inspection without extraction, and `bigman package-policy` (writes `ignore-scripts=true`).
   - Gaps:
     - `preprepare`/`postprepare` and implicit `binding.gyp` builds are not flagged.
@@ -101,7 +101,7 @@
   - A new dependency in a patch release with no matching source change and no `require`/`import` of the name anywhere in the package.
   - Packages that delete or rename their own `package.json` after install: a mismatch between `node_modules/X/package.json` and the lockfile `integrity`. `npm ls --all` warnings about invalid or extraneous packages.
   - Read-only commands: `npm query ':attr(resolved)'` (filter non-registry hosts), `jq '.packages | to_entries[] | select(.value.resolved and (.value.resolved | startswith("https://registry.npmjs.org/") | not))' package-lock.json`, `git diff HEAD~1 -- package-lock.json`.
-- **Bigman today:** Gap. Lockfile reading is limited to `hasInstallScript`. The `.tgz` mode never looks at the dependency map.
+- **Bigman today:** Partial. `bigman lockfile` reports git, URL and local-path dependencies (`lockfile.non-registry`) in npm, Yarn, pnpm, Bun and Cargo lockfiles, and `--against` reports a package that changed source without a new version (`lockfile.source-changed`). Phantom dependencies (used but undeclared) are not detected.
 - **Proposed mitigation / detection:** CLI rules in `bigman packages`:
   - `package.remote-dependency` (High): a non-registry specifier in `dependencies`, `optionalDependencies` or `peerDependencies`, or a `resolved` URL outside the configured registry.
   - `package.unused-dependency` (Review), computed only for `.tgz` input: a declared dependency name never appears in any `require(`/`import`/`from` string in the package's JS.
@@ -128,7 +128,7 @@
   - Wheel `RECORD` files listing `.pth` files outside the package's own directory.
   - `entry_points.txt` console scripts that shadow common commands (`pip`, `python`, `git`).
   - Read-only commands: `python3 -c 'import site,sys; print(site.getsitepackages(), site.getusersitepackages())'`, `find ~/.local/lib /usr/lib/python3*/site-packages /usr/local/lib -name '*.pth' -exec grep -l '^import' {} +`, `pip inspect` (JSON inventory, no network), `pip-audit` (vulnerabilities), `unzip -l pkg.whl`, `tar -tzf pkg.tar.gz`.
-- **Bigman today:** Gap. `bigman packages` only reads `package.json`, and the walker even skips `.venv`.
+- **Bigman today:** Partial. Wheels and sdists given to Inspect get `py.startup-code` (.pth import lines and sitecustomize, High when they decode, execute or connect), `py.entrypoint-shadow` and `py.setup-exec`; Python project folders get the same rules. Installed `site-packages` are not enumerated yet.
 - **Proposed mitigation / detection:**
   1. Extend `bigman packages` to accept `.whl` (zip) and `.tar.gz` sdists, without extracting to disk:
      - `py.pth-exec` (High): a `.pth` with an executable line.
@@ -162,7 +162,7 @@
   - `[lib] proc-macro = true` in a crate that has no reason to be a macro.
   - Cached copies in `~/.cargo/registry/cache/*/*.crate` and sources in `~/.cargo/registry/src/`.
   - Read-only commands: `cargo tree --locked --offline -e normal,build`, `cargo metadata --locked --offline --format-version 1 | jq '.packages[] | select(.targets[].kind[] == "custom-build") | .name'`, `cargo audit` (RustSec, includes yanked and informational "malicious" entries), `cargo deny check advisories bans sources`, `cargo vet`, `ls ~/.cargo/registry/cache/*/ | grep -E 'arrayref-0.3.10'`.
-- **Bigman today:** Gap.
+- **Bigman today:** Partial. `.crate` files and Rust project folders get `rust.build-script` (Review, High when the script opens connections or reads the home folder or credentials) and `rust.proc-macro` (Info). `Cargo.lock` is linted by `bigman lockfile`. Not yet: `rust.new-crate` in diff mode and the rust-analyzer settings report.
 - **Proposed mitigation / detection:**
   1. `bigman packages` accepts `.crate` files (gzip tar), a crate source directory or a project with `Cargo.lock`:
      - `rust.build-script` (Review) for any `build.rs`, escalating to High when it contains `Command::new`, `TcpStream`, an HTTP client crate, or home/credential path fragments.
@@ -323,7 +323,7 @@
 - **What a defender inspects (indicators):**
   - New dependencies with a very recent first publish date, a single version, no repository link or a repository that does not mention the package name, and near-zero downloads.
   - Dependencies added in commits authored by AI agents (`Co-Authored-By` trailers, agent bot identities).
-- **Bigman today:** Gap.
+- **Bigman today:** Partial. `bigman lockfile --against` shows which packages a change adds, with `lockfile.new-install-hook` for new ones that run install scripts. Names are not checked against registries or lookalike lists.
 - **Proposed mitigation / detection:**
   - `--diff` mode `package.new-dependency` with an optional (explicit, networked) metadata lookup that flags `package.young` when the first publish is less than N days old or the package has fewer than K versions.
   - Document the release-age cooldowns (SC-05) as the primary control.
@@ -395,7 +395,7 @@
   - `yarn.lock` `resolved` hosts.
   - Mismatches between `Cargo.lock` `checksum` and the crates.io index.
   - Read-only: `npx lockfile-lint --path package-lock.json --allowed-hosts npm --validate-https` (runs a published tool), `git log -p -- package-lock.json`, `npm ci --dry-run --ignore-scripts`.
-- **Bigman today:** Partial. `package.unresolved-hook` reads `package-lock.json` for install-script flags only.
+- **Bigman today:** Partial. `lockfile.missing-integrity` and `lockfile.non-registry` on any lockfile; `--against OLDER` adds `lockfile.source-changed` when a package keeps its version but changes address or hash.
 - **Proposed mitigation / detection:** Native lockfile linter in `bigman packages`:
   - `lock.foreign-host` (High), `lock.no-integrity` (Review), `lock.insecure-url` (High) and `lock.orphan` (Info) for `package-lock.json` v2/v3, `pnpm-lock.yaml`, `yarn.lock` (classic and Berry) and `bun.lock` (text).
   - For `Cargo.lock`: `source` other than crates.io or a git source without a commit pin.
@@ -443,7 +443,7 @@
   - Tools installed in CI with `latest` or without checksum or signature verification.
   - Workflows lacking a top-level `permissions:` block.
   - Read-only: `grep -RnE 'uses:\s*[^@]+@(v?[0-9.]+|main|master)\s*$' .github/`, `zizmor .github/workflows`.
-- **Bigman today:** Gap.
+- **Bigman today:** Partial. `bigman repo-check` and project inspection report third-party actions used by tag or branch (`repo.workflow-unpinned`). Retagged or compromised actions are not compared against advisories.
 - **Proposed mitigation / detection:**
   - Repo-check rules: `gha.unpinned-action` (Review; High when the workflow also has `secrets.*` or `id-token: write`), `gha.no-permissions` (Info), and `gha.unpinned-tool` (Review) for `curl ... | sh` installers in `run:`, reusing `shell.*` rules on each `run:` block.
   - Feed-driven `gha.known-compromised` list (action@ref ranges from GHSA) matched against workflows in local checkouts.
@@ -467,7 +467,7 @@
   - Release triggers on branches without protection.
   - Stale branches still containing removed workflows.
   - Read-only: `zizmor`, `grep -Rn 'pull_request_target' .github/workflows`, `git branch -r --contains <commit-that-removed-workflow>`, and `git for-each-ref` to list branches that still contain a file.
-- **Bigman today:** Gap.
+- **Bigman today:** Partial. `repo.workflow-pull-request-target` (Review; High when the workflow checks out the pull request's code). Script injection through `${{ }}` expressions and cache poisoning are not analysed.
 - **Proposed mitigation / detection:** Repo-check rules:
   - `gha.prt-checkout` (High): `pull_request_target`/`workflow_run` combined with checkout of PR head.
   - `gha.expression-injection` (High): untrusted `github.event.*` fields inside `run:`.
@@ -534,7 +534,7 @@
   - Bundled native binaries.
   - Publisher IDs one character off from well-known publishers.
   - Read-only: `code --list-extensions --show-versions`, `codium --list-extensions --show-versions`, `ls ~/.vscode/extensions`, `jq '.activationEvents, .extensionDependencies, .extensionPack' ~/.vscode/extensions/*/package.json`, `grep -rlP '[\x{FE00}-\x{FE0F}\x{200B}-\x{200D}\x{E0100}-\x{E01EF}]' ~/.vscode/extensions/*/out ~/.vscode/extensions/*/dist`.
-- **Bigman today:** Gap. ClamAV may catch known samples inside `~/.vscode/extensions` if the user scans that path.
+- **Bigman today:** Partial. `.vsix` files given to Inspect get `vsix.startup-activation`, `vsix.dependency-chain`, `vsix.invisible-code` (High) and `vsix.native-binary`. Installed extensions across VS Code, VSCodium and Cursor are not inventoried yet.
 - **Proposed mitigation / detection:**
   1. `bigman packages FILE.vsix` (zip): parse `extension/package.json` and `extension.vsixmanifest`, then raise:
      - `vsix.startup-activation` (Review).
@@ -575,7 +575,7 @@
   - `Makefile`/`justfile` targets invoked by IDE tasks.
   - In the user's git config: `core.hooksPath` and `core.fsmonitor`.
   - Read-only: `git config --show-origin --get-regexp '^(core\.hookspath|core\.fsmonitor|filter\.|diff\..*\.textconv)'`, `find . -path ./node_modules -prune -o \( -name tasks.json -o -name .envrc -o -name devcontainer.json \) -print`, `jq '.tasks[] | select(.runOptions.runOn=="folderOpen")' .vscode/tasks.json`.
-- **Bigman today:** Gap. The `shell.*` rules would match the command text if a user passed `tasks.json` to `bigman inspect`, but nothing looks for these files.
+- **Bigman today:** Covered for the files these tools read on open. `bigman repo-check` and project inspection report `repo.autorun-task`, `repo.envrc`, `repo.devcontainer-command` (High for initializeCommand), `repo.git-filter`, `repo.git-hooks` and `repo.git-config-command`. Nothing in the project is run, so what those commands then call is not followed.
 - **Proposed mitigation / detection:** New `bigman repo-check DIR`, read-only and intended to run *before* opening a repo in an IDE. It can also be offered by the browser extension after a `git clone` URL is copied.
   - Rules:
     - `repo.ide-autorun` (High): `folderOpen` tasks.
@@ -612,7 +612,7 @@
   - `.cursor/rules/`, `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, `.github/copilot-instructions.md`, `.windsurfrules`: invisible or bidi Unicode (U+200B-U+200F, U+202A-U+202E, U+2066-U+2069, U+FE00-U+FE0F, U+E0000-U+E007F tag characters) and instructions mentioning `curl`, credentials, "do not tell the user", or disabling checks.
   - User-level files: `~/.claude/settings.json`, `~/.claude.json` (MCP servers and project approvals), `~/.cursor/mcp.json`, `~/.codeium/windsurf/mcp_config.json`.
   - Read-only: `grep -rnP '[\x{200B}-\x{200F}\x{202A}-\x{202E}\x{2066}-\x{2069}\x{E0000}-\x{E007F}]' CLAUDE.md AGENTS.md .cursor .github`, `jq '.hooks, .permissions, .enableAllProjectMcpServers' .claude/settings.json`, `jq '.mcpServers' .mcp.json`.
-- **Bigman today:** Gap.
+- **Bigman today:** Partial. `repo.ai-hooks` (Claude Code hooks), `repo.mcp-server` and `repo.hidden-instructions` (invisible characters in CLAUDE.md, AGENTS.md, .cursorrules and similar). Plain-language instructions that misdirect an agent cannot be judged by rules.
 - **Proposed mitigation / detection:** Repo-check rules:
   - `ai.agent-hook` (High): any hook command in a project agent config, with the command passed through `shell.*`.
   - `ai.project-mcp` (Review): a project MCP definition; High if it uses `npx -y`/`uvx` without a pinned version, or a repo-local script.
@@ -639,7 +639,7 @@
 - **What a defender inspects (indicators):**
   - The MCP server list in each client config (SC-21 paths): package names not published by the service vendor, `npx -y`/`uvx` without `@version`, servers whose `env` holds long-lived tokens, and recent version changes.
   - Read-only: `jq '.mcpServers | to_entries[] | [.key, .value.command, (.value.args|join(" "))]' ~/.claude.json ~/.cursor/mcp.json 2>/dev/null`, `npm view <server-pkg> maintainers repository time --json`.
-- **Bigman today:** Gap.
+- **Bigman today:** Partial. `repo.mcp-server` reports project MCP configurations and the program each starts. The packages they name are not checked against advisories.
 - **Proposed mitigation / detection:**
   - `bigman ai-inventory` (read-only): list MCP servers across known client configs and raise `ai.mcp-unpinned` (Review), `ai.mcp-plaintext-secret` (Review; key names only, never values) and `ai.mcp-lookalike` (Review, using SC-07 lookalike lists including the official MCP registry names).
   - Run each server's package through `bigman packages` when it is present in the npx/uv caches.

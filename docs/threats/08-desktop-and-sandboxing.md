@@ -211,7 +211,7 @@
   - `Exec=` containing shell, download or decode tooling (`sh -c`, `bash -c`, `curl`, `wget`, `base64`, `xxd`, `/tmp/`), `Terminal=false`, and `NoDisplay=true`.
   - GIO trust metadata: `gio info -a metadata::trusted FILE`.
   - Newly added `~/.config/autostart/*.desktop` (already in `bigman changes`) and `~/.config/systemd/user/*.service`.
-- **Bigman today:** Partial. `bigman changes` watches `~/.config/autostart` and `~/.config/systemd/user` (`persistence.change`), and the daily Downloads scan runs ClamAV, which is signature-only. There is no launcher-specific rule.
+- **Bigman today:** Partial. Inspect and the Downloads watch read `.desktop` launchers, on disk or inside archives: `desktop.launcher` (Review) for any launcher, `desktop.masquerade` (High) for a document-like file name, Name or icon, `desktop.exec-download` (High) when Exec runs curl or wget, and the installer rules on the Exec line. `bigman changes` still watches autostart and user units. Not yet: GIO trust metadata and `desktop.hidden`.
 - **Proposed mitigation / detection:**
   - A new deterministic analyzer for `.desktop` files, applied in `bigman scan`, the Downloads timer, `bigman inspect`, and the browser-extension download hook. It parses the keyfile and runs the existing `shell.*` capability rules on the `Exec=` value, adding:
     - `desktop.launcher-in-downloads` (Review)
@@ -251,7 +251,7 @@
   - Indexer state: `localsearch status` / `tracker3 status` and `balooctl6 status` (or `balooctl status`).
   - Versions of libcue, libgsf, poppler, ghostscript, libraw, ffmpeg and similar parser libraries against advisories.
   - Whether Downloads is in the indexed set (`gsettings get org.freedesktop.Tracker3.Miner.Files index-recursive-directories`).
-- **Bigman today:** Partial. The daily Downloads ClamAV scan catches only signature-known files, and it runs after the indexer has already parsed them.
+- **Bigman today:** Partial. The daemon's Downloads watch checks each new file as soon as it stops changing (inspector or ClamAV), not once a day, but it still reads the file after it lands, so an indexer or thumbnailer can parse it first. Thumbnailer and indexer settings are not audited yet.
 - **Proposed mitigation / detection:**
   - `bigman desktop audit` lists thumbnailers and flags `desktop.user-thumbnailer` (High) for any entry under `~/.local/share/thumbnailers` or with an `Exec=` outside `/usr`.
   - Report whether the indexer covers Downloads, as information with guidance: users who download untrusted files often can exclude Downloads from indexing.
@@ -307,7 +307,7 @@
   - setuid/setgid modes, device or FIFO entries
   - extreme compression ratios
   - `.desktop`, `.bashrc`, `autostart/` or `.ssh/` paths inside the archive
-- **Bigman today:** Partial. `bigman scan` passes archives to ClamAV with depth and size limits and never extracts into user directories, but no traversal findings exist.
+- **Bigman today:** Partial. Inspect lists zip and tar archives (gzip, xz, zstd, bzip2) without extracting: `archive.path-traversal`, `archive.absolute-path`, `archive.link-escape` (symlinks and hardlinks, and entries written through them), `archive.special-entry`, `archive.startup-path` and `archive.bomb-ratio`, plus the launcher rules for `.desktop` entries. 7z and RAR are recognised but not listed; there is no sandboxed extract yet.
 - **Proposed mitigation / detection:**
   - `bigman archive check FILE`: a pure-Rust, list-only parser for zip and tar (gz/xz/zst) that never writes entries to disk. It emits:
     - `archive.path-traversal` (High)

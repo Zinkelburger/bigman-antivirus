@@ -340,17 +340,24 @@ Acceptance: 10,000 fixture events scroll at 60 fps in the virtualized list; a fo
 - **have** Installer inspection from path, URL or stdin; exact bytes saved; capability rules; ShellCheck when present.
 - **have** npm package and project inspection; `ignore-scripts` policy with backup; offline Bubblewrap rehearsal of an approved saved hash.
 - **have** PDF triage.
-- **new** Install receipts (Part F).
-- **new** System package files without installing: `.deb`, `.rpm`, PKGBUILD, AppImage; maintainer scripts through the shell rules; files dropped into repo, key, cron, systemd or preload paths; setuid bits. DP-08, DP-09, DP-11, DP-17, DP-18.
-- **new** Language packages beyond npm: wheels and sdists including `.pth` files, crates with build scripts and proc-macros, `.vsix`, pnpm, yarn and bun lockfiles, `binding.gyp`. SC-01, SC-03, SC-04, SC-19.
-- **new** Lockfile linter with diff mode: non-registry dependencies, missing integrity hashes, new packages with install hooks. SC-02, SC-09, SC-10, SC-13.
-- **new** `repo-check DIR`: IDE auto-run tasks, `.envrc`, devcontainers, git hooks and filters, AI-tool configs (`.claude/`, `.mcp.json`, `.cursor/`, instruction files with hidden Unicode), workflow risks (unpinned actions, `pull_request_target`). SC-15, SC-16, SC-20 to SC-22, PH-10, CR-19.
-- **new** Repository and channel audit: apt including deb822, yum.repos.d, zypp, `pacman.conf`, Flatpak remotes, Nix. Disabled signatures, plain HTTP, keys without `signed-by`, stale metadata, third-party repos overriding distro packages. DP-02, DP-03, DP-05, DP-10, DP-12, DP-22.
-- **new** Archive and launcher checks: list-only path traversal, symlink escapes, startup-path entries, `.desktop` launchers disguised as documents. DS-09, DS-13.
-- **new** Downloads watch: inotify on the Downloads directory routes new files to the right inspector or to a ClamAV scan automatically and posts a first-seen event. Replaces the daily timer as the default.
+- **have** Install receipts (Part F).
+- **have** System package files without installing: `.deb`, `.rpm`, PKGBUILD, AppImage; maintainer scripts through the shell rules; files dropped into repo, key, cron, systemd or preload paths; setuid bits. DP-08, DP-09, DP-11, DP-17, DP-18.
+- **have** Language packages beyond npm: wheels and sdists including `.pth` files, crates with build scripts and proc-macros, `.vsix`, pnpm, yarn and bun lockfiles, `binding.gyp`. SC-01, SC-03, SC-04, SC-19.
+- **have** Lockfile linter with diff mode: non-registry dependencies, missing integrity hashes, new packages with install hooks. SC-02, SC-09, SC-10, SC-13.
+- **have** `repo-check DIR`: IDE auto-run tasks, `.envrc`, devcontainers, git hooks and filters, AI-tool configs (`.claude/`, `.mcp.json`, `.cursor/`, instruction files with hidden Unicode), workflow risks (unpinned actions, `pull_request_target`). SC-15, SC-16, SC-20 to SC-22, PH-10, CR-19.
+- **have** Repository and channel audit (`bigman package-sources`, shown in Protect > Updates; DP-10's domain lookups need the network and are not done): apt including deb822, yum.repos.d, zypp, `pacman.conf`, Flatpak remotes, Nix. Disabled signatures, plain HTTP, keys without `signed-by`, stale metadata, third-party repos overriding distro packages. DP-02, DP-03, DP-05, DP-10, DP-12, DP-22.
+- **have** Archive and launcher checks: list-only path traversal, symlink escapes, startup-path entries, `.desktop` launchers disguised as documents. DS-09, DS-13.
+- **have** Downloads watch: inotify on the Downloads directory routes new files to the right inspector or to a ClamAV scan automatically and posts a first-seen event. Replaces the daily timer as the default.
 - **later** AI reviewer on any receipt or inspection (Part G).
 
 Acceptance: one fixture per rule id fires its rule and no other; `bigman inspect` output for the existing fixtures is byte-identical to today's.
+
+Notes from milestone 7 (2026-11-03), where the code differs from the threat docs' proposals:
+- Rule names follow what the rules do: `archive.link-escape` (symlinks and hardlinks) and `archive.startup-path` (Review, not High: an archive of dotfiles is ordinary until extracted into home) instead of `archive.symlink-escape` and `archive.persistence-path`; `desktop.launcher` replaces `archive.launcher` and `desktop.launcher-in-downloads`, because the Downloads watch now sends every launcher through the same rules.
+- Package files keep the receipts' `receipt.hook.*` line rules for their scripts, so a script line reads the same before and after install; `pkg.*` covers what only a package file shows.
+- `.deb` and `.rpm` are parsed in Rust (ar, tar and rpm header tags) rather than through dpkg-deb or rpm, so a Fedora user can read a vendor `.deb`; xz, zstd and bzip2 streams go through the system tool inside the same Bubblewrap profile as the PDF parsers.
+- The Downloads watch is a daemon source, not part of `bigman watch`, so its entries fold into the timeline like any other first sighting. `bigman check` on the CLI still sends an unrecognised file to the installer rules; only the watch sends it to ClamAV.
+- `.whl`, `.crate`, `.vsix` and npm `.tgz` are archives first: they get the archive rules, then their ecosystem's rules.
 
 ### D5. Sandboxes
 

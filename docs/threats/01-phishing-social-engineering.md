@@ -357,7 +357,7 @@ These observations come from reading `browser-extension/link-detector.js`, `cont
   - A page whose text combines interview or meeting vocabulary ("interview", "assessment", "camera", "microphone", "driver", "SDK", "meeting") with a terminal or paste instruction, or with an installer download.
   - A download of a script or AppImage from a domain first seen today.
   - Slack or Teams lookalike workspace domains.
-- **Bigman today:** **Partial.**
+- **Bigman today:** **Partial.** `bigman repo-check` (and Inspect on a folder) now shows what a take-home repository runs on open: auto-run tasks, devcontainer commands, git hooks and config commands.
   - `bigman packages DIR` flags `package.lifecycle` and `package.script` in take-home repositories. This is npm/pnpm only; a Python take-home is not covered, see [supply-chain](./02-supply-chain-packages.md).
   - `bigman changes` would surface a new `.desktop` autostart entry.
   - `page.clickfix` does not match the "camera driver" wording (probe showed no finding).
