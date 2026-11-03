@@ -23,7 +23,7 @@ import {
 } from "@/design";
 import { desktopShell, useCheck, useHistory, type Report } from "@/ipc";
 
-const KINDS = new Set(["Installer inspection", "Restricted installer rehearsal", "Package script inventory", "Project inspection", "Repository check", "Lockfile check", "Archive check", "Launcher check", "Package file", "Package archive", "PKGBUILD check", "AppImage check", "PDF triage", "YARA-X scan", "osv integration"]);
+const KINDS = new Set(["Installer inspection", "Restricted installer rehearsal", "Package script inventory", "Project inspection", "Repository check", "Lockfile check", "Archive check", "Launcher check", "Package file", "Package archive", "PKGBUILD check", "AppImage check", "Skill check", "PDF triage", "YARA-X scan", "osv integration"]);
 
 const columns = (now: number): ColumnDef<Report>[] => [
   { id: "when", header: "When", accessorFn: (r) => r.created, cell: ({ row }) => ago(row.original.created, now), meta: { width: "9rem" } },
@@ -162,7 +162,7 @@ export function InspectPage() {
             >
               <p className="m-0 max-w-[56ch] text-ink-muted">
                 Bigman reads it and says what it can do, without running it. Installer scripts are saved byte for
-                byte; packages, projects, archives, launchers, .deb and .rpm files and PDFs are read as data. HTTPS URLs are fetched once, without your
+                byte; packages, projects, AI skills and plugins, archives, launchers, .deb and .rpm files and PDFs are read as data. HTTPS URLs are fetched once, without your
                 proxies or credentials.
               </p>
               <PathPicker label="File, folder or HTTPS URL" value={target} onChange={setTarget} onBrowse={() => void browse()} placeholder="https://example.org/install.sh" autoFocus={again} />

@@ -14,11 +14,13 @@ import {
   type RuleInfo,
   type Response,
   type ScanItem,
+  type SkillItem,
   type Transport,
   type Unread,
 } from "@/ipc";
 import rules from "@/ipc/generated/rules.json";
 import { checkup, history, NOW, report, scanWithFinding, statusScenarios } from "./fixtures";
+import { seedSkills, skillsReport } from "./skills";
 import { INTERFACES, networkSnapshot, RECEIPTS, securityUpdates, reportEvent, sampleAt, samplesFor, seedEvents, sourceStatuses } from "./live";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -46,6 +48,8 @@ class MockDaemon {
   subscribers = new Set<(live: Live) => void>();
   hook = false;
   preferences = { check_updates: true };
+  skills: SkillItem[] = seedSkills();
+  skillItems = new Map<string, SkillItem[]>();
 
   constructor(
     readonly scenario: string,
@@ -145,6 +149,15 @@ class MockDaemon {
       case "package_policy": return plan("Disable automatic install scripts", "Write .npmrc", "Add ignore-scripts=true to this project's .npmrc so npm and pnpm do not run lifecycle scripts during install.", `Would update ${action.path}/.npmrc`, "Delete the added lines from .npmrc.");
       case "accept_baseline": return plan("Accept startup baseline", "Accept", "Treat the 1 changed startup entries below as expected from now on. Accept them only if you know why they changed. Bigman refuses if anything changed since this report.", "Changed: /home/sam/.bashrc", "Bigman keeps the baseline this replaces; Undo puts it back.");
       case "restore_previous_baseline": return plan("Restore the previous baseline", "Restore", "Put back the startup baseline that the last acceptance replaced.", "");
+      case "approve_skill": {
+        const item = this.skillItems.get(action.report)?.find((i) => i.key === action.key);
+        const flagged = item?.findings.filter((f) => f.severity !== "info").length ?? 0;
+        const high = item?.findings.find((f) => f.severity === "high");
+        const more = high && flagged > 1 ? `, and ${String(flagged - 1)} more to review` : "";
+        const note = high ? ` It has a High finding, "${high.summary}"${more}; approving records that you read it and does not dismiss it.` : flagged ? ` It has ${String(flagged)} finding${flagged === 1 ? "" : "s"} to review; approving does not dismiss them.` : "";
+        return plan("Approve this version", "Approve", `Record this exact version of ${item?.name ?? "it"} as reviewed by you. Bigman reports it if any of its files change afterwards.${note}`, `${item?.root ?? ""}\nSHA-256 of its files: ${item?.hash ?? ""}\n\nFiles:\n${(item?.files ?? []).map((f) => `  ${f.path}  ${String(f.bytes)} bytes`).join("\n")}`, "Undo takes the approval back, restoring any earlier one.");
+      }
+      case "revoke_skill_approval": return plan("Take back the approval", "Take back", `Stop treating ${this.skills.find((i) => i.key === action.key)?.name ?? "this skill or plugin"} as reviewed. An earlier approval comes back if there was one; otherwise it is listed as not reviewed.`, action.key);
       case "quarantine": {
         const item = this.items.get(action.report)?.[action.index];
         return plan("Quarantine a file", "Quarantine", "Save a private recovery copy, check the file is unchanged since the scan, then remove it from its folder. No other file is touched.", `${item?.path ?? ""}\nSignature ${item?.signature ?? ""}\nSHA-256 ${item?.hash ?? ""}`, "Undo restores it, as long as nothing new has taken its path.");
@@ -191,6 +204,17 @@ class MockDaemon {
       case "create_hosted_canary": this.canaries = [...this.canaries, { id: id(), path: action.path, created: now(), kind: "hosted-url" }]; return done(`Shortcut saved at ${action.path}`);
       case "rehearse": return done("Rehearsal finished.", this.save(report({ id: id(), created: now(), kind: "Restricted installer rehearsal", subject: "install-tool.sh", findings: [{ rule: "trace.network", severity: "review", summary: "Execution attempted a network connection", evidence: 'connect(3, {sa_family=AF_INET, sin_port=htons(443), sin_addr=inet_addr("93.184.215.14")}, 16) = -1 ENETUNREACH', action: "The rehearsal has no external network. Review why the connection was attempted." }], coverage: { checked: ["Offline sandbox run", "strace"], notes: ["A rehearsal shows what the script tried in this one run, not what it would do elsewhere."], skipped: [] } })));
       case "accept_baseline": return done("Baseline saved.", null, { kind: "restore_previous_baseline" });
+      case "approve_skill": {
+        const item = this.skills.find((i) => i.key === action.key);
+        if (!item) throw new Error("That skill or plugin is not in this report");
+        this.skills = this.skills.map((i) => (i.key === action.key ? { ...i, status: "approved", approved_at: now(), changed: [] } : i));
+        return done(`${item.name} is approved as it is now.`, null, { kind: "revoke_skill_approval", key: action.key });
+      }
+      case "revoke_skill_approval": {
+        const item = this.skills.find((i) => i.key === action.key);
+        this.skills = this.skills.map((i) => (i.key === action.key ? { ...i, status: "unreviewed", approved_at: null } : i));
+        return done(`${item?.name ?? "It"} is no longer approved.`);
+      }
       case "restore_previous_baseline": return done("The previous baseline is back.");
       case "services": return done(action.remove ? "User services removed" : "The collector daemon, monitoring, daily scan and definition updates are enabled.", null, action.remove ? null : { kind: "services", remove: true });
       case "receipt_hook": this.hook = !action.remove; return done(action.remove ? "Removed the hook. dnf no longer asks Bigman before a transaction." : "Installed the hook. Before each transaction dnf now shows the receipt in Bigman and waits up to a minute for Continue or Abort.", null, action.remove ? null : { kind: "receipt_hook", remove: true });
@@ -282,6 +306,16 @@ class MockDaemon {
       case "yara": return r(await this.check(token, 900, () => report({ id: id(), created: now(), kind: "YARA-X scan", subject: request.target, coverage: { checked: ["YARA-X rules"], notes: ["Rule matches are rule results, not proof of malware."], skipped: [] } }), "YARA-X scan", request.target));
       case "canary_test": return r(await this.check(token, 800, () => report({ id: id(), created: now(), kind: "Canary verification", subject: this.canaries.find((c) => c.id === request.id)?.path ?? "", coverage: { checked: ["Monitor heartbeat", "Read receipt"], notes: ["Verifies local detection and durable evidence, not notification delivery or reader identity."], skipped: [] }, findings: [{ rule: "canary.verified", severity: "info", summary: "Local read detection verified", evidence: "Kernel read receipt from the monitor", action: "Leave monitoring running." }] }), "Canary verification", request.id));
       case "scan_items": return { type: "scan_items", value: this.items.get(request.report) ?? [] };
+      case "skills": return r(await this.check(token, 500, () => {
+        const inventory = skillsReport(this.skills, id(), now());
+        this.skillItems.set(inventory.id, this.skills);
+        return inventory;
+      }, "AI skills and plugins", "Installed skills and plugins"));
+      case "skill_items": {
+        const found = this.skillItems.get(request.report);
+        if (!found) return { type: "error", value: { message: "This report's skill list is not available" } };
+        return { type: "skill_items", value: found };
+      }
       case "quarantined": return { type: "quarantined", value: this.quarantine };
       case "canaries": return { type: "canaries", value: { canaries: this.canaries, monitor: this.monitor ? { updated: now() - 2, pid: 4121, watched: this.canaries.length, configured: this.canaries.length, errors: [], watched_ids: this.canaries.map((c) => c.id) } : null, default_path: "/home/sam/Documents/backup-access.env" } };
       case "tool_groups": return { type: "tool_groups", value: [

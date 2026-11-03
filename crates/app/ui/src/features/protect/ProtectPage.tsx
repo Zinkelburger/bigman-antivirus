@@ -3,6 +3,7 @@ import { AuditsView } from "./AuditsView";
 import { CanariesView } from "./CanariesView";
 import { QuarantineView } from "./QuarantineView";
 import { ScansView } from "./ScansView";
+import { SkillsView } from "./SkillsView";
 import { StartupView } from "./StartupView";
 import { UpdatesView } from "./UpdatesView";
 import { useProtectView, type ProtectView } from "./store";
@@ -12,6 +13,7 @@ const VIEWS: readonly { id: ProtectView; label: string }[] = [
   { id: "updates", label: "Updates" },
   { id: "quarantine", label: "Quarantine" },
   { id: "startup", label: "Startup files" },
+  { id: "skills", label: "AI skills" },
   { id: "canaries", label: "Canaries" },
   { id: "audits", label: "Audits" },
 ];
@@ -21,6 +23,7 @@ const BODY: Record<ProtectView, () => React.JSX.Element> = {
   updates: UpdatesView,
   quarantine: QuarantineView,
   startup: StartupView,
+  skills: SkillsView,
   canaries: CanariesView,
   audits: AuditsView,
 };

@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { useDrilldown } from "@/design";
 
-export type ProtectView = "scans" | "updates" | "quarantine" | "startup" | "canaries" | "audits";
+export type ProtectView = "scans" | "updates" | "quarantine" | "startup" | "skills" | "canaries" | "audits";
 
 export const TAB_IDS = ["overview", "network", "activity", "inspect", "sandboxes", "protect", "setup"] as const;
 export type TabId = (typeof TAB_IDS)[number];

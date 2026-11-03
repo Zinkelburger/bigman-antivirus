@@ -55,6 +55,15 @@ export function useScanItems(report: string | null) {
   });
 }
 
+/** The skills and plugins an inventory report listed, with their files. */
+export function useSkillItems(report: string | null) {
+  return useQuery({
+    queryKey: ["skill-items", report],
+    queryFn: () => call({ type: "skill_items", report: report ?? "" }, "skill_items"),
+    enabled: report !== null,
+  });
+}
+
 export function useQuarantined() {
   return useQuery({ queryKey: ["quarantined"], queryFn: () => call({ type: "quarantined" }, "quarantined") });
 }
@@ -84,7 +93,7 @@ function useRefreshAll() {
 
 type CheckRequest = Extract<
   Request,
-  { type: "doctor" | "scan" | "update_signatures" | "pdf" | "inspect" | "inspect_any" | "packages" | "lockfile" | "repo_check" | "package_sources" | "changes" | "audit" | "yara" | "canary_test" | "advisories" }
+  { type: "doctor" | "scan" | "update_signatures" | "pdf" | "inspect" | "inspect_any" | "packages" | "lockfile" | "repo_check" | "package_sources" | "changes" | "skills" | "audit" | "yara" | "canary_test" | "advisories" }
 >;
 
 /**
