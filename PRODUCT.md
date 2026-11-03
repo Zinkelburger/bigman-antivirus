@@ -49,7 +49,7 @@ Deterministic, local and honest. Every finding comes from a rule with a stable I
 ## Evidence on Hand
 
 - `README.md`: every implemented workflow and the boundary each one promises.
-- `docs/threats/`: 181 catalogued threats with stable IDs that features cite.
+- `docs/threats/`: 182 catalogued threats with stable IDs that features cite.
 - `docs/research/`: landscape survey, roadmap, vulnerability-feed design, verified feeds.
 - `docs/plan/implementation-plan.md`: the build plan, UI contract (Part B) and decisions (Part K).
 - No testimonials, user counts, benchmarks or press exist; do not invent them.

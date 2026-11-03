@@ -38,6 +38,7 @@
 | SC-21 | Poisoned AI coding-tool configuration (agent hooks, project MCP, rules files) | High | Partial | Repo-check rules for `.claude/`, `.mcp.json`, `.cursor/`, instruction files, hidden Unicode |
 | SC-22 | Malicious MCP servers and AI-tool packages | Medium | Partial | MCP config inventory; flag unpinned `npx`/`uvx` servers and unknown publishers |
 | SC-23 | Credential harvesting and exfiltration channels (cross-cutting) | High | Partial (`shell.credentials`, canary) | Extend credential regex set; exfil-channel rules; more decoy canaries |
+| SC-24 | Malicious agent skills and AI-tool plugins (SKILL.md, Claude Code, OpenCode and Codex plugins) | High | Partial | `bigman skills` inventory with approval and change detection; `skill.*` rules on what runs unprompted and on known payload patterns |
 
 ## Attacks
 
@@ -612,7 +613,7 @@
   - `.cursor/rules/`, `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, `.github/copilot-instructions.md`, `.windsurfrules`: invisible or bidi Unicode (U+200B-U+200F, U+202A-U+202E, U+2066-U+2069, U+FE00-U+FE0F, U+E0000-U+E007F tag characters) and instructions mentioning `curl`, credentials, "do not tell the user", or disabling checks.
   - User-level files: `~/.claude/settings.json`, `~/.claude.json` (MCP servers and project approvals), `~/.cursor/mcp.json`, `~/.codeium/windsurf/mcp_config.json`.
   - Read-only: `grep -rnP '[\x{200B}-\x{200F}\x{202A}-\x{202E}\x{2066}-\x{2069}\x{E0000}-\x{E007F}]' CLAUDE.md AGENTS.md .cursor .github`, `jq '.hooks, .permissions, .enableAllProjectMcpServers' .claude/settings.json`, `jq '.mcpServers' .mcp.json`.
-- **Bigman today:** Partial. `repo.ai-hooks` (Claude Code hooks), `repo.mcp-server` and `repo.hidden-instructions` (invisible characters in CLAUDE.md, AGENTS.md, .cursorrules and similar). Plain-language instructions that misdirect an agent cannot be judged by rules.
+- **Bigman today:** Partial. `repo.ai-hooks` (Claude Code hooks), `repo.mcp-server` and `repo.hidden-instructions` (invisible characters in CLAUDE.md, AGENTS.md, .cursorrules, skill Markdown and similar). Skills, commands, subagents and OpenCode plugins kept in a project (`.claude/`, `.opencode/`, `.agents/`, `opencode.json`, any nested `SKILL.md`) get the SC-24 `skill.*` rules. Plain-language instructions that misdirect an agent cannot be judged by rules.
 - **Proposed mitigation / detection:** Repo-check rules:
   - `ai.agent-hook` (High): any hook command in a project agent config, with the command passed through `shell.*`.
   - `ai.project-mcp` (Review): a project MCP definition; High if it uses `npx -y`/`uvx` without a pinned version, or a repo-local script.
@@ -639,7 +640,7 @@
 - **What a defender inspects (indicators):**
   - The MCP server list in each client config (SC-21 paths): package names not published by the service vendor, `npx -y`/`uvx` without `@version`, servers whose `env` holds long-lived tokens, and recent version changes.
   - Read-only: `jq '.mcpServers | to_entries[] | [.key, .value.command, (.value.args|join(" "))]' ~/.claude.json ~/.cursor/mcp.json 2>/dev/null`, `npm view <server-pkg> maintainers repository time --json`.
-- **Bigman today:** Partial. `repo.mcp-server` reports project MCP configurations and the program each starts. The packages they name are not checked against advisories.
+- **Bigman today:** Partial. `repo.mcp-server` reports project MCP configurations and the program each starts; `skill.mcp-server` reports the MCP servers installed plugins declare (High when a plugin downloads an MCP bundle at load), and `skill.npm-plugin` and `skill.code-plugin` the npm packages and code OpenCode loads into itself. The packages they name are not checked against advisories, and user-level MCP lists (`~/.claude.json`, `~/.cursor/mcp.json`) are not read yet.
 - **Proposed mitigation / detection:**
   - `bigman ai-inventory` (read-only): list MCP servers across known client configs and raise `ai.mcp-unpinned` (Review), `ai.mcp-plaintext-secret` (Review; key names only, never values) and `ai.mcp-lookalike` (Review, using SC-07 lookalike lists including the official MCP registry names).
   - Run each server's package through `bigman packages` when it is present in the npx/uv caches.
@@ -697,6 +698,39 @@
   - https://github.com/aquasecurity/trivy/security/advisories/GHSA-69fq-xp46-6x23
   - https://www.microsoft.com/en-us/security/blog/2026/05/28/typosquatted-npm-packages-used-steal-cloud-ci-cd-secrets/
   - T1552.001, T1552.005 (Cloud Instance Metadata API), T1567.001, T1102.001 https://attack.mitre.org/techniques/T1102/001/ (Dead Drop Resolver)
+
+### SC-24 Malicious agent skills and AI-tool plugins (SKILL.md, Claude Code, OpenCode and Codex plugins)
+- **What it is:** Agent skills are folders with a `SKILL.md` (instructions plus frontmatter) and optional scripts that Claude Code, OpenCode, Codex and other agents load on demand; plugins bundle skills with hooks, MCP and language servers, monitors and programs. They are installed from community registries (ClawHub, skills.sh, skillsmp, plugin marketplaces) with one command and run with the user's permissions. Three properties make them an attractive supply chain:
+  - **Code that runs without the model deciding to:** Claude Code runs `` !`command` `` lines and ```` ```! ```` blocks when a skill is used, frontmatter `hooks` for the rest of the session, a plugin's hooks, monitors (at every session start), MCP and LSP servers, and puts a plugin's `bin/` on the agent's PATH. `allowed-tools` approves tools in advance, and Claude Code applies a project skill's grant even in an untrusted folder. OpenCode loads plugin JavaScript into its own process at start, with Bun's shell API and no sandbox, and installs npm plugins named in `opencode.json` with Bun at start.
+  - **Instructions are the payload:** most malicious skills tell the agent (or the user) to do the harmful thing: a fake prerequisite that pipes a download to a shell or opens a password-protected archive, a step that reads `~/.aws/credentials` and posts it somewhere, wording that hides the step from the user.
+  - **Updates:** a skill or plugin reviewed once can change on the next update or sync, and there is no signing standard yet.
+- **Real-world examples:**
+  - 2026-02: Koi Security audited 2,857 ClawHub skills and found 341 malicious, 335 of them one campaign (ClawHavoc) whose setup steps installed the Atomic macOS stealer. https://thehackernews.com/2026/02/researchers-find-341-malicious-clawhub.html
+  - 2026-02: Snyk's ToxicSkills study scanned 3,984 skills from ClawHub and skills.sh: 76 confirmed malicious payloads, 13.4% with a critical issue, and 91% of the malicious ones combining prompt injection with malware (password-protected zips, base64-hidden `curl | bash`, credential reads). https://snyk.io/blog/toxicskills-malicious-ai-agent-skills-clawhub/
+  - 2026-02: "Malicious Agent Skills in the Wild" crawled 98,380 skills and confirmed 157 malicious with 632 vulnerabilities; 84.2% of the vulnerabilities sit in SKILL.md prose and 8.5% in bundled code, and the authors say regex alone is weak against free-form directives. https://arxiv.org/abs/2602.06547
+- **What a defender inspects (indicators):**
+  - Installed locations: `~/.claude/skills`, `~/.claude/commands`, `~/.claude/agents`, the install paths in `~/.claude/plugins/installed_plugins.json`, `~/.agents/skills`, `~/.codex/skills`, `/etc/codex/skills`, enabled plugins in `~/.codex/config.toml`, `~/.config/opencode/{skills,commands,agents,plugins}` and the `plugin` list in `opencode.json`; the same folders inside projects.
+  - What runs unprompted (listed above), and `allowed-tools` grants such as bare `Bash`, `Bash(curl *)` or `WebFetch`.
+  - Setup steps that download and run, password-protected archives, credential paths, request catchers, tunnels, paste sites, chat webhooks and raw-IP URLs, long base64, HTML comments, invisible characters, "do not tell the user" wording, and writes to `CLAUDE.md`, `AGENTS.md`, `MEMORY.md` or settings files.
+  - Bundled scripts that read credential files or the whole environment and also open network connections; compiled programs and archives in a skill folder.
+  - Any change to a skill or plugin after it was reviewed.
+- **Bigman today:** Partial. `bigman skills` and Protect > AI skills list every installed skill, command, subagent and plugin for the three tools, with what each runs unprompted and the `skill.*` rules (`skill.runs-on-load`, `skill.hooks`, `skill.allowed-tools`, `skill.mcp-server`, `skill.background-command`, `skill.bin-on-path`, `skill.binary`, `skill.code-plugin`, `skill.npm-plugin`, `skill.download-and-run`, `skill.credential-paths`, `skill.exfil-endpoint`, `skill.encoded-blob`, `skill.secrecy`, `skill.memory-write`, `skill.html-comment`, `skill.script-exfil`); bundled shell scripts also get the installer rules. The user approves the exact files they read and `skill.changed` reports any later change; a daemon source posts new and changed skills. `bigman check` and the Downloads watch apply the rules to skill folders, `SKILL.md`, skill archives and OpenCode plugin packages (checkout or npm tarball). The instructions themselves are not judged, so a skill that talks the agent into harm in plain words passes; only an optional model reviewer (plan Part G) could look at that, and it may add findings but never remove one.
+- **Proposed mitigation / detection:**
+  - A Setup action that turns on Claude Code's `disableSkillShellExecution` (the inventory already says whether it is on).
+  - User-level MCP server lists (`~/.claude.json`, `~/.cursor/mcp.json`) in the same inventory (SC-22).
+  - Keep the approved copy of each file so `skill.changed` can show a diff, not only the changed names.
+  - Similarity across skills to spot templated campaigns, as the arXiv study recommends, once a corpus exists locally.
+- **Test case idea:** `fixtures/skill.*` (one per rule) and a fake home with `.claude/skills/notes/SKILL.md`: the first inventory lists it as not reviewed, approving and then editing it yields `skill.changed`, and a new `~/.agents/skills/setup/SKILL.md` with `curl … | sh` posts one High timeline entry (`sources::tests::new_and_changed_skills_enter_the_timeline_once`).
+- **References:**
+  - https://snyk.io/blog/toxicskills-malicious-ai-agent-skills-clawhub/
+  - https://thehackernews.com/2026/02/researchers-find-341-malicious-clawhub.html
+  - https://arxiv.org/abs/2602.06547
+  - https://github.com/nvidia/skillspector
+  - https://developers.redhat.com/articles/2026/03/10/agent-skills-explore-security-threats-and-controls
+  - https://code.claude.com/docs/en/skills
+  - https://code.claude.com/docs/en/plugins-reference
+  - https://opencode.ai/docs/plugins/
+  - T1195.002, T1204.002, T1552.001
 
 ## Proposed extension of Bigman package inspection beyond npm
 
