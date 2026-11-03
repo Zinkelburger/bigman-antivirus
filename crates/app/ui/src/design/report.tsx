@@ -48,10 +48,11 @@ const KIND_TITLE: Record<string, string> = {
   "Security updates": "Security updates",
   "Project inspection": "Project",
   "Lockfile check": "Lockfile",
+  "Installer inspection": "Installer script",
   "Archive check": "Archive",
-  "Launcher check": "Launcher",
+  "Launcher check": "Desktop launcher",
   "Package file": "Package file",
-  "Package archive": "Package",
+  "Package archive": "Package archive",
   "PKGBUILD check": "PKGBUILD",
   "AppImage check": "AppImage",
   "Package sources": "Package sources",
@@ -68,6 +69,38 @@ const KIND_TITLE: Record<string, string> = {
 
 export function reportTitle(kind: string): string {
   return KIND_TITLE[kind] ?? kind;
+}
+
+/** What the daemon recognised, from the coverage line its inspector wrote: "3 files and 1 install script (deb)". */
+const FORMAT_NAME: readonly [RegExp, string][] = [
+  [/\(deb\)$/, "Debian package"],
+  [/\(rpm\)$/, "RPM package"],
+  [/\(pacman\)$/, "Arch package"],
+  [/\(zip\)$/, "Zip archive"],
+  [/\(tar(\.\w+)?\)$/, "Tar archive"],
+];
+const ECOSYSTEMS = ["Python wheel", "Python source package", "Rust crate", "VS Code extension"];
+
+/**
+ * A report's name as the reader would call the thing: "Debian package",
+ * "Python wheel", "Desktop launcher", falling back to the kind's title.
+ */
+export function reportName(report: Pick<Report, "kind" | "subject" | "coverage">): string {
+  const checked = report.coverage.checked;
+  if (report.kind === "Package archive") {
+    const eco = checked.find((c) => ECOSYSTEMS.includes(c));
+    if (eco) return eco;
+  }
+  if (report.kind === "Package file" || report.kind === "Archive check") {
+    for (const [pattern, name] of FORMAT_NAME) if (checked.some((c) => pattern.test(c))) return name;
+  }
+  if (report.kind === "Package script inventory" && /\.(tgz|tar\.gz)$/.test(report.subject)) return "npm package";
+  return reportTitle(report.kind);
+}
+
+/** The last part of a path or URL, for titles. */
+export function baseName(subject: string): string {
+  return subject.replace(/\/+$/, "").split("/").pop() || subject;
 }
 
 /** A canary report that proved detection works. */
@@ -199,14 +232,44 @@ export function AboutRule({ id }: { id: string }) {
   );
 }
 
-export function FindingEvidence({ finding }: { finding: Finding }) {
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * For an install-script finding ("fixture runs a postinst script as root"), the
+ * lines other findings in the report point at ("postinst script, line 3: …"),
+ * so the script shows each one beside its rule.
+ */
+function scriptNotes(finding: Finding, report: Report | undefined) {
+  const phase = / runs an? (.+) script as root$/.exec(finding.summary)?.[1];
+  const notes: Record<number, { text: string; tone: "review" | "high" }> = {};
+  if (!phase || !report) return notes;
+  const at = new RegExp(`(?:^|\\n|\\s)${escapeRegExp(phase)} script, line (\\d+):`, "g");
+  for (const other of report.findings) {
+    if (other === finding || other.severity === "info" || other.rule === finding.rule) continue;
+    for (const match of other.evidence.matchAll(at)) {
+      const line = Number(match[1]);
+      const existing = notes[line];
+      if (existing?.text.split(", ").includes(other.rule)) continue;
+      notes[line] = {
+        text: existing ? `${existing.text}, ${other.rule}` : other.rule,
+        tone: existing?.tone === "high" || other.severity === "high" ? "high" : "review",
+      };
+    }
+  }
+  return notes;
+}
+
+export function FindingEvidence({ finding, report }: { finding: Finding; report?: Report }) {
+  const notes = scriptNotes(finding, report);
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-start gap-3">
         <SeverityBadge severity={finding.severity} />
         <p className="m-0 font-semibold text-ink">{finding.summary}</p>
       </div>
-      <EvidenceBlock text={finding.evidence} label="Evidence" />
+      <EvidenceBlock text={finding.evidence} label="Evidence" highlight={Object.keys(notes).map(Number)} notes={notes} fold />
       <section className="flex flex-col gap-2">
         <h3 className="m-0 text-small font-semibold text-ink-muted">What you can do</h3>
         <p className="m-0 max-w-[56ch] text-ink">{finding.action}</p>
@@ -217,20 +280,73 @@ export function FindingEvidence({ finding }: { finding: Finding }) {
   );
 }
 
-export function ReportPanel({ report, now }: { report: Report; now: number }) {
+/** What a package says about itself, from the "Key: value" lines its inspector writes. */
+function packageIdentity(report: Report) {
+  if (report.kind !== "Package file" && report.kind !== "Package archive") return [];
+  return report.details
+    .split("\n")
+    .map((line) => /^([A-Z][A-Za-z]+): (.+)$/.exec(line))
+    .filter((m): m is RegExpExecArray => m !== null)
+    .map(([, label = "", value = ""]) => ({ label, value, mono: label === "Homepage" }));
+}
+
+/**
+ * The report's answer first: its most severe finding and what to do about it,
+ * so the decision does not wait for a click into the table.
+ */
+function LeadFinding({ finding, onOpen }: { finding: Finding; onOpen: () => void }) {
+  return (
+    <section aria-label="Most important finding" className="flex flex-col gap-1.5">
+      <div className="flex items-start gap-3">
+        <SeverityBadge severity={finding.severity} />
+        <p className="m-0 font-semibold text-ink">{finding.summary}</p>
+      </div>
+      <p className="m-0 max-w-[56ch] text-ink">
+        {finding.action}{" "}
+        <button type="button" onClick={onOpen} className="cursor-pointer rounded-control text-ink underline underline-offset-2 hover:text-ink-muted">
+          See the evidence
+        </button>
+      </p>
+    </section>
+  );
+}
+
+/**
+ * A report's levels two and three. `inline` when a heading above already says
+ * the result; `subjectShown` when the page also shows what was looked at
+ * (Inspect's path bar), so neither is repeated.
+ */
+export function ReportPanel({
+  report,
+  now,
+  inline = false,
+  subjectShown = false,
+}: {
+  report: Report;
+  now: number;
+  inline?: boolean;
+  subjectShown?: boolean;
+}) {
   const push = useDrilldown((s) => s.push);
   const status = reportStatus(report);
   const findings = report.findings.map((f, index) => ({ ...f, index }));
+  const lead = findings
+    .filter((f) => f.severity !== "info")
+    .sort((a, b) => SEVERITY_RANK[b.severity] - SEVERITY_RANK[a.severity])[0];
+  const identity = packageIdentity(report);
+  const openFinding = (f: Finding) => push({ title: f.summary, content: <FindingEvidence finding={f} report={report} /> });
   return (
     <div className="flex flex-col gap-4">
-      <KeyValue
-        items={[
-          { label: "Result", value: verifiesDetection(report) && status !== "Incomplete" ? "Detection verified" : status },
-          { label: "Looked at", value: report.subject, mono: report.subject.startsWith("/") },
-          { label: "Ran at", value: `${formatTime(report.created)}, ${ago(report.created, now)}` },
-          ...(report.sha256 ? [{ label: "SHA-256", value: report.sha256, mono: true }] : []),
-        ]}
-      />
+      {!(inline && subjectShown) && (
+        <KeyValue
+          items={[
+            ...(inline ? [] : [{ label: "Result", value: verifiesDetection(report) && status !== "Incomplete" ? "Detection verified" : status }]),
+            ...(subjectShown ? [] : [{ label: "Looked at", value: report.subject, mono: /^(\/|https:\/\/)/.test(report.subject) }]),
+          ]}
+        />
+      )}
+      {identity.length > 0 && <KeyValue items={identity} />}
+      {lead && <LeadFinding finding={lead} onOpen={() => openFinding(lead)} />}
       {verifiesDetection(report) && (
         <p className="m-0 flex items-center gap-2 text-ink">
           <span aria-hidden className="size-2 shrink-0 rounded-full bg-calm" />
@@ -244,7 +360,7 @@ export function ReportPanel({ report, now }: { report: Report; now: number }) {
           data={findings}
           getRowId={(f) => String(f.index)}
           initialSorting={[{ id: "severity", desc: true }]}
-          onOpen={(f) => push({ title: f.summary, content: <FindingEvidence finding={f} /> })}
+          onOpen={openFinding}
           rowHeight={60}
           height={360}
         />
@@ -255,6 +371,12 @@ export function ReportPanel({ report, now }: { report: Report; now: number }) {
       )}
       <ReportFollowUp report={report} />
       <CoverageList coverage={report.coverage} errors={report.errors} />
+      <KeyValue
+        items={[
+          { label: "Ran at", value: `${formatTime(report.created)}, ${ago(report.created, now)}` },
+          ...(report.sha256 ? [{ label: "SHA-256", value: report.sha256, mono: true }] : []),
+        ]}
+      />
     </div>
   );
 }

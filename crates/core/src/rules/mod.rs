@@ -267,7 +267,7 @@ pub const RULES: &[Rule] = &[
         "The package has a binding.gyp and no install script of its own, so npm runs node-gyp rebuild when installing it. That runs a compiler and any command binding.gyp names (<!(...)), and it does not appear in the package's scripts.",
         "Read binding.gyp, or install with --ignore-scripts.", ["SC-01"]),
     rule!("py.startup-code", Review, "A Python package runs code at every start",
-        "The package installs a .pth file with an import line, or a sitecustomize or usercustomize module. Python runs these in every program, pip included, without anything importing the package. setuptools does this to adjust imports; a line that decodes, executes, starts processes or connects is rated High, as in the LiteLLM 1.82.8 compromise.",
+        "The package installs a .pth file with an import line, or a sitecustomize or usercustomize module. Python runs these in every program, pip included, without anything importing the package. setuptools does this to adjust imports; a line that decodes, executes, starts processes or connects is rated High, as in the tampered LiteLLM 1.82.8 release.",
         "Read the line. Do not install a package whose startup code you cannot account for.", ["SC-03"]),
     rule!("py.entrypoint-shadow", Review, "A Python package installs a command named like a common one",
         "A console script in the package is named python, pip, git, sudo, ssh or another common command. Where its scripts folder comes first on PATH, that command runs the package instead.",

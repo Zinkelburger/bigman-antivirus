@@ -16,6 +16,7 @@ import { FilterChips } from "../components/FilterChips";
 import { FirstSeenMarker } from "../components/FirstSeenMarker";
 import { IncompleteNotice } from "../components/IncompleteNotice";
 import { KeyValue } from "../components/KeyValue";
+import { PathText } from "../components/PathText";
 import { PageHeader } from "../components/PageHeader";
 import { PathPicker } from "../components/PathPicker";
 import { PreviewDialog } from "../components/PreviewDialog";
@@ -246,6 +247,11 @@ export const STORIES: Story[] = [
   story("Data", "Receipt", "no findings", () => (
     <div className="max-w-[560px] rounded-panel border border-rule bg-surface p-4">
       {RECEIPTS["rc-412"] && <ReceiptPanel receipt={{ ...RECEIPTS["rc-412"], findings: [], hits: [], after: { checked: false, listeners: [] } }} />}
+    </div>
+  )),
+  story("Data", "PathText", "default", () => (
+    <div className="w-64 text-small">
+      <PathText path="/home/sam/Downloads/quarterly-reports/2026/Meeting_Notice.pdf.desktop" />
     </div>
   )),
   story("Evidence", "EvidenceBlock", "findings", () => (

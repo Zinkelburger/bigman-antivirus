@@ -242,7 +242,7 @@ pub fn assess(r: &mut Report, p: &Package) {
             "pkg.install-script",
             Severity::Review,
             &format!("{} runs a {} script as root", p.name, s.phase),
-            format!("{} script:\n{shown}", s.phase),
+            shown,
             "Read the script before installing. It runs with full control of the system, and a signature only says who built the package.",
         );
         let name = format!("{} {} script", p.name, s.phase);

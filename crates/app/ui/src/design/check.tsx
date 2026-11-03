@@ -5,7 +5,7 @@ import type { Report } from "@/ipc";
 import { IncompleteNotice } from "./components/IncompleteNotice";
 import { ProgressRow } from "./components/ProgressRow";
 import { nowSeconds } from "./format";
-import { ReportPanel, reportFigure, reportStatus, reportTitle } from "./report";
+import { ReportPanel, reportFigure, reportName, reportStatus } from "./report";
 
 interface CheckLike {
   isPending: boolean;
@@ -14,7 +14,18 @@ interface CheckLike {
   cancel: () => void;
 }
 
-export function CheckStatus({ check, running, detail }: { check: CheckLike; running: string; detail?: string }) {
+/** `subjectShown` when the page already shows what the check looked at. */
+export function CheckStatus({
+  check,
+  running,
+  detail,
+  subjectShown = false,
+}: {
+  check: CheckLike;
+  running: string;
+  detail?: string;
+  subjectShown?: boolean;
+}) {
   const heading = useRef<HTMLHeadingElement>(null);
   const progress = useRef<HTMLDivElement>(null);
   const resultId = check.data?.id;
@@ -39,12 +50,12 @@ export function CheckStatus({ check, running, detail }: { check: CheckLike; runn
     return (
       <section aria-label="Result" className="rounded-panel border border-rule bg-surface p-4">
         <h2 ref={heading} tabIndex={-1} className="m-0 mb-3 rounded-control text-body font-semibold text-ink outline-none">
-          {reportTitle(check.data.kind)}: {reportFigure(check.data) ?? reportStatus(check.data)}
+          {reportName(check.data)}: {reportFigure(check.data) ?? reportStatus(check.data)}
         </h2>
         <p className="sr-only" role="status">
-          {reportTitle(check.data.kind)} finished: {reportFigure(check.data) ?? reportStatus(check.data)}.
+          {reportName(check.data)} finished: {reportFigure(check.data) ?? reportStatus(check.data)}.
         </p>
-        <ReportPanel report={check.data} now={nowSeconds()} />
+        <ReportPanel report={check.data} now={nowSeconds()} inline subjectShown={subjectShown} />
       </section>
     );
   }

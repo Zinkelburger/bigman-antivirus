@@ -74,7 +74,9 @@ pub fn wanted(name: &str) -> bool {
                 | "pyproject.toml"
                 | "Cargo.toml"
                 | "build.rs"
+                | "PKG-INFO"
         )
+        || (b == "METADATA" && name.contains(".dist-info/"))
         || name == "extension/package.json"
         || (name.starts_with("extension/")
             && !name.contains("/node_modules/")
@@ -140,6 +142,100 @@ fn line_matches(text: &str, re: &Regex) -> Vec<String> {
         .filter(|(_, l)| re.is_match(l))
         .map(|(n, l)| format!("line {}: {}", n + 1, l.trim()))
         .collect()
+}
+
+/// What the package says it is, as "Key: value" lines like a .deb's:
+/// METADATA or PKG-INFO, Cargo.toml's [package], or the extension manifest.
+pub fn identity(eco: Ecosystem, listing: &Listing) -> Option<String> {
+    let text = |pred: &dyn Fn(&str) -> bool| {
+        listing
+            .entries
+            .iter()
+            .filter(|e| pred(&e.name))
+            .min_by_key(|e| depth(&e.name))
+            .and_then(|e| e.content.clone())
+    };
+    // Name, version, then who and where, each only when present.
+    let lines = |name: &str, version: &str, who: (&str, String), home: String| {
+        let mut out = format!("Package: {name} {version}").trim_end().to_string();
+        for (label, value) in [who, ("Homepage", home)] {
+            if !value.is_empty() {
+                out.push_str(&format!("\n{label}: {value}"));
+            }
+        }
+        out
+    };
+    match eco {
+        Ecosystem::Wheel | Ecosystem::Sdist => {
+            let meta = text(&|n| {
+                (base(n) == "METADATA" && n.contains(".dist-info/"))
+                    || (base(n) == "PKG-INFO" && depth(n) == 1)
+            })?;
+            let field = |key: &str| {
+                meta.lines()
+                    .take_while(|l| !l.is_empty())
+                    .find_map(|l| l.strip_prefix(key)?.strip_prefix(':'))
+                    .map(|v| v.trim().to_string())
+                    .unwrap_or_default()
+            };
+            let who = [field("Author-email"), field("Author"), field("Maintainer")]
+                .into_iter()
+                .find(|v| !v.is_empty())
+                .unwrap_or_default();
+            let home = Some(field("Home-page"))
+                .filter(|v| !v.is_empty())
+                .unwrap_or_else(|| {
+                    meta.lines()
+                        .filter_map(|l| l.strip_prefix("Project-URL:"))
+                        .find_map(|v| v.split_once(',').map(|(_, url)| url.trim().to_string()))
+                        .unwrap_or_default()
+                });
+            Some(lines(
+                &field("Name"),
+                &field("Version"),
+                ("Maintainer", who),
+                home,
+            ))
+        }
+        Ecosystem::Crate => {
+            let toml = text(&|n| base(n) == "Cargo.toml")?;
+            let get = |key: &str| {
+                let re = Regex::new(&format!(r#"(?m)^\s*{key}\s*=\s*"([^"]*)""#)).ok()?;
+                re.captures(&toml).map(|c| c[1].to_string())
+            };
+            let authors = Regex::new(r#"(?m)^\s*authors\s*=\s*\[\s*"([^"]*)""#)
+                .ok()
+                .and_then(|re| re.captures(&toml).map(|c| c[1].to_string()))
+                .unwrap_or_default();
+            let home = get("repository")
+                .or_else(|| get("homepage"))
+                .unwrap_or_default();
+            Some(lines(
+                &get("name")?,
+                &get("version").unwrap_or_default(),
+                ("Maintainer", authors),
+                home,
+            ))
+        }
+        Ecosystem::Vsix => {
+            let manifest: Value =
+                serde_json::from_str(&text(&|n| n == "extension/package.json")?).ok()?;
+            let s = |v: &Value| v.as_str().unwrap_or("").to_string();
+            let home = manifest["repository"]["url"]
+                .as_str()
+                .or(manifest["repository"].as_str())
+                .or(manifest["homepage"].as_str())
+                .unwrap_or("")
+                .to_string();
+            let id = format!("{}.{}", s(&manifest["publisher"]), s(&manifest["name"]));
+            Some(lines(
+                &id,
+                &s(&manifest["version"]),
+                ("Publisher", s(&manifest["publisher"])),
+                home,
+            ))
+        }
+    }
 }
 
 pub fn notes(eco: Ecosystem) -> &'static str {
@@ -604,6 +700,30 @@ mod tests {
             ],
         );
         assert!(none.is_empty());
+    }
+
+    #[test]
+    fn identity_reads_what_each_ecosystem_declares() {
+        let listing = |entries| Listing {
+            compressed: 1,
+            entries,
+            truncated: None,
+        };
+        let wheel = listing(vec![file("demo-1.2.dist-info/METADATA", "Metadata-Version: 2.1\nName: demo\nVersion: 1.2\nAuthor-email: Dee <d@example.invalid>\nProject-URL: Source, https://example.invalid/demo\n\nLong description: Name: not this\n")]);
+        assert_eq!(identity(Ecosystem::Wheel, &wheel).unwrap(), "Package: demo 1.2\nMaintainer: Dee <d@example.invalid>\nHomepage: https://example.invalid/demo");
+        let krate = listing(vec![file("c-1.0.0/Cargo.toml", "[package]\nname = \"c\"\nversion = \"1.0.0\"\nauthors = [\"Ann\"]\nrepository = \"https://example.invalid/c\"\n")]);
+        assert_eq!(
+            identity(Ecosystem::Crate, &krate).unwrap(),
+            "Package: c 1.0.0\nMaintainer: Ann\nHomepage: https://example.invalid/c"
+        );
+        let vsix = listing(vec![file(
+            "extension/package.json",
+            r#"{"publisher":"acme","name":"tool","version":"0.3.1"}"#,
+        )]);
+        assert_eq!(
+            identity(Ecosystem::Vsix, &vsix).unwrap(),
+            "Package: acme.tool 0.3.1\nPublisher: acme"
+        );
     }
 
     #[test]

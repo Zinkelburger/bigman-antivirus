@@ -3,17 +3,21 @@ import { useState } from "react";
 import {
   ActionButton,
   ago,
+  baseName,
   CheckStatus,
   DaemonGate,
   DataTable,
   Disclosure,
+  KeyValue,
   nowSeconds,
   PageHeader,
   PathPicker,
+  PathText,
+  PreviewDialog,
   ReportById,
+  reportName,
   reportSeverity,
   reportStatus,
-  reportTitle,
   SeverityBadge,
   useDrilldown,
 } from "@/design";
@@ -23,8 +27,8 @@ const KINDS = new Set(["Installer inspection", "Restricted installer rehearsal",
 
 const columns = (now: number): ColumnDef<Report>[] => [
   { id: "when", header: "When", accessorFn: (r) => r.created, cell: ({ row }) => ago(row.original.created, now), meta: { width: "9rem" } },
-  { id: "kind", header: "Inspection", accessorFn: (r) => reportTitle(r.kind), meta: { width: "12rem" } },
-  { accessorKey: "subject", header: "Of", meta: { mono: true } },
+  { id: "kind", header: "Inspection", accessorFn: (r) => reportName(r), meta: { width: "12rem" } },
+  { accessorKey: "subject", header: "Of", cell: ({ row }) => <PathText path={row.original.subject} className="text-small" /> },
   {
     id: "result",
     header: "Result",
@@ -45,6 +49,7 @@ function MoreInspections({ onRun, busy }: { onRun: (request: More) => void; busy
   const [target, setTarget] = useState("");
   const [lockfile, setLockfile] = useState("");
   const [older, setOlder] = useState("");
+  const [sending, setSending] = useState(false);
   const choose = async (kind: "file" | "directory", title: string, set: (v: string) => void) => {
     const chosen = await desktopShell().choosePath(kind, title);
     if (chosen) set(chosen);
@@ -83,10 +88,38 @@ function MoreInspections({ onRun, busy }: { onRun: (request: More) => void; busy
             <ActionButton disabled={busy || !target || !rules} onClick={() => onRun({ type: "yara", target, rules })}>
               Scan with these rules
             </ActionButton>
-            <ActionButton disabled={busy || !target} onClick={() => onRun({ type: "osv", target })}>
-              Check dependency advisories
+            <ActionButton disabled={busy || !target} onClick={() => setSending(true)}>
+              Check dependency advisories…
             </ActionButton>
           </div>
+          <PreviewDialog
+            open={sending}
+            onOpenChange={setSending}
+            title="Check dependency advisories"
+            planHeading="What will be sent"
+            description="Review what leaves this computer before confirming."
+            plan={
+              <div className="flex flex-col gap-3">
+                <KeyValue
+                  items={[
+                    { label: "To", value: "https://api.osv.dev, the OSV vulnerability database", mono: false },
+                    { label: "From", value: target, mono: true },
+                  ]}
+                />
+                <p className="m-0 max-w-[56ch] text-ink">
+                  OSV-Scanner reads the lockfiles and manifests in this folder and sends the name, version and ecosystem
+                  of each dependency it finds. For git checkouts it can also send their commit. File contents are not
+                  sent.
+                </p>
+              </div>
+            }
+            confirmLabel="Send and check"
+            onConfirm={() => {
+              setSending(false);
+              onRun({ type: "osv", target });
+              return Promise.resolve(null);
+            }}
+          />
         </section>
       </div>
     </Disclosure>
@@ -141,9 +174,7 @@ export function InspectPage() {
             </form>
           ) : (
             <div className="flex flex-wrap items-center gap-3 rounded-panel border border-rule bg-surface px-4 py-2">
-              <span className="min-w-0 flex-1 truncate font-mono text-small text-ink" title={ranOn}>
-                {ranOn}
-              </span>
+              <PathText path={ranOn} className="flex-1 text-small text-ink" />
               <ActionButton
                 variant="quiet"
                 disabled={check.isPending}
@@ -156,7 +187,7 @@ export function InspectPage() {
               </ActionButton>
             </div>
           )}
-          <CheckStatus check={check} running={`Inspecting ${ranOn}`} />
+          <CheckStatus check={check} running={`Inspecting ${ranOn}`} subjectShown />
           {showForm && (
             <MoreInspections
               busy={check.isPending}
@@ -183,7 +214,7 @@ export function InspectPage() {
                 data={recent}
                 getRowId={(r) => r.id}
                 initialSorting={[{ id: "when", desc: true }]}
-                onOpen={(r) => open({ title: reportTitle(r.kind), content: <ReportById id={r.id} /> })}
+                onOpen={(r) => open({ title: `${reportName(r)}: ${baseName(r.subject)}`, content: <ReportById id={r.id} /> })}
                 height={280}
               />
             </section>

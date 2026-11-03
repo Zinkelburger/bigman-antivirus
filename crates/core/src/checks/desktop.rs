@@ -52,7 +52,7 @@ pub fn launcher(store: &Store, path: &Path) -> Result<Report> {
     }
     r.coverage.checked("Launcher fields");
     r.coverage.push(notes().into());
-    r.details = crate::model::clean(&text);
+    r.details = crate::model::clean(text.trim_end());
     store.save(&r)?;
     Ok(r)
 }

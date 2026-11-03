@@ -728,7 +728,7 @@ What you can do: Read binding.gyp, or install with --ignore-scripts.
 
 **A Python package runs code at every start** (Review)
 
-The package installs a .pth file with an import line, or a sitecustomize or usercustomize module. Python runs these in every program, pip included, without anything importing the package. setuptools does this to adjust imports; a line that decodes, executes, starts processes or connects is rated High, as in the LiteLLM 1.82.8 compromise.
+The package installs a .pth file with an import line, or a sitecustomize or usercustomize module. Python runs these in every program, pip included, without anything importing the package. setuptools does this to adjust imports; a line that decodes, executes, starts processes or connects is rated High, as in the tampered LiteLLM 1.82.8 release.
 
 What you can do: Read the line. Do not install a package whose startup code you cannot account for.
 

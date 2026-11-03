@@ -127,6 +127,7 @@ fn archive_or_package(store: &Store, path: &Path, stop: &Cancel) -> Result<Repor
             listed.kind = "Package archive".into();
             listed.coverage.checked(eco.label());
             listed.coverage.push(langpkg::notes(eco).into());
+            listed.details = langpkg::identity(eco, &listing).unwrap_or_default();
             langpkg::assess(&mut listed, eco, &listing);
         }
         listed

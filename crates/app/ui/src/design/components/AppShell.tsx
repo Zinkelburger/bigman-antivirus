@@ -81,7 +81,7 @@ export function AppShell<T extends string>({ tabs, active, onSelect, statusStrip
           })}
         </ul>
       </nav>
-      <div className="grid min-h-0 grid-rows-[minmax(0,1fr)_auto]">
+      <div className="grid min-h-0 min-w-0 grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)_auto]">
         <div className="relative min-h-0">
           {/* While the panel is open the page behind it is inert; clicking it closes the panel. */}
           <div className="h-full" onClick={panelOpen ? closePanel : undefined}>

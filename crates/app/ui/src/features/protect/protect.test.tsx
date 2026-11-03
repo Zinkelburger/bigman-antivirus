@@ -10,7 +10,7 @@ describe("Protect", () => {
     const { user } = renderWithDaemon(<ProtectPage />, "calm");
     await user.click(await screen.findByRole("button", { name: "Scan with ClamAV" }));
     const result = await screen.findByRole("region", { name: "Result" });
-    expect(within(result).getByText("No findings from these checks")).toBeInTheDocument();
+    expect(within(result).getByRole("heading", { name: /: No findings from these checks$/ })).toBeInTheDocument();
     expect(within(result).getByText("/home/sam/Downloads")).toBeInTheDocument();
   });
 
@@ -67,6 +67,6 @@ describe("Protect updates", () => {
     expect(within(sources).getByText("Package sources have not been checked yet.")).toBeInTheDocument();
     await user.click(within(sources).getByRole("button", { name: "Check package sources" }));
     const result = await within(sources).findByRole("region", { name: "Result" });
-    expect(within(result).getByText(/outranks the distribution/)).toBeInTheDocument();
+    expect(within(result).getAllByText(/outranks the distribution/).length).toBeGreaterThan(0);
   });
 });

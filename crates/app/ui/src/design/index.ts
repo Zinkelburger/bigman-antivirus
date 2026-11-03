@@ -17,6 +17,7 @@ export { IncompleteNotice } from "./components/IncompleteNotice";
 export { KeyValue, type KeyValueItem } from "./components/KeyValue";
 export { PageHeader } from "./components/PageHeader";
 export { PathPicker } from "./components/PathPicker";
+export { PathText } from "./components/PathText";
 export { PreviewDialog } from "./components/PreviewDialog";
 export { ProgressRow } from "./components/ProgressRow";
 export { SearchField } from "./components/SearchField";
@@ -40,7 +41,9 @@ export { applyTheme, storedTheme, type ThemeChoice } from "./theme";
 export {
   AboutRule,
   FindingEvidence,
+  baseName,
   reportFigure,
+  reportName,
   reportOccurrence,
   reportOccurrences,
   ReportPanel,
