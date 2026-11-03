@@ -11,7 +11,7 @@ use bigman_core::{
 use clap::{Parser, Subcommand};
 use std::{
     io::{IsTerminal, Read},
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::atomic::Ordering,
 };
 use store::Store;
@@ -66,10 +66,13 @@ enum Commands {
         #[arg(long)]
         accept_baseline: Option<String>,
     },
-    /// What a project folder could run on open: IDE tasks, direnv, devcontainers,
-    /// git hooks and filters, AI-tool settings, instruction files and CI workflows.
+    /// What a project folder could run on open (IDE tasks, direnv, devcontainers,
+    /// git hooks and filters, AI-tool settings, instruction files, CI workflows) and
+    /// whether its own code runs fetched or decoded text. Give a GitHub, GitLab,
+    /// Codeberg or Bitbucket repository URL to read it before cloning.
     RepoCheck {
-        path: PathBuf,
+        /// A project folder, or a repository URL such as https://github.com/OWNER/REPO.
+        path: String,
     },
     /// Non-registry sources, missing integrity hashes and install hooks in a
     /// lockfile (npm, Yarn, pnpm, Bun, Cargo).
@@ -310,8 +313,11 @@ fn run() -> Result<()> {
             store.save(&r)?;
             Some(r)
         }
+        Some(Commands::RepoCheck { path }) if checks::gitremote::repo_url(&path).is_some() => {
+            Some(checks::gitremote::check(&store, &path, &stop)?)
+        }
         Some(Commands::RepoCheck { path }) => {
-            let r = checks::repo::repo_check(&path)?;
+            let r = checks::repo::repo_check(Path::new(&path))?;
             store.save(&r)?;
             Some(r)
         }

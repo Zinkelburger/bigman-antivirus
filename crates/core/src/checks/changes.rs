@@ -18,8 +18,12 @@ use std::{
     process::Command,
 };
 
+/// The format snapshots are written in. Format 3 added your own bin folders.
+pub const FORMAT: u32 = 3;
 /// Baselines written before this format are treated as absent (plan Part K, decision 2).
-pub const FORMAT: u32 = 2;
+const OLDEST_FORMAT: u32 = 2;
+/// System folders whose commands a file in your own bin folder can hide.
+const SYSTEM_BIN: [&str; 4] = ["/usr/bin", "/usr/sbin", "/bin", "/sbin"];
 
 /// What a startup or configuration file is for.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
@@ -38,6 +42,8 @@ pub enum Category {
     Ssh,
     NameResolution,
     Desktop,
+    /// Programs in your own bin folders, which your shell finds before the system's.
+    Commands,
 }
 
 impl Category {
@@ -56,6 +62,7 @@ impl Category {
             Category::Ssh => "SSH configuration",
             Category::NameResolution => "name resolution",
             Category::Desktop => "desktop file handler",
+            Category::Commands => "command in your own bin folder",
         }
     }
     /// Where a package-owned file that differs from its package is High, not Review.
@@ -75,9 +82,23 @@ pub struct Entry {
     /// The `security.capability` attribute, hex-encoded, when present.
     pub caps: Option<String>,
     pub category: Category,
+    /// For a command in your own bin folder, the system command of the same name it hides.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shadows: Option<PathBuf>,
 }
 
 impl Entry {
+    /// The same file as `other`. What it shadows depends on what the system has
+    /// installed since, not on the file.
+    fn same(&self, other: &Entry) -> bool {
+        Entry {
+            shadows: None,
+            ..self.clone()
+        } == Entry {
+            shadows: None,
+            ..other.clone()
+        }
+    }
     fn privileged(&self) -> bool {
         self.mode & 0o6000 != 0 || self.caps.is_some()
     }
@@ -139,6 +160,8 @@ fn roots() -> Vec<(PathBuf, Category)> {
         (PathBuf::from("/etc/nsswitch.conf"), NameResolution),
         (h.join(".config/mimeapps.list"), Desktop),
         (h.join(".local/share/applications"), Desktop),
+        (h.join(".local/bin"), Commands),
+        (h.join("bin"), Commands),
     ];
     for dir in [
         "cron.d",
@@ -173,6 +196,36 @@ fn roots() -> Vec<(PathBuf, Category)> {
         roots.push((Path::new("/etc").join(file), Shell));
     }
     roots
+}
+
+/// The system command a file in your own bin folder hides, unless it is only a
+/// link to that same command.
+fn shadowed(path: &Path) -> Option<PathBuf> {
+    let name = path.file_name()?;
+    let system = SYSTEM_BIN
+        .iter()
+        .map(|d| Path::new(d).join(name))
+        .find(|p| p.symlink_metadata().is_ok())?;
+    let same = matches!(
+        (fs::canonicalize(path), fs::canonicalize(&system)),
+        (Ok(a), Ok(b)) if a == b
+    );
+    (!same).then_some(system)
+}
+
+/// The first `n` bytes of a regular file, without following a final link.
+fn read_head(path: &Path, n: u64) -> Result<Vec<u8>> {
+    use std::{io::Read, os::unix::fs::OpenOptionsExt};
+    let file = fs::OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK)
+        .open(path)?;
+    if !file.metadata()?.is_file() {
+        bail!("{} is not a regular file", path.display());
+    }
+    let mut out = vec![];
+    file.take(n).read_to_end(&mut out)?;
+    Ok(out)
 }
 
 /// `security.capability`, as hex, read without following symlinks.
@@ -259,6 +312,12 @@ pub fn snapshot(store: &Store) -> Baseline {
                 fs::read_link(e.path())
                     .map(|p| p.as_os_str().as_encoded_bytes().to_vec())
                     .map_err(anyhow::Error::from)
+            } else if category == Category::Commands && meta.len() > MAX_INPUT {
+                // A large program: its first 8 MiB and its size stand in for its content.
+                read_head(e.path(), MAX_INPUT).map(|mut b| {
+                    b.extend_from_slice(format!("\0size {}", meta.len()).as_bytes());
+                    b
+                })
             } else {
                 read_file(e.path(), MAX_INPUT)
             };
@@ -294,6 +353,9 @@ pub fn snapshot(store: &Store) -> Baseline {
                     gid: meta.gid(),
                     caps: capabilities(e.path()),
                     category,
+                    shadows: (category == Category::Commands)
+                        .then(|| shadowed(e.path()))
+                        .flatten(),
                 },
             );
         }
@@ -309,6 +371,7 @@ pub fn snapshot(store: &Store) -> Baseline {
                 gid: unsafe { libc::getegid() },
                 caps: None,
                 category: Category::Cron,
+                shadows: None,
             },
         );
     }
@@ -321,7 +384,7 @@ fn accepted(store: &Store, r: &mut Report) -> Result<Option<Baseline>> {
         return Ok(None);
     }
     let old: Baseline = store.read("baseline.json")?;
-    if old.format < FORMAT {
+    if old.format < OLDEST_FORMAT {
         r.coverage.push("An older baseline format was found. It is replaced by this inventory once you review and accept it.".into());
         return Ok(None);
     }
@@ -407,13 +470,48 @@ fn attribution_line(a: Option<&Attribution>) -> String {
 
 fn evidence(path: &Path, e: &Entry, a: Option<&Attribution>) -> String {
     format!(
-        "{}\n{}\n{}\n{}\nSHA-256 {}",
+        "{}\n{}{}\n{}\n{}\nSHA-256 {}",
         path.display(),
         e.category.label(),
+        e.shadows
+            .as_ref()
+            .map(|s| format!(", run instead of {}", s.display()))
+            .unwrap_or_default(),
         attribution_line(a),
         e.describe(),
         e.hash.as_deref().unwrap_or("not readable as you")
     )
+}
+
+/// A command in your own bin folder that hides a system command: High when it is
+/// new or changed, Review in an inventory being taken for the first time.
+fn shadowing(
+    r: &mut Report,
+    path: &Path,
+    e: &Entry,
+    a: Option<&Attribution>,
+    first_seen: bool,
+) -> bool {
+    let Some(system) = &e.shadows else {
+        return false;
+    };
+    let name = path
+        .file_name()
+        .map(|n| n.to_string_lossy())
+        .unwrap_or_default();
+    r.add(
+        "persistence.shadowed-command",
+        if first_seen { Severity::Review } else { Severity::High },
+        &format!(
+            "{} {} {}",
+            path.display(),
+            if first_seen { "runs instead of" } else { "now runs instead of" },
+            system.display()
+        ),
+        evidence(path, e, a),
+        &format!("Every `{name}` you type now runs this file. Read it; if you did not put it there, delete it and check what you ran just before it appeared."),
+    );
+    true
 }
 
 /// Owned but no longer what the package installed: High where authentication or
@@ -483,6 +581,7 @@ pub fn compare(
                 evidence(p, e, a),
                 "Review before accepting this as the initial baseline.",
             );
+            shadowing(r, p, e, a, true);
             if let Some(a) = a {
                 owned_modified(r, p, e, a);
             }
@@ -495,9 +594,22 @@ pub fn compare(
         );
         return;
     };
+    // A baseline from before your bin folders were recorded has nothing to compare them with.
+    let unrecorded = |c: Category| old.format < 3 && c == Category::Commands;
     for (p, e) in &current.entries {
         let before = old.entries.get(p);
-        if before == Some(e) {
+        if before.is_some_and(|b| b.same(e)) {
+            continue;
+        }
+        if unrecorded(e.category) {
+            r.add(
+                "persistence.initial",
+                Severity::Info,
+                &format!("Recorded: {}", e.category.label()),
+                evidence(p, e, attribution.get(p)),
+                "Newly watched. Review before accepting the baseline again.",
+            );
+            shadowing(r, p, e, attribution.get(p), true);
             continue;
         }
         let a = attribution.get(p);
@@ -524,6 +636,9 @@ pub fn compare(
             continue;
         }
         if a.is_some_and(|a| owned_modified(r, p, e, a)) {
+            continue;
+        }
+        if shadowing(r, p, e, a, false) {
             continue;
         }
         match a {

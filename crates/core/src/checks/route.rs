@@ -1,7 +1,9 @@
 //! Picks the inspector for a target from the target itself, so the user does not
 //! have to. Deterministic: URL scheme, file name and the first bytes, nothing else.
 use crate::{
-    checks::{archive, desktop, inspect, langpkg, lockfile, packages, pdf, pkgfile, repo},
+    checks::{
+        archive, desktop, gitremote, inspect, langpkg, lockfile, packages, pdf, pkgfile, repo,
+    },
     model::Report,
     runner::Cancel,
     store::Store,
@@ -19,9 +21,14 @@ pub enum Inspector {
     PackageFile,
     Packages,
     Pdf,
+    /// A repository page on a code host, read before cloning.
+    RemoteRepository,
 }
 
 pub fn choose(target: &str) -> Inspector {
+    if gitremote::repo_url(target).is_some() {
+        return Inspector::RemoteRepository;
+    }
     if target.starts_with("https://") {
         return Inspector::Installer;
     }
@@ -92,6 +99,7 @@ pub fn inspect_any(store: &Store, target: &str, stop: &Cancel) -> Result<Report>
         Inspector::Launcher => desktop::launcher(store, Path::new(target)),
         Inspector::PackageFile => pkgfile::inspect(store, Path::new(target), stop),
         Inspector::Archive => archive_or_package(store, Path::new(target), stop),
+        Inspector::RemoteRepository => gitremote::check(store, target, stop),
     }
 }
 

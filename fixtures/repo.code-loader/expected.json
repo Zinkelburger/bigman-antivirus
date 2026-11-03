@@ -1,0 +1,8 @@
+{
+  "driver": "repo",
+  "fires": [
+    "repo.code-loader"
+  ],
+  "about": "The take-home loader shape: a server error handler fetches text and runs it with the Function constructor and require.",
+  "input": "input.json"
+}

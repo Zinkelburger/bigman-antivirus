@@ -1,0 +1,8 @@
+{
+  "driver": "repo",
+  "fires": [
+    "repo.disguised-asset"
+  ],
+  "about": "A .woff2 font that is hex text, as in the 2026-10-15 GitLab take-home.",
+  "input": "input.json"
+}

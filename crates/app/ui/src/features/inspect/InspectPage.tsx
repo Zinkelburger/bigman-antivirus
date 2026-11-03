@@ -163,7 +163,7 @@ export function InspectPage() {
               <p className="m-0 max-w-[56ch] text-ink-muted">
                 Bigman reads it and says what it can do, without running it. Installer scripts are saved byte for
                 byte; packages, projects, archives, launchers, .deb and .rpm files and PDFs are read as data. HTTPS URLs are fetched once, without your
-                proxies or credentials.
+                proxies or credentials. A GitHub, GitLab, Codeberg or Bitbucket repository address is read before you clone it, with nothing checked out.
               </p>
               <PathPicker label="File, folder or HTTPS URL" value={target} onChange={setTarget} onBrowse={() => void browse()} placeholder="https://example.org/install.sh" autoFocus={again} />
               <div>

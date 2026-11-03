@@ -168,7 +168,7 @@ pub fn inventory(path: &Path) -> Result<Report> {
     }
     Ok(r)
 }
-fn manifest(r: &mut Report, p: &Path, b: &[u8]) -> Result<()> {
+pub(crate) fn manifest(r: &mut Report, p: &Path, b: &[u8]) -> Result<()> {
     let v: serde_json::Value =
         serde_json::from_slice(b).with_context(|| format!("Invalid manifest {}", p.display()))?;
     if let Some(scripts) = v["scripts"].as_object() {

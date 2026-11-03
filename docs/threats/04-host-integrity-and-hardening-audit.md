@@ -28,7 +28,7 @@
 | HI-16 | Root-equivalent group membership (docker, disk, libvirt, lxd, wheel/sudo, input) | High | Gap | Rootless group audit with plain-language explanation of each group |
 | HI-17 | SUID/SGID files not owned by a package or with changed mode | Medium | Partial | Bounded `find -perm` inventory plus package ownership and mode verification |
 | HI-18 | File capabilities on unexpected binaries | Medium | Partial | `security.capability` xattr inventory compared with the package DB (`rpm -V` P flag) |
-| HI-19 | World-writable files and dirs, writable PATH entries, unowned files | Medium | Gap | PATH integrity check for user and root `secure_path`; world-writable without sticky; nosuid mounts |
+| HI-19 | World-writable files and dirs, writable PATH entries, unowned files | Medium | Partial | `persistence.shadowed-command` watches `~/.local/bin` and `~/bin` for files that hide system commands; still to do: root `secure_path`, world-writable without sticky, nosuid mounts |
 | HI-20 | Loaded kernel modules not owned by a package, unsigned or tainting | High | Gap | `/proc/modules` to `modinfo` to package owner; decode taint bits; signer inventory |
 | HI-21 | Secure Boot, lockdown, signature enforcement and boot chain state | Medium | Gap | Read SB/lockdown/cmdline; MOK list diff; `/boot` package verify; fwupd HSI if present |
 | HI-22 | Package-file verification (modified or unowned system files) | High | Partial | Scheduled `rpm -Va` / `dpkg --verify` / `pacman -Qkk` with the diff noise explained |
