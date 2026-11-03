@@ -33,7 +33,7 @@
 | SC-16 | `pull_request_target`, script injection and cache poisoning ("pwn requests") | High (maintainers) | Partial | Workflow scan for dangerous trigger, expression and cache patterns |
 | SC-17 | Malicious workflow commits pushed with stolen accounts (GhostAction) | High (maintainers) | Gap | Diff `.github/workflows` against a baseline; flag new secret-referencing workflows |
 | SC-18 | Poisoned or stale container images | Medium | Gap | Image reference audit: tag vs digest; signature verification guidance |
-| SC-19 | Malicious or hijacked VS Code / Open VSX extensions | High | Partial | `.vsix` inspector and installed-extension inventory |
+| SC-19 | Malicious or hijacked VS Code / Open VSX extensions | High | Partial | `.vsix` inspector; installed extensions in the startup baseline (`persistence.extension-new`, `-updated`, `-modified`) |
 | SC-20 | Repo-open triggers (IDE tasks, git hooks, `.envrc`, devcontainers) | High | Covered | `bigman repo-check DIR` before trusting a workspace |
 | SC-21 | Poisoned AI coding-tool configuration (agent hooks, project MCP, rules files) | High | Partial | Repo-check rules for `.claude/` hooks, helpers and loosened settings, Copilot auto-approve, `.mcp.json`, `.cursor/`, instruction files, hidden Unicode |
 | SC-22 | Malicious MCP servers and AI-tool packages | Medium | Partial | MCP config inventory; flag unpinned `npx`/`uvx` servers and unknown publishers |
@@ -535,7 +535,7 @@
   - Bundled native binaries.
   - Publisher IDs one character off from well-known publishers.
   - Read-only: `code --list-extensions --show-versions`, `codium --list-extensions --show-versions`, `ls ~/.vscode/extensions`, `jq '.activationEvents, .extensionDependencies, .extensionPack' ~/.vscode/extensions/*/package.json`, `grep -rlP '[\x{FE00}-\x{FE0F}\x{200B}-\x{200D}\x{E0100}-\x{E01EF}]' ~/.vscode/extensions/*/out ~/.vscode/extensions/*/dist`.
-- **Bigman today:** Partial. `.vsix` files given to Inspect get `vsix.startup-activation`, `vsix.dependency-chain`, `vsix.invisible-code` (High) and `vsix.native-binary`. Installed extensions across VS Code, VSCodium and Cursor are not inventoried yet.
+- **Bigman today:** Partial. `.vsix` files given to Inspect get `vsix.startup-activation`, `vsix.dependency-chain`, `vsix.invisible-code` (High) and `vsix.native-binary`. Installed extensions in VS Code (including Insiders and the Flatpak), VSCodium, Cursor and Windsurf are in the startup baseline, one entry per extension ID with its version and the code the editor loads: a new one is `persistence.extension-new` (Review), an update `persistence.extension-updated` (Info), and code that changed without an update `persistence.extension-modified` (High). Files other than the main one are not compared.
 - **Proposed mitigation / detection:**
   1. `bigman packages FILE.vsix` (zip): parse `extension/package.json` and `extension.vsixmanifest`, then raise:
      - `vsix.startup-activation` (Review).
@@ -651,9 +651,11 @@
   - `repo.code-loader` (High), `repo.encoded-url`, `repo.payload-host` and `repo.disguised-asset` (High) run in `repo-check`, in project inspection, and on a repository URL before cloning.
   - `persistence.shadowed-command`: `bigman changes` and the live monitor watch `~/.local/bin` and `~/bin` and raise High when a new or changed file there hides a system command.
   - `bigman try DIR` (and Inspect's **Run it in a disposable container**) runs the project in a rootless Podman container that holds a copy of it and nothing else from the computer, and deletes it on exit. A loader that runs there finds no keys, wallets or browser data. The container shares the kernel and, with network on, reaches the local network.
-  - Not covered: loaders spread across many files or built from generated strings, and tools swapped inside `node_modules/.bin`, a global npm prefix or editor extension folders.
-- **Proposed mitigation / detection:** Follow the decoded address into the project's other files; watch the global npm prefix and `~/.vscode/extensions` for changes outside a package manager.
-- **Test case idea:** The fixtures `repo.code-loader`, `repo.encoded-url`, `repo.payload-host`, `repo.disguised-asset` and `persistence.shadowed-command`.
+  - Swapped tools elsewhere: developer tool folders (npm's global prefix, nvm, fnm, Volta, pnpm, Bun, Yarn, Deno, `~/.cargo/bin`, `~/go/bin`) are in the startup baseline, so a new or changed program there is `persistence.change`. Editor extensions are recorded per ID with their version and the code the editor loads: `persistence.extension-modified` (High) when that code changes without an update. Project inspection checks `node_modules/.bin`: `package.bin-swapped` (High) for a plain file where npm links, or a link or pnpm shim leading outside the project's `node_modules`.
+  - The browser extension offers the read-before-clone check on repository pages.
+  - Not covered: loaders spread across many files or built from generated strings; an extension changed in a file other than the one the editor loads first; a tool folder whose location is set only in a shell profile.
+- **Proposed mitigation / detection:** Follow the decoded address into the project's other files; hash every file an extension ships, not only the one the editor loads first.
+- **Test case idea:** The fixtures `repo.code-loader`, `repo.encoded-url`, `repo.payload-host`, `repo.disguised-asset`, `persistence.shadowed-command`, `persistence.extension-modified` and `package.bin-swapped`.
 - **References:**
   - The URLs above. How each issue in the post maps to Bigman: [interview-repo lures](../research/interview-repo-lures.md).
   - T1204.002, T1027.013 (Encrypted/Encoded File), T1036.008 (Masquerade File Type), T1574.007 (Path Interception by PATH Environment Variable)

@@ -1,0 +1,8 @@
+{
+  "driver": "changes",
+  "fires": [
+    "persistence.extension-new"
+  ],
+  "about": "An extension appears that the baseline did not have.",
+  "input": "input.json"
+}

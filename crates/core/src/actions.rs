@@ -182,6 +182,10 @@ fn baseline_entries(report: &Report) -> String {
         "persistence.metadata" => "Permissions changed",
         "persistence.removed" => "Removed",
         "persistence.initial" => "Recorded",
+        "persistence.extension-new" => "New extension",
+        "persistence.extension-updated" => "Extension updated",
+        "persistence.extension-modified" => "Extension code changed",
+        "persistence.shadowed-command" => "Hides a system command",
         _ => "Entry",
     };
     // A first inventory lists every entry once; the attribution notes repeat paths.

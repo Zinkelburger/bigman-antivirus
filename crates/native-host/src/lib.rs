@@ -2,7 +2,7 @@
 //! the desktop reads the same history, so no listening socket or duplicate scan is needed.
 use anyhow::{bail, Result};
 use bigman_core::{
-    checks::{inspect, pdf, scan, setup},
+    checks::{gitremote, inspect, pdf, scan, setup},
     model::Report,
     runner::Cancel,
     store::Store,
@@ -49,7 +49,17 @@ pub fn handle(store: &Store, req: Request, stop: &Cancel) -> Result<Response> {
             report: None,
         });
     }
-    let report = if req.op == "inspect-url" {
+    let report = if req.op == "repo-check" {
+        // Only a repository page on a known code host; anything else stays in the app.
+        let url = req
+            .url
+            .as_deref()
+            .ok_or_else(|| anyhow::anyhow!("Missing URL"))?;
+        if gitremote::repo_url(url).is_none() {
+            bail!("Only a GitHub, GitLab, Codeberg or Bitbucket repository address can be checked from the browser");
+        }
+        gitremote::check(store, url, stop)?
+    } else if req.op == "inspect-url" {
         let url = url::Url::parse(
             req.url
                 .as_deref()
@@ -133,6 +143,27 @@ mod tests {
         assert!(read_frame(&mut b.as_slice()).is_err());
         b = 10u32.to_ne_bytes().to_vec();
         assert!(read_frame(&mut b.as_slice()).is_err());
+    }
+    #[test]
+    fn repository_checks_take_only_repository_addresses() {
+        let d = tempfile::tempdir().unwrap();
+        let store = Store::open(Some(d.path().join("state"))).unwrap();
+        for url in [
+            "https://example.org/install.sh",
+            "http://github.com/owner/repo",
+            "https://github.com/owner/repo/tree/main",
+            "file:///home/user/project",
+        ] {
+            let req = Request {
+                op: "repo-check".into(),
+                file_path: None,
+                url: Some(url.into()),
+            };
+            let e = handle(&store, req, &bigman_core::runner::cancel())
+                .err()
+                .unwrap();
+            assert!(e.to_string().contains("repository address"), "{url}: {e}");
+        }
     }
     #[test]
     fn unknown_fields_rejected() {

@@ -173,6 +173,46 @@ fn run(dir: &Path, expected: &Expected) -> BTreeSet<String> {
             }
         }
         "receipt" => return receipt_rules(&input),
+        "bin-links" => {
+            // node_modules is not committed, so the project is built here.
+            #[derive(Deserialize)]
+            struct Bin {
+                link: Option<String>,
+                file: Option<String>,
+            }
+            #[derive(Deserialize)]
+            struct Project {
+                pnpm: bool,
+                files: std::collections::BTreeMap<String, String>,
+                bin: std::collections::BTreeMap<String, Bin>,
+            }
+            let p: Project = serde_json::from_value(json()).unwrap();
+            let project = tempfile::tempdir().unwrap();
+            let root = project.path();
+            fs::write(
+                root.join("package.json"),
+                r#"{"name":"fixture","version":"1.0.0"}"#,
+            )
+            .unwrap();
+            fs::create_dir_all(root.join("node_modules/.bin")).unwrap();
+            if p.pnpm {
+                fs::create_dir_all(root.join("node_modules/.pnpm")).unwrap();
+            }
+            for (path, text) in &p.files {
+                let path = root.join(path);
+                fs::create_dir_all(path.parent().unwrap()).unwrap();
+                fs::write(path, text).unwrap();
+            }
+            for (name, bin) in &p.bin {
+                let path = root.join("node_modules/.bin").join(name);
+                match (&bin.link, &bin.file) {
+                    (Some(target), _) => std::os::unix::fs::symlink(target, &path).unwrap(),
+                    (_, Some(text)) => fs::write(&path, text).unwrap(),
+                    _ => panic!("bin entry {name} needs a link or a file"),
+                }
+            }
+            return rules_fired(&packages::inventory(root).unwrap());
+        }
         "lockfile" => {
             let before = expected.before.as_ref().map(|b| dir.join(b));
             return rules_fired(&checks::lockfile::lockfile(&input, before.as_deref()).unwrap());

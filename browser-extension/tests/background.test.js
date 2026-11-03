@@ -60,3 +60,21 @@ test('missing native host leaves visible incomplete status and notification', as
     expect(f.state.nativeHealth.reason).toContain('not installed');
     expect(f.state.downloadQueue).toEqual([]);
 });
+
+test('repository checks go to the desktop only from extension pages', async () => {
+    const f = fixture();
+    f.chrome.runtime.getURL = path => `chrome-extension://test/${path}`;
+    await until(() => f.scans.length === 1);
+    const request = { action: 'native', request: { op: 'repo-check', url: 'https://github.com/owner/repo' } };
+    // A page's content script cannot reach the native host.
+    expect(f.handlers.message(request, { id: 'test', tab: { id: 1 }, url: 'https://github.com/owner/repo' }, () => {})).toBe(false);
+    expect(f.scans.length).toBe(1);
+    const respond = jest.fn();
+    expect(f.handlers.message(request, { id: 'test', url: 'chrome-extension://test/popup.html' }, respond)).toBe(true);
+    expect(f.scans[1].request).toEqual({ op: 'repo-check', url: 'https://github.com/owner/repo' });
+    f.scans[1].callback({ status: 'FINDINGS', reason: 'Findings to review' });
+    await until(() => respond.mock.calls.length === 1);
+    expect(respond.mock.calls[0][0].status).toBe('FINDINGS');
+    // Other operations stay closed to the popup.
+    expect(f.handlers.message({ action: 'native', request: { op: 'scan', filePath: '/etc/passwd' } }, { id: 'test', url: 'chrome-extension://test/popup.html' }, () => {})).toBe(false);
+});

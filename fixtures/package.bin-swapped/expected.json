@@ -1,0 +1,8 @@
+{
+  "driver": "bin-links",
+  "fires": [
+    "package.bin-swapped"
+  ],
+  "about": "An npm project whose node_modules/.bin/tsc is a plain script that downloads code, next to an ordinary link.",
+  "input": "input.json"
+}

@@ -245,7 +245,7 @@
     "id": "persistence.change",
     "severity": "review",
     "title": "A startup file changed",
-    "explanation": "A file that starts programs for you (a systemd unit, autostart entry, shell profile, cron file) is new or different from the baseline you accepted.",
+    "explanation": "A file that starts programs for you (a systemd unit, autostart entry, shell profile, cron file), or a program in a developer tool folder (npm's global prefix, nvm, pnpm, ~/.cargo/bin, ~/go/bin), is new or different from the baseline you accepted.",
     "remediation": "Review the file and the package that owns it before accepting it into the baseline.",
     "threats": [
       "HI-01",
@@ -301,6 +301,38 @@
     "remediation": "Read the file. If you did not put it there, delete it and check what ran just before it appeared.",
     "threats": [
       "HI-19",
+      "SC-24"
+    ]
+  },
+  {
+    "id": "persistence.extension-new",
+    "severity": "review",
+    "title": "A new editor extension",
+    "explanation": "An extension appeared in VS Code, VSCodium, Cursor or Windsurf since the baseline. Extensions run with your permissions whenever the editor starts, and a project's setup step or a stolen publisher account can install one.",
+    "remediation": "If you did not install it, remove it in the editor and check what ran just before it appeared.",
+    "threats": [
+      "SC-19",
+      "SC-24"
+    ]
+  },
+  {
+    "id": "persistence.extension-updated",
+    "severity": "info",
+    "title": "An editor extension was updated",
+    "explanation": "An extension's version changed since the baseline, which is what the editor's own updates do.",
+    "remediation": "Nothing to do if the editor updates its extensions.",
+    "threats": [
+      "SC-19"
+    ]
+  },
+  {
+    "id": "persistence.extension-modified",
+    "severity": "high",
+    "title": "An editor extension's code changed without an update",
+    "explanation": "The code an installed extension loads (its main file) changed while its version stayed the same. Editors install updates as new versions and never rewrite an installed one, so something else edited it, which is how GlassWorm-style campaigns spread through installed extensions.",
+    "remediation": "Quit the editor, reinstall the extension from its marketplace, and check what ran just before the change.",
+    "threats": [
+      "SC-19",
       "SC-24"
     ]
   },
@@ -910,6 +942,17 @@
     "remediation": "Read binding.gyp, or install with --ignore-scripts.",
     "threats": [
       "SC-01"
+    ]
+  },
+  {
+    "id": "package.bin-swapped",
+    "severity": "high",
+    "title": "A command in node_modules/.bin was not put there by the package manager",
+    "explanation": "npm run and npx put node_modules/.bin first on PATH. npm, Yarn and Bun make each command a link into node_modules, and pnpm a shim that runs node on a file there. This one is a plain file where a link belongs, leads outside the project's node_modules, or (for pnpm) runs something other than node or downloads or decodes text.",
+    "remediation": "Delete node_modules and install again from the lockfile, and find out what wrote the file.",
+    "threats": [
+      "SC-24",
+      "HI-19"
     ]
   },
   {

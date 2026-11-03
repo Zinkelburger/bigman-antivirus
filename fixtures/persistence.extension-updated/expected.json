@@ -1,0 +1,8 @@
+{
+  "driver": "changes",
+  "fires": [
+    "persistence.extension-updated"
+  ],
+  "about": "An extension's version changes, as the editor's own updates do.",
+  "input": "input.json"
+}
