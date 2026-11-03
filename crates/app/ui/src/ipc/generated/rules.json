@@ -545,6 +545,17 @@
     ]
   },
   {
+    "id": "repo.git-config-command",
+    "severity": "review",
+    "title": "This copy's git settings run a program",
+    "explanation": "A .git/config that came with the folder sets core.fsmonitor, core.pager, diff.external, a filter or another setting that makes ordinary git commands run a program. git status runs core.fsmonitor, and many shell prompts run git status. Settings that run on routine commands are rated High.",
+    "remediation": "Read the program, or remove the setting before running git in the folder.",
+    "threats": [
+      "SC-20",
+      "PH-10"
+    ]
+  },
+  {
     "id": "repo.ai-hooks",
     "severity": "review",
     "title": "AI tool settings in the project run commands",
@@ -591,7 +602,7 @@
     "id": "repo.workflow-pull-request-target",
     "severity": "review",
     "title": "A workflow uses pull_request_target",
-    "explanation": "pull_request_target runs with the repository's secrets and write access. Checking out the pull request's own code in it is rated High.",
+    "explanation": "pull_request_target runs with the repository's secrets and write access. Checking out the pull request's own code in it (its head ref or SHA, refs/pull, or gh pr checkout) is rated High.",
     "remediation": "Never check out or run the pull request's code in a pull_request_target workflow.",
     "threats": [
       "SC-16"
@@ -632,12 +643,23 @@
     "id": "lockfile.new-install-hook",
     "severity": "review",
     "title": "A new dependency runs an install script",
-    "explanation": "Compared with the older lockfile, a package that runs an install script was added or changed version.",
+    "explanation": "Compared with the older lockfile, a package that runs an install script was added, changed version, or started running a script.",
     "remediation": "Read the new package's scripts before installing, or install with --ignore-scripts.",
     "threats": [
       "SC-01",
       "SC-06",
       "SC-09"
+    ]
+  },
+  {
+    "id": "lockfile.source-changed",
+    "severity": "high",
+    "title": "A dependency changed source without a new version",
+    "explanation": "Compared with the older lockfile, a package kept its version but now downloads from a different address or with a different hash. A published version never changes, so this means the lockfile was edited.",
+    "remediation": "Find out who changed the lockfile and why before installing.",
+    "threats": [
+      "SC-02",
+      "SC-13"
     ]
   },
   {

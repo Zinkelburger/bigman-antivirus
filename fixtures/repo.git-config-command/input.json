@@ -1,0 +1,4 @@
+{
+  "files": {},
+  "git_config": "[core]\n\trepositoryformatversion = 0\n\tfsmonitor = ./tools/watch.sh\n[filter \"lfs\"]\n\tclean = git-lfs clean -- %f\n"
+}

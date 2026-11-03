@@ -1,0 +1,9 @@
+{
+  "driver": "lockfile",
+  "fires": [
+    "lockfile.source-changed"
+  ],
+  "about": "Diff mode: left-pad keeps version 1.3.0 and its registry address, but its integrity hash changed.",
+  "input": "package-lock.json",
+  "before": "before/package-lock.json"
+}

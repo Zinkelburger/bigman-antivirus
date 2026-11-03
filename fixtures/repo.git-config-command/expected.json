@@ -1,0 +1,8 @@
+{
+  "driver": "repo",
+  "fires": [
+    "repo.git-config-command"
+  ],
+  "about": "A shared .git/config whose core.fsmonitor names a script, which git status would run.",
+  "input": "input.json"
+}

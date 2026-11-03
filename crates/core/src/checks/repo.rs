@@ -10,13 +10,30 @@ use crate::{
 use anyhow::{bail, Result};
 use regex::Regex;
 use std::{
+    collections::BTreeSet,
     path::{Path, PathBuf},
     sync::LazyLock,
 };
 
 /// Directories that hold dependencies or build output, not the project's own files.
 const SKIP: [&str; 6] = ["node_modules", ".git", "target", "vendor", "dist", ".venv"];
+/// Files the search for nested instruction files, `.envrc` and `.gitattributes`
+/// looks at. The configuration at the project root is read before it starts,
+/// so padding a project with files cannot hide it.
 const MAX_FILES: usize = 20_000;
+/// Files read from each configuration folder at the root (`.vscode`, `.github`…).
+const MAX_CONFIG_FILES: usize = 2_000;
+/// Configuration folders at the project root that tools read on their own.
+const CONFIG_DIRS: [&str; 5] = [".vscode", ".claude", ".cursor", ".github", ".devcontainer"];
+/// Instruction files for AI coding tools, compared in lower case.
+const INSTRUCTIONS: [&str; 6] = [
+    "claude.md",
+    "agents.md",
+    ".cursorrules",
+    "copilot-instructions.md",
+    "gemini.md",
+    ".windsurfrules",
+];
 
 /// Text that hides from a reader: zero-width, bidirectional overrides, tag characters.
 static HIDDEN: LazyLock<Regex> = LazyLock::new(|| {
@@ -223,16 +240,10 @@ pub fn assess(r: &mut Report, files: &[File], git_config: Option<&str>) {
                 }
             }
         }
-        let instructions = [
-            "claude.md",
-            "agents.md",
-            ".cursorrules",
-            "copilot-instructions.md",
-            "gemini.md",
-            ".windsurfrules",
-        ];
-        if instructions.contains(&name.as_str()) || p.starts_with(".cursor/rules/") {
-            if let Some((i, line)) = f.text.lines().enumerate().find(|(_, l)| HIDDEN.is_match(l)) {
+        if INSTRUCTIONS.contains(&name.as_str()) || p.starts_with(".cursor/rules/") {
+            // A byte-order mark at the very start is how some editors save UTF-8, not hidden text.
+            let text = f.text.strip_prefix('\u{FEFF}').unwrap_or(&f.text);
+            if let Some((i, line)) = text.lines().enumerate().find(|(_, l)| HIDDEN.is_match(l)) {
                 let chars: Vec<String> = HIDDEN
                     .find_iter(line)
                     .map(|m| {
@@ -258,19 +269,100 @@ pub fn assess(r: &mut Report, files: &[File], git_config: Option<&str>) {
         }
     }
     if let Some(config) = git_config {
-        if let Some((i, line)) = config
-            .lines()
-            .enumerate()
-            .find(|(_, l)| l.trim_start().to_lowercase().starts_with("hookspath"))
-        {
+        git_config_findings(r, config);
+    }
+}
+
+/// `section.key` (subsection dropped, lower case), value and line for each
+/// setting in a git config file.
+fn git_settings(config: &str) -> Vec<(String, String, String, usize)> {
+    let mut out = vec![];
+    let (mut section, mut subsection) = (String::new(), String::new());
+    for (i, line) in config.lines().enumerate() {
+        let t = line.trim();
+        if t.starts_with('#') || t.starts_with(';') || t.is_empty() {
+            continue;
+        }
+        if let Some(header) = t.strip_prefix('[').and_then(|h| h.split(']').next()) {
+            let (name, sub) = header
+                .split_once(char::is_whitespace)
+                .unwrap_or((header, ""));
+            section = name.to_lowercase();
+            subsection = sub.trim().trim_matches('"').to_string();
+            continue;
+        }
+        let (key, value) = t.split_once('=').unwrap_or((t, ""));
+        out.push((
+            format!("{section}.{}", key.trim().to_lowercase()),
+            subsection.clone(),
+            value.trim().trim_matches('"').to_string(),
+            i + 1,
+        ));
+    }
+    out
+}
+
+/// Settings in a shipped `.git/config` that make ordinary git commands run a
+/// program. `git status`, often run by a shell prompt, starts core.fsmonitor.
+fn git_config_findings(r: &mut Report, config: &str) {
+    for (key, sub, value, line) in git_settings(config) {
+        let at = format!(
+            ".git/config, line {line}: {}",
+            crate::model::clean(config.lines().nth(line - 1).unwrap_or("").trim())
+        );
+        if key == "core.hookspath" {
             r.add(
                 "repo.git-hooks",
                 Severity::Review,
                 "This copy of the repository sends git hooks to a folder in the project",
-                format!(".git/config, line {}: {}", i + 1, line.trim()),
+                at,
                 "Every commit, checkout or merge will run the scripts there. Read them, or remove core.hooksPath.",
             );
+            continue;
         }
+        let when = match key.as_str() {
+            "core.fsmonitor" if !matches!(value.to_lowercase().as_str(), "true" | "false" | "") => {
+                "on every git status, including the one your shell prompt may run"
+            }
+            "core.pager" | "pager.log" | "pager.diff" | "pager.show" => {
+                "whenever git shows a log or diff"
+            }
+            "diff.external" => "on every git diff",
+            "diff.textconv" | "diff.command" => {
+                "when git diffs files of a type named in .gitattributes"
+            }
+            "filter.clean" | "filter.smudge" | "filter.process"
+                if !value.starts_with("git-lfs ") =>
+            {
+                "when files are checked out or staged"
+            }
+            "core.sshcommand" | "core.gitproxy" => "when git fetches or pushes",
+            "core.editor" | "sequence.editor" => "when git opens an editor",
+            "core.askpass" => "when git asks for a password",
+            "credential.helper" if value.starts_with('!') || value.contains('/') => {
+                "when git needs credentials"
+            }
+            "merge.driver" => "when git merges files named in .gitattributes",
+            "gpg.program" => "when git signs or verifies a commit",
+            "include.path" | "includeif.path" => "because git reads more settings from that file",
+            _ => continue,
+        };
+        let automatic = matches!(
+            key.as_str(),
+            "core.fsmonitor" | "core.pager" | "diff.external"
+        ) || key.starts_with("filter.");
+        let name = if sub.is_empty() {
+            key.clone()
+        } else {
+            key.replacen('.', &format!(".{sub}."), 1)
+        };
+        r.add(
+            "repo.git-config-command",
+            if automatic { Severity::High } else { Severity::Review },
+            &format!("This copy's git settings run a program ({name})"),
+            format!("{at}\nruns {when}"),
+            "Git never clones .git/config, so these settings came with this copy of the folder. Read the program, or remove the setting before running git here.",
+        );
     }
 }
 
@@ -310,7 +402,16 @@ fn workflow(r: &mut Report, f: &File) {
     }
     if f.text.contains("pull_request_target") {
         // The dangerous pattern: privileged trigger plus the pull request's own code.
-        let checks_out_head = f.text.contains("github.event.pull_request.head");
+        let head = [
+            "github.event.pull_request.head",
+            "github.head_ref",
+            "refs/pull/",
+            "github.event.pull_request.merge_commit_sha",
+            "gh pr checkout",
+        ]
+        .into_iter()
+        .find(|p| f.text.contains(p));
+        let checks_out_head = head.is_some();
         r.add(
             "repo.workflow-pull-request-target",
             if checks_out_head { Severity::High } else { Severity::Review },
@@ -319,81 +420,176 @@ fn workflow(r: &mut Report, f: &File) {
             } else {
                 "A workflow uses the privileged pull_request_target trigger"
             },
-            evidence(f, line_of(&f.text, if checks_out_head { "github.event.pull_request.head" } else { "pull_request_target" }), ""),
+            evidence(f, line_of(&f.text, head.unwrap_or("pull_request_target")), ""),
             "pull_request_target runs with write access and secrets. Never check out or run the pull request's code in it.",
         );
     }
 }
 
-/// Collects the project's text files (bounded) and assesses them.
-pub fn repo_check(dir: &Path) -> Result<Report> {
-    if !dir.is_dir() {
-        bail!("{} is not a folder", dir.display());
-    }
-    let mut r = Report::new("Repository check", dir.display());
-    r.coverage.push("Reads the project's files as data: IDE tasks, direnv, devcontainers, git attributes and hooks, AI-tool settings, MCP servers, instruction files and CI workflows. Nothing in the project is run.".into());
-    let mut files = vec![];
-    let mut seen = 0;
-    let walker = walkdir::WalkDir::new(dir)
-        .follow_links(false)
-        .max_depth(8)
-        .into_iter()
-        .filter_entry(|e| {
-            e.depth() == 0
-                || !(e.file_type().is_dir()
-                    && SKIP.contains(&e.file_name().to_string_lossy().as_ref()))
-        });
-    for e in walker.flatten() {
-        if !e.file_type().is_file() {
-            continue;
+/// Whether a path, relative to the project root, is one the rules read.
+fn interesting(rel: &Path) -> bool {
+    let p = rel.to_string_lossy();
+    let n = rel
+        .file_name()
+        .map(|n| n.to_string_lossy().to_lowercase())
+        .unwrap_or_default();
+    CONFIG_DIRS.iter().any(|d| p.starts_with(&format!("{d}/")))
+        || p.contains(".devcontainer")
+        || [".envrc", ".gitattributes", ".mcp.json"].contains(&n.as_str())
+        || INSTRUCTIONS.contains(&n.as_str())
+}
+
+/// Reads project files by their path in the project. Links are followed the way
+/// VS Code, direnv and git follow them, but only to files inside the project:
+/// a link elsewhere is named in the coverage and its target is never read, so a
+/// project cannot make Bigman copy, say, a key file into a report.
+struct Collector {
+    root: PathBuf,
+    files: Vec<File>,
+    taken: BTreeSet<PathBuf>,
+}
+
+impl Collector {
+    fn add(&mut self, r: &mut Report, rel: PathBuf) {
+        if self.taken.contains(&rel) {
+            return;
         }
-        seen += 1;
-        if seen > MAX_FILES {
-            r.coverage.skipped.push(crate::model::Skipped {
-                what: "Files past the first 20,000".into(),
-                why: crate::model::SkipReason::LimitReached,
-                detail: dir.display().to_string(),
-            });
-            break;
-        }
-        let rel = e.path().strip_prefix(dir).unwrap_or(e.path()).to_path_buf();
-        let interesting = {
-            let p = rel.to_string_lossy();
-            let n = e.file_name().to_string_lossy().to_lowercase();
-            p.starts_with(".vscode/")
-                || p.starts_with(".claude/")
-                || p.starts_with(".cursor/")
-                || p.starts_with(".github/")
-                || p.contains(".devcontainer")
-                || [
-                    ".envrc",
-                    ".gitattributes",
-                    ".mcp.json",
-                    "claude.md",
-                    "agents.md",
-                    ".cursorrules",
-                    "gemini.md",
-                    ".windsurfrules",
-                ]
-                .contains(&n.as_str())
+        let Ok(target) = self.root.join(&rel).canonicalize() else {
+            return;
         };
-        if !interesting {
-            continue;
+        if !target.starts_with(&self.root) {
+            self.taken.insert(rel.clone());
+            r.coverage.skip(
+                rel.display().to_string(),
+                crate::model::SkipReason::NotApplicable,
+                format!(
+                    "Links to {}, outside the project; not read",
+                    target.display()
+                ),
+            );
+            return;
         }
-        if let Ok(bytes) = read_file(e.path(), MAX_INPUT) {
-            files.push(File {
+        if !target.is_file() {
+            return;
+        }
+        self.taken.insert(rel.clone());
+        if let Ok(bytes) = read_file(&target, MAX_INPUT) {
+            self.files.push(File {
                 path: rel,
                 text: String::from_utf8_lossy(&bytes).into_owned(),
             });
         }
     }
-    let git_config = read_file(&dir.join(".git/config"), MAX_INPUT)
+
+    /// Every interesting file in a configuration folder at the root, which may
+    /// itself be a link to a folder inside the project.
+    fn config_dir(&mut self, r: &mut Report, name: &str) {
+        let Ok(dir) = self.root.join(name).canonicalize() else {
+            return;
+        };
+        if !dir.starts_with(&self.root) {
+            r.coverage.skip(
+                name,
+                crate::model::SkipReason::NotApplicable,
+                format!("Links to {}, outside the project; not read", dir.display()),
+            );
+            return;
+        }
+        let entries = walkdir::WalkDir::new(&dir)
+            .min_depth(1)
+            .max_depth(4)
+            .sort_by_file_name()
+            .into_iter()
+            .flatten()
+            .filter(|e| !e.file_type().is_dir());
+        for (n, e) in entries.enumerate() {
+            if n == MAX_CONFIG_FILES {
+                r.coverage.skip(
+                    format!("{name} past its first {MAX_CONFIG_FILES} files"),
+                    crate::model::SkipReason::LimitReached,
+                    dir.display().to_string(),
+                );
+                break;
+            }
+            let rel = Path::new(name).join(e.path().strip_prefix(&dir).unwrap_or(e.path()));
+            if interesting(&rel) {
+                self.add(r, rel);
+            }
+        }
+    }
+}
+
+/// Collects the project's configuration files (bounded) and assesses them.
+pub fn repo_check(dir: &Path) -> Result<Report> {
+    if !dir.is_dir() {
+        bail!("{} is not a folder", dir.display());
+    }
+    let mut r = Report::new("Repository check", dir.display());
+    r.coverage.push("Reads the project's files as data: IDE tasks, direnv, devcontainers, git attributes, hooks and settings, AI-tool settings, MCP servers, instruction files and CI workflows. Nothing in the project is run.".into());
+    let mut c = Collector {
+        root: dir.canonicalize()?,
+        files: vec![],
+        taken: BTreeSet::new(),
+    };
+    // First what tools read at the root, which no number of other files can push out.
+    let mut root: Vec<String> = std::fs::read_dir(&c.root)?
+        .flatten()
+        .map(|e| e.file_name().to_string_lossy().into_owned())
+        .collect();
+    root.sort();
+    for name in &root {
+        if CONFIG_DIRS.contains(&name.as_str()) {
+            c.config_dir(&mut r, name);
+        } else if interesting(Path::new(name)) {
+            c.add(&mut r, PathBuf::from(name));
+        }
+    }
+    // Then nested instruction files, .envrc and .gitattributes, within a budget.
+    let walker = walkdir::WalkDir::new(&c.root)
+        .follow_links(false)
+        .min_depth(2)
+        .max_depth(8)
+        .sort_by_file_name()
+        .into_iter()
+        .filter_entry(|e| {
+            let name = e.file_name().to_string_lossy();
+            !(e.file_type().is_dir()
+                && (SKIP.contains(&name.as_ref())
+                    || (e.depth() == 1 && CONFIG_DIRS.contains(&name.as_ref()))))
+        });
+    let mut seen = 0;
+    for e in walker.flatten() {
+        if e.file_type().is_dir() {
+            continue;
+        }
+        seen += 1;
+        if seen > MAX_FILES {
+            r.coverage.skip(
+                "Nested folders past the first 20,000 files",
+                crate::model::SkipReason::LimitReached,
+                format!(
+                    "{}: configuration at the project root was read in full",
+                    dir.display()
+                ),
+            );
+            break;
+        }
+        let rel = e
+            .path()
+            .strip_prefix(&c.root)
+            .unwrap_or(e.path())
+            .to_path_buf();
+        if interesting(&rel) {
+            c.add(&mut r, rel);
+        }
+    }
+    let git_config = read_file(&c.root.join(".git/config"), MAX_INPUT)
         .ok()
         .map(|b| String::from_utf8_lossy(&b).into_owned());
     r.coverage
         .checked
-        .push(format!("{} configuration files", files.len()));
-    assess(&mut r, &files, git_config.as_deref());
+        .push(format!("{} configuration files", c.files.len()));
+    assess(&mut r, &c.files, git_config.as_deref());
     r.findings.sort_by_key(|f| std::cmp::Reverse(f.severity));
     Ok(r)
 }
@@ -410,5 +606,93 @@ mod tests {
         .unwrap();
         assert_eq!(v["url"], "https://x//y");
         assert_eq!(v["a"][0], 1);
+    }
+
+    fn rules(r: &Report) -> Vec<(&str, Severity)> {
+        r.findings
+            .iter()
+            .map(|f| (f.rule.as_str(), f.severity))
+            .collect()
+    }
+
+    #[test]
+    fn follows_links_inside_the_project_only() {
+        let t = tempfile::tempdir().unwrap();
+        let d = t.path().join("project");
+        std::fs::create_dir_all(d.join("config")).unwrap();
+        std::fs::write(
+            d.join("config/tasks.json"),
+            r#"{"tasks": [{"label": "setup", "command": "./x", "runOptions": {"runOn": "folderOpen"}}]}"#,
+        )
+        .unwrap();
+        std::os::unix::fs::symlink("config", d.join(".vscode")).unwrap();
+        std::fs::write(t.path().join("secret"), "KEY=hunter2\n").unwrap();
+        std::os::unix::fs::symlink("../secret", d.join(".envrc")).unwrap();
+        let r = repo_check(&d).unwrap();
+        assert_eq!(rules(&r), [("repo.autorun-task", Severity::Review)]);
+        assert!(
+            r.coverage.skipped.iter().any(|s| s.what == ".envrc"),
+            "the outside link is named"
+        );
+        assert!(
+            !format!("{r:?}").contains("hunter2"),
+            "the outside target is never read"
+        );
+    }
+
+    #[test]
+    fn a_leading_byte_order_mark_is_not_hidden_text() {
+        let file = |text: &str| File {
+            path: "CLAUDE.md".into(),
+            text: text.into(),
+        };
+        let mut r = Report::new("t", "t");
+        assess(&mut r, &[file("\u{FEFF}# Notes\n")], None);
+        assert!(r.findings.is_empty());
+        assess(&mut r, &[file("\u{FEFF}# Notes\nok\u{200B}\n")], None);
+        assert_eq!(rules(&r), [("repo.hidden-instructions", Severity::High)]);
+    }
+
+    #[test]
+    fn pull_request_target_with_head_ref_is_high() {
+        let f = File {
+            path: ".github/workflows/ci.yml".into(),
+            text: "on: pull_request_target\njobs:\n  b:\n    steps:\n      - uses: actions/checkout@0123456789abcdef0123456789abcdef01234567\n        with:\n          ref: ${{ github.head_ref }}\n".into(),
+        };
+        let mut r = Report::new("t", "t");
+        assess(&mut r, &[f], None);
+        assert_eq!(
+            rules(&r),
+            [("repo.workflow-pull-request-target", Severity::High)]
+        );
+        assert!(r.findings[0].evidence.contains("line 7"));
+    }
+
+    #[test]
+    fn git_config_programs() {
+        let mut r = Report::new("t", "t");
+        git_config_findings(&mut r, "[core]\n\tfsmonitor = true\n\teditor = vim\n[filter \"lfs\"]\n\tsmudge = git-lfs smudge -- %f\n[filter \"x\"]\n\tsmudge = ./x.sh\n[credential]\n\thelper = store\n[diff]\n\texternal = ./d.sh\n");
+        let got: Vec<_> = r
+            .findings
+            .iter()
+            .map(|f| (f.summary.as_str(), f.severity))
+            .collect();
+        assert_eq!(
+            got,
+            [
+                (
+                    "This copy's git settings run a program (core.editor)",
+                    Severity::Review
+                ),
+                (
+                    "This copy's git settings run a program (filter.x.smudge)",
+                    Severity::High
+                ),
+                (
+                    "This copy's git settings run a program (diff.external)",
+                    Severity::High
+                ),
+            ]
+        );
     }
 }

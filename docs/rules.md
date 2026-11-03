@@ -55,6 +55,7 @@ Every finding Bigman shows comes from one of these rules. Each has a synthetic f
 | `repo.devcontainer-command` | Review | The devcontainer runs commands | SC-20, PH-10 |
 | `repo.git-filter` | Review | The project names a git filter | SC-20 |
 | `repo.git-hooks` | Review | Git hooks point into the project | SC-20, PH-10 |
+| `repo.git-config-command` | Review | This copy's git settings run a program | SC-20, PH-10 |
 | `repo.ai-hooks` | Review | AI tool settings in the project run commands | SC-21, CR-19 |
 | `repo.mcp-server` | Review | The project configures an MCP server | SC-21, SC-22 |
 | `repo.hidden-instructions` | High | An AI instruction file contains invisible characters | SC-21, CR-19 |
@@ -64,6 +65,7 @@ Every finding Bigman shows comes from one of these rules. Each has a synthetic f
 | `lockfile.missing-integrity` | Review | A dependency has no integrity hash | SC-13 |
 | `lockfile.install-hook` | Info | A dependency runs an install script | SC-01 |
 | `lockfile.new-install-hook` | Review | A new dependency runs an install script | SC-01, SC-06, SC-09 |
+| `lockfile.source-changed` | High | A dependency changed source without a new version | SC-02, SC-13 |
 | `channel.signature-disabled` | High | A package source skips signature checks | DP-02 |
 | `channel.plain-http` | Info | A package source uses plain HTTP | DP-02, DP-05 |
 | `channel.unscoped-key` | Review | A third-party apt source has no signed-by key | DP-03 |
@@ -478,6 +480,14 @@ This copy's .git/config sets core.hooksPath to a folder in the project, so its s
 
 What you can do: Read the scripts, or remove core.hooksPath.
 
+## `repo.git-config-command`
+
+**This copy's git settings run a program** (Review)
+
+A .git/config that came with the folder sets core.fsmonitor, core.pager, diff.external, a filter or another setting that makes ordinary git commands run a program. git status runs core.fsmonitor, and many shell prompts run git status. Settings that run on routine commands are rated High.
+
+What you can do: Read the program, or remove the setting before running git in the folder.
+
 ## `repo.ai-hooks`
 
 **AI tool settings in the project run commands** (Review)
@@ -514,7 +524,7 @@ What you can do: Pin third-party actions to a full commit SHA.
 
 **A workflow uses pull_request_target** (Review)
 
-pull_request_target runs with the repository's secrets and write access. Checking out the pull request's own code in it is rated High.
+pull_request_target runs with the repository's secrets and write access. Checking out the pull request's own code in it (its head ref or SHA, refs/pull, or gh pr checkout) is rated High.
 
 What you can do: Never check out or run the pull request's code in a pull_request_target workflow.
 
@@ -546,9 +556,17 @@ What you can do: Read the package's scripts, or install with --ignore-scripts.
 
 **A new dependency runs an install script** (Review)
 
-Compared with the older lockfile, a package that runs an install script was added or changed version.
+Compared with the older lockfile, a package that runs an install script was added, changed version, or started running a script.
 
 What you can do: Read the new package's scripts before installing, or install with --ignore-scripts.
+
+## `lockfile.source-changed`
+
+**A dependency changed source without a new version** (High)
+
+Compared with the older lockfile, a package kept its version but now downloads from a different address or with a different hash. A published version never changes, so this means the lockfile was edited.
+
+What you can do: Find out who changed the lockfile and why before installing.
 
 ## `channel.signature-disabled`
 

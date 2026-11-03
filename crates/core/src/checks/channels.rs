@@ -166,7 +166,13 @@ pub fn apt_list(file: &str, text: &str) -> Vec<Channel> {
             apt_options(&mut c, |k| opt(k).map(str::to_string));
             Some(c)
         })
-        .collect()
+        .fold(vec![], |mut out: Vec<Channel>, c| {
+            // `deb` and `deb-src` lines for one source with the same options are one source.
+            if !out.contains(&c) {
+                out.push(c);
+            }
+            out
+        })
 }
 
 /// The apt source options Bigman judges, by their one-line names; deb822 uses
@@ -338,12 +344,7 @@ pub fn pacman_conf(file: &str, text: &str) -> Vec<Channel> {
         "extra-testing",
         "multilib-testing",
     ];
-    // Package signatures are optional or off; database signatures are judged separately by pacman.
-    let unsigned = |v: &str| {
-        v.split_whitespace()
-            .any(|w| ["Never", "PackageNever", "Optional", "PackageOptional"].contains(&w))
-    };
-    let mut global_unsigned = false;
+    let mut global = pacman_package_level("Optional", None);
     let mut core_seen = false;
     let mut out: Vec<Channel> = vec![];
     for (name, keys) in ini(text) {
@@ -353,7 +354,7 @@ pub fn pacman_conf(file: &str, text: &str) -> Vec<Channel> {
             .find(|(k, _)| k == "siglevel")
             .map(|(_, v)| v.as_str());
         if name == "options" {
-            global_unsigned = siglevel.is_some_and(unsigned);
+            global = pacman_package_level(siglevel.unwrap_or(""), Some(global));
             continue;
         }
         let url = keys
@@ -362,7 +363,8 @@ pub fn pacman_conf(file: &str, text: &str) -> Vec<Channel> {
             .map_or("", |(_, v)| v.as_str());
         let mut c = channel("pacman", &name, url, file);
         c.official = ARCH.contains(&name.as_str());
-        c.signed = !siglevel.map_or(global_unsigned, unsigned);
+        // Package signatures are required; database signatures are pacman's own concern.
+        c.signed = pacman_package_level(siglevel.unwrap_or(""), Some(global)) == "Required";
         core_seen |= name == "core";
         if !c.official && !core_seen {
             c.overrides = Some("listed above [core]".into());
@@ -370,6 +372,25 @@ pub fn pacman_conf(file: &str, text: &str) -> Vec<Channel> {
         out.push(c);
     }
     out
+}
+
+/// The package part of a pacman SigLevel (`Never`, `Optional` or `Required`).
+/// A repository's SigLevel changes only what it names and inherits the rest
+/// from `[options]`, whose own unset parts keep pacman's built-in `Optional`.
+fn pacman_package_level(siglevel: &str, inherited: Option<&'static str>) -> &'static str {
+    let mut level = inherited.unwrap_or("Optional");
+    for word in siglevel.split_whitespace() {
+        if word.starts_with("Database") {
+            continue;
+        }
+        match word.strip_prefix("Package").unwrap_or(word) {
+            "Never" => level = "Never",
+            "Optional" => level = "Optional",
+            "Required" => level = "Required",
+            _ => {}
+        }
+    }
+    level
 }
 
 /// `flatpak remotes --columns=name,url,options`, tab-separated.
@@ -575,6 +596,110 @@ fn modified(path: &Path) -> Option<u64> {
     Some(t.duration_since(UNIX_EPOCH).ok()?.as_secs())
 }
 
+/// dnf5's configuration files in the order it applies them, the last one winning:
+/// drop-ins from the distribution and from `/etc` sorted by name (an `/etc` file
+/// masks a distribution file of the same name), then the main file.
+fn dnf_config_files(
+    etc: &Path,
+    distribution: &Path,
+    drop_ins: &str,
+    suffix: &str,
+    main: &[&str],
+) -> Vec<PathBuf> {
+    let mut by_name: std::collections::BTreeMap<std::ffi::OsString, PathBuf> =
+        std::collections::BTreeMap::new();
+    for p in files(distribution, suffix)
+        .into_iter()
+        .chain(files(&etc.join(drop_ins), suffix))
+    {
+        if let Some(n) = p.file_name() {
+            by_name.insert(n.to_owned(), p);
+        }
+    }
+    by_name
+        .into_values()
+        .chain(main.iter().map(|m| etc.join(m)))
+        .collect()
+}
+
+/// Whether dnf skips package signatures for repositories that do not say. Its
+/// built-in default is not to check (`pkg_gpgcheck` False); distributions turn
+/// checks on in dnf.conf or a drop-in.
+fn dnf_unsigned(etc: &Path) -> bool {
+    dnf_config_files(
+        etc,
+        Path::new("/usr/share/dnf5/libdnf.conf.d"),
+        "dnf/libdnf5.conf.d",
+        ".conf",
+        &["yum.conf", "dnf/dnf.conf"],
+    )
+    .iter()
+    .filter_map(|p| read(p).and_then(|t| main_unsigned(&t)))
+    .next_back()
+    .unwrap_or(true)
+}
+
+/// dnf5 repository overrides (`repos.override.d`), which change existing
+/// repositories by ID or glob: signature checks, priority and enabled.
+fn dnf_overrides(etc: &Path, mut channels: Vec<Channel>) -> Vec<Channel> {
+    let files = dnf_config_files(
+        etc,
+        Path::new("/usr/share/dnf5/repos.override.d"),
+        "dnf/repos.override.d",
+        ".repo",
+        &[],
+    );
+    for file in files {
+        let Some(text) = read(&file) else { continue };
+        for (pattern, keys) in ini(&text) {
+            let get = |k: &str| {
+                keys.iter()
+                    .rev()
+                    .find(|(key, _)| key == k)
+                    .map(|(_, v)| v.as_str())
+            };
+            for c in channels.iter_mut().filter(|c| glob(&pattern, &c.name)) {
+                if let Some(v) = get("pkg_gpgcheck").or(get("gpgcheck")) {
+                    c.signed = !falsy(v);
+                    c.file = file.display().to_string();
+                }
+                if let Some(p) = get("priority").and_then(|p| p.parse::<i64>().ok()) {
+                    c.overrides = (p < 99 && !c.official)
+                        .then(|| format!("priority={p}, the distribution's is 99"));
+                }
+                if get("enabled").is_some_and(falsy) {
+                    c.name.clear();
+                }
+            }
+        }
+    }
+    channels.retain(|c| !c.name.is_empty());
+    channels
+}
+
+/// Shell-style `*` and `?` matching for dnf repository IDs.
+fn glob(pattern: &str, text: &str) -> bool {
+    let (p, t): (Vec<char>, Vec<char>) = (pattern.chars().collect(), text.chars().collect());
+    let (mut pi, mut ti, mut star, mut mark) = (0, 0, None, 0);
+    while ti < t.len() {
+        if pi < p.len() && (p[pi] == '?' || p[pi] == t[ti]) {
+            pi += 1;
+            ti += 1;
+        } else if pi < p.len() && p[pi] == '*' {
+            star = Some(pi);
+            mark = ti;
+            pi += 1;
+        } else if let Some(s) = star {
+            pi = s + 1;
+            mark += 1;
+            ti = mark;
+        } else {
+            return false;
+        }
+    }
+    p[pi..].iter().all(|&c| c == '*')
+}
+
 /// Keyrings in apt's global trust that no distribution ships.
 fn global_keys(etc: &Path) -> Vec<String> {
     const DISTRO: [&str; 3] = ["debian-archive-", "ubuntu-keyring-", "ubuntu-archive-"];
@@ -684,19 +809,16 @@ pub fn channels() -> Report {
     apt.extend(each("apt/sources.list.d", ".list", &apt_list));
     apt.extend(each("apt/sources.list.d", ".sources", &apt_deb822));
     take(&mut r, "apt sources", apt);
-    let dnf_default = [etc.join("dnf/dnf.conf"), etc.join("yum.conf")]
-        .iter()
-        .chain(files(Path::new("/usr/share/dnf5/libdnf.conf.d"), ".conf").iter())
-        .chain(files(&etc.join("dnf/libdnf5.conf.d"), ".conf").iter())
-        .filter_map(|p| read(p).and_then(|t| main_unsigned(&t)))
-        .next_back()
-        .unwrap_or(false);
+    let dnf_default = dnf_unsigned(etc);
     take(
         &mut r,
         "dnf repositories",
-        each("yum.repos.d", ".repo", &|f, t| {
-            ini_repos("dnf", f, t, dnf_default)
-        }),
+        dnf_overrides(
+            etc,
+            each("yum.repos.d", ".repo", &|f, t| {
+                ini_repos("dnf", f, t, dnf_default)
+            }),
+        ),
     );
     let zypp_default = read(&etc.join("zypp/zypp.conf"))
         .and_then(|t| main_unsigned(&t))
@@ -844,5 +966,77 @@ mod tests {
         assert_eq!(nix.len(), 2);
         assert!(nix.iter().all(|c| !c.signed));
         assert!(nix[0].official && !nix[1].official);
+    }
+
+    #[test]
+    fn pacman_repositories_inherit_unset_parts_of_siglevel() {
+        let signed = |conf: &str| {
+            pacman_conf("/etc/pacman.conf", conf)
+                .into_iter()
+                .map(|c| (c.name, c.signed))
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            signed("[options]\nSigLevel = PackageNever\n[thirdparty]\nSigLevel = TrustAll\n"),
+            [("thirdparty".to_string(), false)]
+        );
+        assert_eq!(
+            signed("[options]\nSigLevel = Required DatabaseOptional\n[core]\n[x]\nSigLevel = DatabaseNever\n"),
+            [("core".to_string(), true), ("x".to_string(), true)]
+        );
+        assert_eq!(
+            signed("[core]\n"),
+            [("core".to_string(), false)],
+            "pacman's built-in level is Optional"
+        );
+    }
+
+    #[test]
+    fn apt_deb_and_deb_src_for_one_source_count_once() {
+        let got = apt_list("f", "deb https://x.example/ stable main\ndeb-src https://x.example/ stable main\ndeb-src [trusted=yes] https://x.example/ stable main\n");
+        assert_eq!(
+            got.len(),
+            2,
+            "a deb-src with different options stays separate"
+        );
+    }
+
+    #[test]
+    fn dnf_defaults_and_overrides() {
+        let t = tempfile::tempdir().unwrap();
+        let etc = t.path();
+        assert!(
+            dnf_unsigned(etc) || Path::new("/usr/share/dnf5/libdnf.conf.d").is_dir(),
+            "no configuration means dnf's own default: unchecked"
+        );
+        std::fs::create_dir_all(etc.join("dnf/libdnf5.conf.d")).unwrap();
+        std::fs::write(
+            etc.join("dnf/libdnf5.conf.d/99-mine.conf"),
+            "[main]\npkg_gpgcheck=0\n",
+        )
+        .unwrap();
+        std::fs::write(etc.join("dnf/dnf.conf"), "[main]\ngpgcheck=1\n").unwrap();
+        assert!(!dnf_unsigned(etc), "dnf.conf is applied last");
+        std::fs::create_dir_all(etc.join("dnf/repos.override.d")).unwrap();
+        std::fs::write(
+            etc.join("dnf/repos.override.d/50-x.repo"),
+            "[vendor-*]\ngpgcheck=0\n",
+        )
+        .unwrap();
+        let repos = ini_repos("dnf", "f", "[vendor-tools]\nbaseurl=https://v.example/\ngpgcheck=1\n[other]\nbaseurl=https://o.example/\ngpgcheck=1\n", false);
+        let got: Vec<_> = dnf_overrides(etc, repos)
+            .into_iter()
+            .map(|c| (c.name, c.signed))
+            .collect();
+        assert_eq!(
+            got,
+            [
+                ("vendor-tools".to_string(), false),
+                ("other".to_string(), true)
+            ]
+        );
+        assert!(
+            glob("copr:*:me:*", "copr:copr.fedorainfracloud.org:me:tool") && !glob("a?c", "abbc")
+        );
     }
 }
