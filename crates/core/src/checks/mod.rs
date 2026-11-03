@@ -14,6 +14,7 @@ pub mod lockfile;
 pub mod network;
 pub mod packages;
 pub mod pdf;
+pub mod pkgfile;
 pub mod preview;
 pub mod receipt;
 pub mod repo;

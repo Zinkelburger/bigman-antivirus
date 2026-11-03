@@ -81,6 +81,15 @@ Every finding Bigman shows comes from one of these rules. Each has a synthetic f
 | `archive.special-entry` | Review | The archive holds devices, pipes or setuid programs | DS-13, HI-17 |
 | `archive.startup-path` | Review | Archive entries would land in startup or login files | DS-13, HI-02, HI-03, HI-04, HI-05, HI-09, HI-10 |
 | `archive.bomb-ratio` | Review | The archive expands to far more than its size | DS-13 |
+| `pkg.install-script` | Review | A package runs a script as root when installed | DP-08, DP-09, DP-11 |
+| `pkg.adds-source` | Review | Installing the package adds a package source | DP-02, DP-08, DP-22 |
+| `pkg.adds-key` | Review | Installing the package trusts a signing key | DP-03, DP-08 |
+| `pkg.setuid` | Review | The package installs a program with raised privileges | DP-08, HI-17 |
+| `pkg.startup-path` | Review | The package installs files that run at boot or login | DP-08, HI-01, HI-03, HI-04, HI-05, HI-08, HI-09 |
+| `pkg.user-path` | High | The package puts files in home or temporary folders | DP-08 |
+| `pkgbuild.skip-checksum` | Review | A PKGBUILD download is not checked against a checksum | DP-11 |
+| `appimage.unsigned` | Info | The AppImage is not signed | DP-17 |
+| `appimage.update-url` | Info | The AppImage can update itself | DP-17 |
 | `desktop.launcher` | Review | This is a program launcher, not a document | DS-09 |
 | `desktop.masquerade` | High | A program launcher is made to look like a file | DS-09 |
 | `desktop.exec-download` | High | A program launcher downloads something when opened | DS-09, DP-18 |
@@ -696,6 +705,78 @@ What you can do: Check each entry before extracting into your home folder or /.
 The sizes the archive declares add up to at least 100 times the archive itself and at least 64 MiB. Ordinary archives grow 2 to 10 times. Extracting one like this can fill the disk.
 
 What you can do: Extract it only somewhere with a size limit, or not at all.
+
+## `pkg.install-script`
+
+**A package runs a script as root when installed** (Review)
+
+The package file carries a maintainer script (deb preinst or postinst, rpm %pre or %post, a pacman .install) that runs as root during install, upgrade or removal. Its lines are also checked with the install-script rules.
+
+What you can do: Read the script before installing. A signature only says who built the package, not what the script does.
+
+## `pkg.adds-source`
+
+**Installing the package adds a package source** (Review)
+
+The package ships a repository file, or its script writes one, so later updates for it and for other packages can come from that source.
+
+What you can do: Check the source is the vendor's own. After installing, it appears in Protect > Updates > Package sources.
+
+## `pkg.adds-key`
+
+**Installing the package trusts a signing key** (Review)
+
+The package ships a signing key into a keyring folder, or its script imports one, so packages signed with that key install without a warning.
+
+What you can do: Check the key belongs to the vendor, and that the apt source using it is scoped with signed-by.
+
+## `pkg.setuid`
+
+**The package installs a program with raised privileges** (Review)
+
+A file in the package is setuid or setgid, so it runs with its owner's rights, usually root's, whoever starts it. Browsers' sandbox helpers are a common, expected case.
+
+What you can do: Check the package is meant to need it.
+
+## `pkg.startup-path`
+
+**The package installs files that run at boot or login** (Review)
+
+The package ships services, timers, cron jobs, autostart entries, login scripts, loader configuration, PAM, sudo or udev rules. These take effect without anything being opened.
+
+What you can do: Check each one is expected for this package.
+
+## `pkg.user-path`
+
+**The package puts files in home or temporary folders** (High)
+
+The package installs into /home, /root, /tmp, /var/tmp or /dev/shm. Package managers install into system folders; these paths are outside what they track and remove.
+
+What you can do: Do not install it unless the vendor explains why.
+
+## `pkgbuild.skip-checksum`
+
+**A PKGBUILD download is not checked against a checksum** (Review)
+
+A source that is not a version-control checkout or a signature file has SKIP for its checksum, so makepkg builds with whatever the server returns.
+
+What you can do: Ask the maintainer for a real checksum, or check the file yourself before building.
+
+## `appimage.unsigned`
+
+**The AppImage is not signed** (Info)
+
+The AppImage has no embedded signature. Most do not, so this is common; it means only the download's origin vouches for it.
+
+What you can do: Download it from the project's own site and compare its checksum with the one published there.
+
+## `appimage.update-url`
+
+**The AppImage can update itself** (Info)
+
+The AppImage carries update information, so an update tool can replace it with whatever that address serves.
+
+What you can do: Check the address belongs to the project.
 
 ## `desktop.launcher`
 

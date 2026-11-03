@@ -118,6 +118,15 @@ export function ReportFollowUp({ report }: { report: Report }) {
           </p>
         </section>
       ) : null;
+    case "Package file":
+    case "PKGBUILD check":
+    case "Launcher check":
+      return report.details ? (
+        <EvidenceBlock
+          text={report.details}
+          label={report.kind === "Package file" ? "What the package says it is" : report.kind === "PKGBUILD check" ? "The PKGBUILD, as read" : "The launcher, as read"}
+        />
+      ) : null;
     case "Persistence changes":
       return report.errors.length === 0 ? (
         <div>

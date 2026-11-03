@@ -1,0 +1,20 @@
+{
+  "format": "deb",
+  "name": "fixture",
+  "version": "1.0",
+  "files": [
+    {
+      "name": "/usr/bin/fixture",
+      "kind": "file",
+      "mode": 493,
+      "size": 10
+    },
+    {
+      "name": "/etc/cron.daily/fixture",
+      "kind": "file",
+      "mode": 493,
+      "size": 10
+    }
+  ],
+  "scripts": []
+}

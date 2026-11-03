@@ -1,0 +1,8 @@
+{
+  "driver": "appimage",
+  "fires": [
+    "appimage.unsigned"
+  ],
+  "about": "An AppImage with an empty signature section.",
+  "input": "input.json"
+}

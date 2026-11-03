@@ -1,0 +1,8 @@
+{
+  "driver": "package",
+  "fires": [
+    "pkg.adds-source"
+  ],
+  "about": "A vendor package that ships its own apt source.",
+  "input": "input.json"
+}

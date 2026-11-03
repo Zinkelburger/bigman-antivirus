@@ -157,22 +157,43 @@ pub fn notes() -> &'static str {
     "Lists the archive without extracting it: entry names, link targets, permissions and declared sizes. Launchers inside are read as text. Other file contents are not checked; scan the archive with ClamAV for known malware."
 }
 
-fn file_digest(path: &Path) -> Result<String> {
+pub(crate) fn file_digest(path: &Path) -> Result<String> {
     use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
     std::io::copy(&mut File::open(path)?, &mut hasher)?;
     Ok(format!("{:x}", hasher.finalize()))
 }
 
+/// Which entries' text a listing keeps, and up to how many bytes each.
+pub struct Want {
+    pub entry: fn(&str) -> bool,
+    pub max: u64,
+}
+
+const LAUNCHERS: Want = Want {
+    entry: is_launcher,
+    max: desktop::MAX_LAUNCHER,
+};
+
 pub fn list(path: &Path, format: Format, stop: &Cancel) -> Result<Listing> {
+    list_with(path, format, stop, &LAUNCHERS)
+}
+
+/// A listing that also keeps the text of the entries `want` names. Zip keeps
+/// launchers only.
+pub fn list_with(path: &Path, format: Format, stop: &Cancel, want: &Want) -> Result<Listing> {
     let compressed = std::fs::metadata(path)?.len();
     let mut listing = match format {
         Format::Zip => zip(&mut File::open(path)?)?,
-        Format::Tar => tar(File::open(path)?, stop)?,
-        Format::TarGz => tar(flate2::read::MultiGzDecoder::new(File::open(path)?), stop)?,
-        Format::TarXz => decompressed("xz", path, stop)?,
-        Format::TarZst => decompressed("zstd", path, stop)?,
-        Format::TarBz2 => decompressed("bzip2", path, stop)?,
+        Format::Tar => tar(File::open(path)?, stop, want)?,
+        Format::TarGz => tar(
+            flate2::read::MultiGzDecoder::new(File::open(path)?),
+            stop,
+            want,
+        )?,
+        Format::TarXz => decompressed("xz", path, stop, want)?,
+        Format::TarZst => decompressed("zstd", path, stop, want)?,
+        Format::TarBz2 => decompressed("bzip2", path, stop, want)?,
         Format::Unsupported(name) => bail!("{name} archives cannot be listed"),
     };
     listing.compressed = compressed;
@@ -181,7 +202,7 @@ pub fn list(path: &Path, format: Format, stop: &Cancel) -> Result<Listing> {
 
 /// xz, zstd and bzip2 streams go through the system tool, isolated like the
 /// PDF parsers, and are read as they come out.
-fn decompressed(tool: &str, path: &Path, stop: &Cancel) -> Result<Listing> {
+fn decompressed(tool: &str, path: &Path, stop: &Cancel, want: &Want) -> Result<Listing> {
     let mut cmd = runner::parser_command(tool, &["-dc"], path)?;
     let mut child = cmd
         .stdin(Stdio::null())
@@ -189,7 +210,7 @@ fn decompressed(tool: &str, path: &Path, stop: &Cancel) -> Result<Listing> {
         .stderr(Stdio::null())
         .spawn()
         .with_context(|| format!("Cannot start {tool}"))?;
-    let listing = tar(child.stdout.take().unwrap(), stop);
+    let listing = tar(child.stdout.take().unwrap(), stop, want);
     let _ = child.kill();
     let _ = child.wait();
     listing
@@ -212,7 +233,7 @@ impl<R: Read> Read for Counted<R> {
     }
 }
 
-fn tar(reader: impl Read, stop: &Cancel) -> Result<Listing> {
+fn tar(reader: impl Read, stop: &Cancel, want: &Want) -> Result<Listing> {
     let mut archive = tar::Archive::new(Counted {
         inner: reader,
         read: 0,
@@ -260,11 +281,11 @@ fn tar(reader: impl Read, stop: &Cancel) -> Result<Listing> {
             .unwrap_or_default();
         let mode = header.mode().unwrap_or(0);
         let size = e.size();
-        let content = (kind == Kind::File && is_launcher(&name) && size <= desktop::MAX_LAUNCHER)
+        let content = (kind == Kind::File && (want.entry)(&name) && size <= want.max)
             .then(|| {
                 let mut b = vec![];
                 e.by_ref()
-                    .take(desktop::MAX_LAUNCHER)
+                    .take(want.max)
                     .read_to_end(&mut b)
                     .ok()
                     .map(|_| String::from_utf8_lossy(&b).into_owned())
@@ -523,13 +544,13 @@ fn startup_path(name: &str) -> Option<&'static str> {
 
 /// Groups entries under one finding per rule, so a thousand bad names stay readable.
 #[derive(Default)]
-struct Group(Vec<String>);
+pub(crate) struct Group(pub(crate) Vec<String>);
 
 impl Group {
-    fn push(&mut self, line: String) {
+    pub(crate) fn push(&mut self, line: String) {
         self.0.push(line);
     }
-    fn evidence(&self) -> String {
+    pub(crate) fn evidence(&self) -> String {
         let mut lines: Vec<String> = self.0.iter().take(EXAMPLES).cloned().collect();
         if self.0.len() > EXAMPLES {
             lines.push(format!("and {} more", self.0.len() - EXAMPLES));

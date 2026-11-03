@@ -70,4 +70,14 @@ describe("Inspect", () => {
     expect(within(result).getByText("archive.path-traversal")).toBeInTheDocument();
     expect((await screen.findAllByRole("row", { name: /^.*Launcher.*Meeting_Notice\.pdf\.desktop/ })).length).toBeGreaterThan(0);
   });
+
+  it("reads a .deb's scripts and what it says about itself without installing it", async () => {
+    const { user } = renderWithDaemon(<InspectPage />);
+    await user.type(await screen.findByLabelText("File, folder or HTTPS URL"), "/home/sam/Downloads/example-tool_2.4.1_amd64.deb");
+    await user.click(screen.getByRole("button", { name: "Inspect" }));
+    const result = await screen.findByRole("region", { name: "Result" });
+    expect(within(result).getByRole("heading", { name: /^Package file: / })).toBeInTheDocument();
+    expect(within(result).getByText("pkg.adds-source")).toBeInTheDocument();
+    expect(within(result).getByText(/Maintainer: Example Ltd/)).toBeInTheDocument();
+  });
 });

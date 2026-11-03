@@ -1,0 +1,8 @@
+{
+  "driver": "package",
+  "fires": [
+    "pkg.setuid"
+  ],
+  "about": "A browser-style setuid sandbox helper.",
+  "input": "input.json"
+}

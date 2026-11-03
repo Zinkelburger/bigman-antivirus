@@ -1,0 +1,12 @@
+{
+  "format": "deb",
+  "name": "fixture",
+  "version": "1.0",
+  "files": [],
+  "scripts": [
+    {
+      "phase": "postinst",
+      "text": "#!/bin/sh\necho fixture\n"
+    }
+  ]
+}

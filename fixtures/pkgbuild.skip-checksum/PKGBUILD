@@ -1,0 +1,13 @@
+# Synthetic Bigman fixture. Never built.
+pkgname=fixture
+pkgver=1.0
+pkgrel=1
+arch=('x86_64')
+source=("fixture::git+https://example.invalid/fixture.git"
+        'https://example.invalid/patches.tar.gz')
+sha256sums=('SKIP'
+            'SKIP')
+
+package() {
+  install -Dm755 fixture "$pkgdir/usr/bin/fixture"
+}

@@ -1,0 +1,8 @@
+{
+  "driver": "package",
+  "fires": [
+    "pkg.adds-key"
+  ],
+  "about": "A vendor package that ships a keyring.",
+  "input": "input.json"
+}

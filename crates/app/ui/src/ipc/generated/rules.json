@@ -823,6 +823,108 @@
     ]
   },
   {
+    "id": "pkg.install-script",
+    "severity": "review",
+    "title": "A package runs a script as root when installed",
+    "explanation": "The package file carries a maintainer script (deb preinst or postinst, rpm %pre or %post, a pacman .install) that runs as root during install, upgrade or removal. Its lines are also checked with the install-script rules.",
+    "remediation": "Read the script before installing. A signature only says who built the package, not what the script does.",
+    "threats": [
+      "DP-08",
+      "DP-09",
+      "DP-11"
+    ]
+  },
+  {
+    "id": "pkg.adds-source",
+    "severity": "review",
+    "title": "Installing the package adds a package source",
+    "explanation": "The package ships a repository file, or its script writes one, so later updates for it and for other packages can come from that source.",
+    "remediation": "Check the source is the vendor's own. After installing, it appears in Protect > Updates > Package sources.",
+    "threats": [
+      "DP-02",
+      "DP-08",
+      "DP-22"
+    ]
+  },
+  {
+    "id": "pkg.adds-key",
+    "severity": "review",
+    "title": "Installing the package trusts a signing key",
+    "explanation": "The package ships a signing key into a keyring folder, or its script imports one, so packages signed with that key install without a warning.",
+    "remediation": "Check the key belongs to the vendor, and that the apt source using it is scoped with signed-by.",
+    "threats": [
+      "DP-03",
+      "DP-08"
+    ]
+  },
+  {
+    "id": "pkg.setuid",
+    "severity": "review",
+    "title": "The package installs a program with raised privileges",
+    "explanation": "A file in the package is setuid or setgid, so it runs with its owner's rights, usually root's, whoever starts it. Browsers' sandbox helpers are a common, expected case.",
+    "remediation": "Check the package is meant to need it.",
+    "threats": [
+      "DP-08",
+      "HI-17"
+    ]
+  },
+  {
+    "id": "pkg.startup-path",
+    "severity": "review",
+    "title": "The package installs files that run at boot or login",
+    "explanation": "The package ships services, timers, cron jobs, autostart entries, login scripts, loader configuration, PAM, sudo or udev rules. These take effect without anything being opened.",
+    "remediation": "Check each one is expected for this package.",
+    "threats": [
+      "DP-08",
+      "HI-01",
+      "HI-03",
+      "HI-04",
+      "HI-05",
+      "HI-08",
+      "HI-09"
+    ]
+  },
+  {
+    "id": "pkg.user-path",
+    "severity": "high",
+    "title": "The package puts files in home or temporary folders",
+    "explanation": "The package installs into /home, /root, /tmp, /var/tmp or /dev/shm. Package managers install into system folders; these paths are outside what they track and remove.",
+    "remediation": "Do not install it unless the vendor explains why.",
+    "threats": [
+      "DP-08"
+    ]
+  },
+  {
+    "id": "pkgbuild.skip-checksum",
+    "severity": "review",
+    "title": "A PKGBUILD download is not checked against a checksum",
+    "explanation": "A source that is not a version-control checkout or a signature file has SKIP for its checksum, so makepkg builds with whatever the server returns.",
+    "remediation": "Ask the maintainer for a real checksum, or check the file yourself before building.",
+    "threats": [
+      "DP-11"
+    ]
+  },
+  {
+    "id": "appimage.unsigned",
+    "severity": "info",
+    "title": "The AppImage is not signed",
+    "explanation": "The AppImage has no embedded signature. Most do not, so this is common; it means only the download's origin vouches for it.",
+    "remediation": "Download it from the project's own site and compare its checksum with the one published there.",
+    "threats": [
+      "DP-17"
+    ]
+  },
+  {
+    "id": "appimage.update-url",
+    "severity": "info",
+    "title": "The AppImage can update itself",
+    "explanation": "The AppImage carries update information, so an update tool can replace it with whatever that address serves.",
+    "remediation": "Check the address belongs to the project.",
+    "threats": [
+      "DP-17"
+    ]
+  },
+  {
     "id": "desktop.launcher",
     "severity": "review",
     "title": "This is a program launcher, not a document",

@@ -1,0 +1,8 @@
+{
+  "driver": "package",
+  "fires": [
+    "pkg.startup-path"
+  ],
+  "about": "A package with a daily cron job (the FDM and Chrome pattern).",
+  "input": "input.json"
+}

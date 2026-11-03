@@ -1,0 +1,8 @@
+{
+  "driver": "package",
+  "fires": [
+    "pkg.user-path"
+  ],
+  "about": "A package that drops a file into /tmp.",
+  "input": "input.json"
+}

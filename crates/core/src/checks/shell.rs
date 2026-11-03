@@ -54,7 +54,8 @@ pub fn analyze_content(content: &str) -> Report {
         ),
         (
             "shell.permissions",
-            r"\bchmod\s+([ugo+a-z]*[+]s|0?[67][0-7]{2}|777|666)",
+            // setuid or setgid (u+s, 4755, 2755) or world-writable (777, 666, o+w).
+            r"\bchmod\s+(-[A-Za-z]+\s+)*([ugoa]*[+=][rwxXt]*s|[ugoa]*o[ugoa]*[+=][rxXt]*w|a?[+=][rxXt]*w|[0-7]?[2-7][0-7]{3}\b|0?[0-7]{2}[2367]\b)",
             Severity::High,
             "Broad or privileged file permissions",
             "Prefer the minimum permissions required.",
@@ -118,6 +119,36 @@ mod tests {
         let r = analyze_content("echo hello\n# sudo ignored");
         assert!(r.findings.is_empty());
         assert!(!r.text().contains("SAFE"));
+    }
+    #[test]
+    fn only_setuid_and_world_writable_modes_are_broad() {
+        let broad = |cmd: &str| {
+            analyze_content(cmd)
+                .findings
+                .iter()
+                .any(|f| f.rule == "shell.permissions")
+        };
+        for cmd in [
+            "chmod 777 x",
+            "chmod 0666 x",
+            "chmod 4755 x",
+            "chmod -R 2775 d",
+            "chmod u+s x",
+            "chmod o+w x",
+            "chmod a+rw x",
+        ] {
+            assert!(broad(cmd), "{cmd}");
+        }
+        for cmd in [
+            "chmod 755 x",
+            "chmod 0644 x",
+            "chmod 1755 d",
+            "chmod +x x",
+            "chmod u+rwx x",
+            "chmod -R go-w d",
+        ] {
+            assert!(!broad(cmd), "{cmd}");
+        }
     }
     #[test]
     fn reports_credential_reference_with_line() {

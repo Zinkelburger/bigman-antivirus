@@ -374,24 +374,37 @@ pub fn triage_scripts(r: &mut Receipt) {
                 "Read what the script does now; a changed install hook in an ordinary update is worth a look.",
             ));
         }
-        for (n, line) in s.script.text.lines().enumerate() {
-            for rule in LINE_RULES.iter().filter(|rule| (rule.matches)(line)) {
-                r.hits.push(ScriptHit {
-                    script: index,
-                    line: n as u32 + 1,
-                    rule: rule.id.into(),
-                    severity: rule.severity,
-                });
-                r.findings.push(finding(
+        for (line, f) in line_findings(&name, &s.script.text) {
+            r.hits.push(ScriptHit {
+                script: index,
+                line,
+                rule: f.rule.clone(),
+                severity: f.severity,
+            });
+            r.findings.push(f);
+        }
+    }
+}
+
+/// The line rules over one install script, named `name` in the evidence: each
+/// match with its 1-based line number. Package files use them before install.
+pub fn line_findings(name: &str, text: &str) -> Vec<(u32, Finding)> {
+    let mut out = vec![];
+    for (n, line) in text.lines().enumerate() {
+        for rule in LINE_RULES.iter().filter(|rule| (rule.matches)(line)) {
+            out.push((
+                n as u32 + 1,
+                finding(
                     rule.id,
                     rule.severity,
                     rule.summary,
                     format!("{name}, line {}: {}", n + 1, line.trim()),
                     rule.action,
-                ));
-            }
+                ),
+            ));
         }
     }
+    out
 }
 
 pub fn score(findings: &[Finding]) -> u32 {

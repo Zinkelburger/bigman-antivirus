@@ -1,0 +1,8 @@
+{
+  "driver": "pkgbuild",
+  "fires": [
+    "pkgbuild.skip-checksum"
+  ],
+  "about": "A PKGBUILD whose patch archive has SKIP (the DP-11 pattern); the git source may.",
+  "input": "PKGBUILD"
+}

@@ -1,0 +1,8 @@
+{
+  "driver": "package",
+  "fires": [
+    "pkg.install-script"
+  ],
+  "about": "A deb whose postinst only echoes.",
+  "input": "input.json"
+}

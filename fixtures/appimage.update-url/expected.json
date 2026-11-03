@@ -1,0 +1,8 @@
+{
+  "driver": "appimage",
+  "fires": [
+    "appimage.update-url"
+  ],
+  "about": "A signed AppImage with update information.",
+  "input": "input.json"
+}

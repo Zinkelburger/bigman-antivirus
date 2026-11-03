@@ -197,6 +197,28 @@ fn run(dir: &Path, expected: &Expected) -> BTreeSet<String> {
             checks::channels::assess(&mut r, &serde_json::from_value(value).unwrap(), now)
         }
         "archive" => checks::archive::assess(&mut r, &serde_json::from_value(json()).unwrap()),
+        "package" => checks::pkgfile::assess(&mut r, &serde_json::from_value(json()).unwrap()),
+        "pkgbuild" => {
+            let text = text();
+            let install = fs::read_dir(dir)
+                .unwrap()
+                .map(|e| e.unwrap().path())
+                .find(|p| p.extension().is_some_and(|e| e == "install"));
+            let script = install.as_ref().map(|p| fs::read_to_string(p).unwrap());
+            let name = install
+                .as_ref()
+                .map(|p| p.file_name().unwrap().to_string_lossy().into_owned());
+            checks::pkgfile::assess_pkgbuild(&mut r, &text, name.as_deref().zip(script.as_deref()));
+        }
+        "appimage" => {
+            let sections: std::collections::BTreeMap<String, String> =
+                serde_json::from_value(json()).unwrap();
+            let sections: Vec<(String, Vec<u8>)> = sections
+                .into_iter()
+                .map(|(k, v)| (k, v.into_bytes()))
+                .collect();
+            checks::pkgfile::assess_appimage(&mut r, &sections);
+        }
         "desktop" => {
             let name = input.file_name().unwrap().to_string_lossy();
             checks::desktop::assess(&mut r, &input.display().to_string(), &name, &text(), false);

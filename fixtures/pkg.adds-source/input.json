@@ -1,0 +1,20 @@
+{
+  "format": "deb",
+  "name": "fixture",
+  "version": "1.0",
+  "files": [
+    {
+      "name": "/usr/bin/fixture",
+      "kind": "file",
+      "mode": 493,
+      "size": 10
+    },
+    {
+      "name": "/etc/apt/sources.list.d/fixture.list",
+      "kind": "file",
+      "mode": 420,
+      "size": 10
+    }
+  ],
+  "scripts": []
+}

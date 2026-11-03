@@ -1,7 +1,7 @@
 //! Picks the inspector for a target from the target itself, so the user does not
 //! have to. Deterministic: URL scheme, file name and the first bytes, nothing else.
 use crate::{
-    checks::{archive, desktop, inspect, lockfile, packages, pdf, repo},
+    checks::{archive, desktop, inspect, lockfile, packages, pdf, pkgfile, repo},
     model::Report,
     runner::Cancel,
     store::Store,
@@ -15,6 +15,8 @@ pub enum Inspector {
     Installer,
     Launcher,
     Lockfile,
+    /// .deb, .rpm, Arch packages, PKGBUILDs and AppImages.
+    PackageFile,
     Packages,
     Pdf,
 }
@@ -35,6 +37,14 @@ pub fn choose(target: &str) -> Inspector {
     match fs::symlink_metadata(path) {
         Ok(meta) if meta.is_dir() => Inspector::Packages,
         _ if name == "package.json" => Inspector::Packages,
+        _ if file && pkgfile::kind_of(path).is_some() => Inspector::PackageFile,
+        _ if path.file_name().is_some_and(|n| n == "PKGBUILD")
+            || [".deb", ".rpm", ".appimage", ".pkg.tar.zst", ".pkg.tar.xz"]
+                .iter()
+                .any(|s| name.ends_with(s)) =>
+        {
+            Inspector::PackageFile
+        }
         _ if name.ends_with(".desktop") || (file && launcher_text(path)) => Inspector::Launcher,
         _ if file && archive::format_of(path).is_some() => Inspector::Archive,
         _ if [
@@ -80,6 +90,7 @@ pub fn inspect_any(store: &Store, target: &str, stop: &Cancel) -> Result<Report>
         Inspector::Packages => packages::packages(store, Path::new(target)),
         Inspector::Pdf => pdf::scan_pdf(store, Path::new(target), stop),
         Inspector::Launcher => desktop::launcher(store, Path::new(target)),
+        Inspector::PackageFile => pkgfile::inspect(store, Path::new(target), stop),
         Inspector::Archive => archive_or_package(store, Path::new(target), stop),
     }
 }
@@ -173,6 +184,11 @@ mod tests {
         fs::write(&zip, b"PK\x05\x06").unwrap();
         assert_eq!(choose(&zip.to_string_lossy()), Inspector::Archive);
         assert_eq!(choose("/downloads/notes.pdf.desktop"), Inspector::Launcher);
+        assert_eq!(
+            choose("/downloads/tool_1.0_amd64.deb"),
+            Inspector::PackageFile
+        );
+        assert_eq!(choose("/aur/fixture/PKGBUILD"), Inspector::PackageFile);
     }
 
     #[test]
