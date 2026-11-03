@@ -1,0 +1,17 @@
+{
+  "ecosystem": "wheel",
+  "entries": [
+    {
+      "name": "fixture_init.pth",
+      "kind": "file",
+      "size": 66,
+      "content": "import base64; exec(base64.b64decode('cHJpbnQoJ2ZpeHR1cmUnKQ=='))\n"
+    },
+    {
+      "name": "fixture-1.0.dist-info/WHEEL",
+      "kind": "file",
+      "size": 19,
+      "content": "Wheel-Version: 1.0\n"
+    }
+  ]
+}

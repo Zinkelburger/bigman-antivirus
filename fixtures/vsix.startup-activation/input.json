@@ -1,0 +1,11 @@
+{
+  "ecosystem": "vsix",
+  "entries": [
+    {
+      "name": "extension/package.json",
+      "kind": "file",
+      "size": 83,
+      "content": "{\"publisher\": \"fixture\", \"name\": \"tool\", \"activationEvents\": [\"onStartupFinished\"]}"
+    }
+  ]
+}

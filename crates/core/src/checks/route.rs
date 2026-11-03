@@ -1,7 +1,7 @@
 //! Picks the inspector for a target from the target itself, so the user does not
 //! have to. Deterministic: URL scheme, file name and the first bytes, nothing else.
 use crate::{
-    checks::{archive, desktop, inspect, lockfile, packages, pdf, pkgfile, repo},
+    checks::{archive, desktop, inspect, langpkg, lockfile, packages, pdf, pkgfile, repo},
     model::Report,
     runner::Cancel,
     store::Store,
@@ -95,9 +95,17 @@ pub fn inspect_any(store: &Store, target: &str, stop: &Cancel) -> Result<Report>
     }
 }
 
-/// An archive's entries; an npm package archive also gets its script inventory.
+/// Archive entries whose text an inspector reads: launchers and the files the
+/// language-package rules look at.
+const ARCHIVE_TEXT: archive::Want = archive::Want {
+    entry: |name| archive::is_launcher(name) || langpkg::wanted(name),
+    max: crate::store::MAX_INPUT,
+};
+
+/// An archive's entries. An npm package archive also gets its script
+/// inventory; wheels, sdists, crates and VS Code extensions their own rules.
 fn archive_or_package(store: &Store, path: &Path, stop: &Cancel) -> Result<Report> {
-    let (listed, listing) = archive::check(path, stop)?;
+    let (mut listed, listing) = archive::check_with(path, stop, &ARCHIVE_TEXT)?;
     let npm = path.extension().is_some_and(|e| e == "tgz" || e == "gz")
         && listing
             .entries
@@ -110,6 +118,17 @@ fn archive_or_package(store: &Store, path: &Path, stop: &Cancel) -> Result<Repor
         r.coverage.extend(listed.coverage);
         r
     } else {
+        let file_name = path
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        let names: Vec<&str> = listing.entries.iter().map(|e| e.name.as_str()).collect();
+        if let Some(eco) = langpkg::detect(&file_name, &names) {
+            listed.kind = "Package archive".into();
+            listed.coverage.checked(eco.label());
+            listed.coverage.push(langpkg::notes(eco).into());
+            langpkg::assess(&mut listed, eco, &listing);
+        }
         listed
     };
     store.save(&r)?;
@@ -126,6 +145,17 @@ pub fn project(store: &Store, dir: &Path) -> Result<Report> {
     r.coverage.checked.extend(checked.coverage.checked);
     r.coverage.notes.extend(checked.coverage.notes);
     r.coverage.skipped.extend(checked.coverage.skipped);
+    if let Some((eco, listing)) = langpkg::folder(dir) {
+        let files: Vec<&str> = listing
+            .entries
+            .iter()
+            .map(|e| e.name.trim_start_matches("./"))
+            .collect();
+        r.coverage
+            .checked(format!("{}: {}", eco.label(), files.join(", ")));
+        r.coverage.push(langpkg::notes(eco).into());
+        langpkg::assess(&mut r, eco, &listing);
+    }
     // Lockfiles at the project root, linted in place.
     for name in [
         "package-lock.json",
@@ -189,6 +219,53 @@ mod tests {
             Inspector::PackageFile
         );
         assert_eq!(choose("/aur/fixture/PKGBUILD"), Inspector::PackageFile);
+    }
+
+    #[test]
+    fn crates_get_language_rules_as_archives_and_as_folders() {
+        let d = tempfile::tempdir().unwrap();
+        let path = d.path().join("fixture-1.0.0.crate");
+        let mut tar = tar::Builder::new(flate2::write::GzEncoder::new(
+            fs::File::create(&path).unwrap(),
+            flate2::Compression::default(),
+        ));
+        let build = b"fn main() { let _ = std::net::TcpStream::connect(\"192.0.2.1:80\"); }\n";
+        for (name, body) in [
+            (
+                "fixture-1.0.0/Cargo.toml",
+                &b"[package]\nname = \"fixture\"\n"[..],
+            ),
+            ("fixture-1.0.0/build.rs", &build[..]),
+        ] {
+            let mut h = tar::Header::new_gnu();
+            h.set_size(body.len() as u64);
+            h.set_mode(0o644);
+            h.set_path(name).unwrap();
+            h.set_cksum();
+            tar.append(&h, body).unwrap();
+        }
+        tar.into_inner().unwrap().finish().unwrap();
+        let state = tempfile::tempdir().unwrap();
+        let store = Store::open(Some(state.path().join("s"))).unwrap();
+        let r = inspect_any(&store, &path.to_string_lossy(), &crate::runner::cancel()).unwrap();
+        assert_eq!(r.kind, "Package archive");
+        assert_eq!(
+            r.findings
+                .iter()
+                .map(|f| (f.rule.as_str(), f.severity))
+                .collect::<Vec<_>>(),
+            [("rust.build-script", crate::model::Severity::High)]
+        );
+        let folder = d.path().join("fixture");
+        fs::create_dir(&folder).unwrap();
+        fs::write(folder.join("Cargo.toml"), "[package]\nname = \"fixture\"\n").unwrap();
+        fs::write(folder.join("build.rs"), build).unwrap();
+        let r = project(&store, &folder).unwrap();
+        assert!(r.findings.iter().any(|f| f.rule == "rust.build-script"));
+        assert!(r
+            .coverage
+            .checked
+            .contains(&"Rust crate: Cargo.toml, build.rs".to_string()));
     }
 
     #[test]

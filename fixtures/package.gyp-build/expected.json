@@ -1,0 +1,8 @@
+{
+  "driver": "packages",
+  "fires": [
+    "package.gyp-build"
+  ],
+  "about": "A package with binding.gyp and no install script, which npm builds at install.",
+  "input": "project"
+}

@@ -1,0 +1,8 @@
+{
+  "driver": "langpkg",
+  "fires": [
+    "vsix.dependency-chain"
+  ],
+  "about": "An extension pack that pulls in another publisher's extension.",
+  "input": "input.json"
+}

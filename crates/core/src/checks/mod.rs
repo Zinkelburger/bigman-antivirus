@@ -10,6 +10,7 @@ pub mod doctor;
 pub mod hooks;
 pub mod inspect;
 pub mod integrations;
+pub mod langpkg;
 pub mod lockfile;
 pub mod network;
 pub mod packages;

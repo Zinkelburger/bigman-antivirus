@@ -19,7 +19,7 @@ import {
 } from "@/design";
 import { desktopShell, useCheck, useHistory, type Report } from "@/ipc";
 
-const KINDS = new Set(["Installer inspection", "Restricted installer rehearsal", "Package script inventory", "Project inspection", "Repository check", "Lockfile check", "Archive check", "Launcher check", "Package file", "PKGBUILD check", "AppImage check", "PDF triage", "YARA-X scan", "osv integration"]);
+const KINDS = new Set(["Installer inspection", "Restricted installer rehearsal", "Package script inventory", "Project inspection", "Repository check", "Lockfile check", "Archive check", "Launcher check", "Package file", "Package archive", "PKGBUILD check", "AppImage check", "PDF triage", "YARA-X scan", "osv integration"]);
 
 const columns = (now: number): ColumnDef<Report>[] => [
   { id: "when", header: "When", accessorFn: (r) => r.created, cell: ({ row }) => ago(row.original.created, now), meta: { width: "9rem" } },

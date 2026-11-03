@@ -1,0 +1,11 @@
+{
+  "ecosystem": "vsix",
+  "entries": [
+    {
+      "name": "extension/package.json",
+      "kind": "file",
+      "size": 94,
+      "content": "{\"publisher\": \"fixture\", \"name\": \"pack\", \"extensionPack\": [\"fixture.helper\", \"other.pub-ext\"]}"
+    }
+  ]
+}

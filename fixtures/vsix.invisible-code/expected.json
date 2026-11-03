@@ -1,0 +1,8 @@
+{
+  "driver": "langpkg",
+  "fires": [
+    "vsix.invisible-code"
+  ],
+  "about": "An extension script with 50 variation selectors in a row (the GlassWorm pattern; inert).",
+  "input": "input.json"
+}

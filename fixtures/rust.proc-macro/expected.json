@@ -1,0 +1,8 @@
+{
+  "driver": "langpkg",
+  "fires": [
+    "rust.proc-macro"
+  ],
+  "about": "A procedural macro crate without a build script.",
+  "input": "input.json"
+}

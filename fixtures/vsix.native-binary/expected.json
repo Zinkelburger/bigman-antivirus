@@ -1,0 +1,8 @@
+{
+  "driver": "langpkg",
+  "fires": [
+    "vsix.native-binary"
+  ],
+  "about": "An extension that bundles a native module.",
+  "input": "input.json"
+}

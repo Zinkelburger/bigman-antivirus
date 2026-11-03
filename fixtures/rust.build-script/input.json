@@ -1,0 +1,17 @@
+{
+  "ecosystem": "crate",
+  "entries": [
+    {
+      "name": "fixture-1.0.0/Cargo.toml",
+      "kind": "file",
+      "size": 45,
+      "content": "[package]\nname = \"fixture\"\nversion = \"1.0.0\"\n"
+    },
+    {
+      "name": "fixture-1.0.0/build.rs",
+      "kind": "file",
+      "size": 63,
+      "content": "fn main() {\n    println!(\"cargo:rerun-if-changed=build.rs\");\n}\n"
+    }
+  ]
+}

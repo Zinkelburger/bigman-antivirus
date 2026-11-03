@@ -1,0 +1,8 @@
+{
+  "driver": "langpkg",
+  "fires": [
+    "vsix.startup-activation"
+  ],
+  "about": "An extension that activates on startup.",
+  "input": "input.json"
+}

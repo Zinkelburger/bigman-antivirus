@@ -1,0 +1,8 @@
+{
+  "driver": "langpkg",
+  "fires": [
+    "py.entrypoint-shadow"
+  ],
+  "about": "A wheel that installs a command named git.",
+  "input": "input.json"
+}

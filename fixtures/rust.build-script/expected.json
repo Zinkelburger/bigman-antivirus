@@ -1,0 +1,8 @@
+{
+  "driver": "langpkg",
+  "fires": [
+    "rust.build-script"
+  ],
+  "about": "A crate with a build script that only prints a rerun directive.",
+  "input": "input.json"
+}

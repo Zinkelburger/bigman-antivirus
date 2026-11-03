@@ -1,0 +1,8 @@
+{
+  "driver": "langpkg",
+  "fires": [
+    "py.startup-code"
+  ],
+  "about": "A wheel whose .pth decodes and runs code at every Python start (the LiteLLM 1.82.8 pattern; inert text).",
+  "input": "input.json"
+}

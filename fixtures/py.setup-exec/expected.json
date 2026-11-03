@@ -1,0 +1,8 @@
+{
+  "driver": "langpkg",
+  "fires": [
+    "py.setup-exec"
+  ],
+  "about": "An sdist whose setup.py starts a process (never run).",
+  "input": "input.json"
+}

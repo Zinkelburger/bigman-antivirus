@@ -823,6 +823,106 @@
     ]
   },
   {
+    "id": "package.gyp-build",
+    "severity": "review",
+    "title": "An npm package builds native code at install",
+    "explanation": "The package has a binding.gyp and no install script of its own, so npm runs node-gyp rebuild when installing it. That runs a compiler and any command binding.gyp names (<!(...)), and it does not appear in the package's scripts.",
+    "remediation": "Read binding.gyp, or install with --ignore-scripts.",
+    "threats": [
+      "SC-01"
+    ]
+  },
+  {
+    "id": "py.startup-code",
+    "severity": "review",
+    "title": "A Python package runs code at every start",
+    "explanation": "The package installs a .pth file with an import line, or a sitecustomize or usercustomize module. Python runs these in every program, pip included, without anything importing the package. setuptools does this to adjust imports; a line that decodes, executes, starts processes or connects is rated High, as in the LiteLLM 1.82.8 compromise.",
+    "remediation": "Read the line. Do not install a package whose startup code you cannot account for.",
+    "threats": [
+      "SC-03"
+    ]
+  },
+  {
+    "id": "py.entrypoint-shadow",
+    "severity": "review",
+    "title": "A Python package installs a command named like a common one",
+    "explanation": "A console script in the package is named python, pip, git, sudo, ssh or another common command. Where its scripts folder comes first on PATH, that command runs the package instead.",
+    "remediation": "Check why the package needs that name.",
+    "threats": [
+      "SC-03"
+    ]
+  },
+  {
+    "id": "py.setup-exec",
+    "severity": "review",
+    "title": "Installing a Python source package runs code that reaches out",
+    "explanation": "The source package's setup.py starts processes, fetches, decodes or executes text, or pyproject.toml builds it with its own in-tree backend. pip runs this when it installs the package.",
+    "remediation": "Read the lines, or install a wheel instead.",
+    "threats": [
+      "SC-03"
+    ]
+  },
+  {
+    "id": "rust.build-script",
+    "severity": "review",
+    "title": "A Rust crate runs a build script",
+    "explanation": "Cargo compiles and runs a crate's build.rs on cargo build, check or test, and rust-analyzer runs it when an editor opens the project. A build script that opens network connections or reads your home folder or credentials is rated High.",
+    "remediation": "Read the build script before building or opening the project.",
+    "threats": [
+      "SC-04"
+    ]
+  },
+  {
+    "id": "rust.proc-macro",
+    "severity": "info",
+    "title": "A Rust crate is a procedural macro",
+    "explanation": "The crate's code runs inside the compiler whenever a crate using it is built or analysed. Expected for macro crates.",
+    "remediation": "Check the crate is meant to be a macro.",
+    "threats": [
+      "SC-04"
+    ]
+  },
+  {
+    "id": "vsix.startup-activation",
+    "severity": "review",
+    "title": "A VS Code extension starts with the editor",
+    "explanation": "The extension's activationEvents include * or onStartupFinished, so it runs every time the editor starts rather than for the files or commands it handles.",
+    "remediation": "Check why it needs to run all the time.",
+    "threats": [
+      "SC-19"
+    ]
+  },
+  {
+    "id": "vsix.dependency-chain",
+    "severity": "review",
+    "title": "A VS Code extension installs other publishers' extensions",
+    "explanation": "The extension's extensionPack or extensionDependencies name extensions from other publishers, which install and update along with it. GlassWorm spread this way.",
+    "remediation": "Check each listed extension and its publisher.",
+    "threats": [
+      "SC-19"
+    ]
+  },
+  {
+    "id": "vsix.invisible-code",
+    "severity": "high",
+    "title": "A VS Code extension hides text in invisible characters",
+    "explanation": "A JavaScript file in the extension holds a run of variation selectors, tag characters or zero-width marks, which can encode code an editor never shows, as in the GlassWorm extensions.",
+    "remediation": "Do not install it.",
+    "threats": [
+      "SC-19"
+    ]
+  },
+  {
+    "id": "vsix.native-binary",
+    "severity": "info",
+    "title": "A VS Code extension ships native programs",
+    "explanation": "The extension includes compiled programs or libraries (.node, .so, .exe, .dll), whose code is not visible in its JavaScript. Common for language tools.",
+    "remediation": "Check the extension is meant to include them.",
+    "threats": [
+      "SC-19"
+    ]
+  },
+  {
     "id": "pkg.install-script",
     "severity": "review",
     "title": "A package runs a script as root when installed",

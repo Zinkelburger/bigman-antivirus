@@ -197,6 +197,27 @@ fn run(dir: &Path, expected: &Expected) -> BTreeSet<String> {
             checks::channels::assess(&mut r, &serde_json::from_value(value).unwrap(), now)
         }
         "archive" => checks::archive::assess(&mut r, &serde_json::from_value(json()).unwrap()),
+        "langpkg" => {
+            #[derive(Deserialize)]
+            struct Fixture {
+                ecosystem: String,
+                entries: Vec<checks::archive::Entry>,
+            }
+            let f: Fixture = serde_json::from_value(json()).unwrap();
+            let eco = match f.ecosystem.as_str() {
+                "wheel" => checks::langpkg::Ecosystem::Wheel,
+                "sdist" => checks::langpkg::Ecosystem::Sdist,
+                "crate" => checks::langpkg::Ecosystem::Crate,
+                "vsix" => checks::langpkg::Ecosystem::Vsix,
+                other => panic!("unknown ecosystem {other}"),
+            };
+            let listing = checks::archive::Listing {
+                compressed: 1,
+                entries: f.entries,
+                truncated: None,
+            };
+            checks::langpkg::assess(&mut r, eco, &listing);
+        }
         "package" => checks::pkgfile::assess(&mut r, &serde_json::from_value(json()).unwrap()),
         "pkgbuild" => {
             let text = text();

@@ -115,9 +115,14 @@ pub struct Listing {
     pub truncated: Option<String>,
 }
 
-/// Inspect's archive check: list, then apply the rules. The listing comes back
-/// too, for inspectors that look further at particular archives.
+/// Inspect's archive check: list, then apply the rules.
 pub fn check(path: &Path, stop: &Cancel) -> Result<(Report, Listing)> {
+    check_with(path, stop, &LAUNCHERS)
+}
+
+/// The archive check, keeping the text of the entries `want` names as well, for
+/// inspectors that look further at particular archives (npm, wheels, crates).
+pub fn check_with(path: &Path, stop: &Cancel, want: &Want) -> Result<(Report, Listing)> {
     let mut r = Report::new("Archive check", path.display());
     let Some(format) = format_of(path) else {
         std::fs::metadata(path).with_context(|| format!("Cannot read {}", path.display()))?;
@@ -132,7 +137,7 @@ pub fn check(path: &Path, stop: &Cancel) -> Result<(Report, Listing)> {
         return Ok((r, Listing::default()));
     }
     r.sha256 = Some(file_digest(path)?);
-    let listing = list(path, format, stop)?;
+    let listing = list_with(path, format, stop, want)?;
     let n = listing.entries.len();
     let entries = if n == 1 { "entry" } else { "entries" };
     r.coverage
@@ -170,21 +175,23 @@ pub struct Want {
     pub max: u64,
 }
 
-const LAUNCHERS: Want = Want {
+pub const LAUNCHERS: Want = Want {
     entry: is_launcher,
     max: desktop::MAX_LAUNCHER,
 };
+
+/// Kept text across one listing; beyond it, later entries are listed without text.
+const MAX_KEPT: u64 = 128 * 1024 * 1024;
 
 pub fn list(path: &Path, format: Format, stop: &Cancel) -> Result<Listing> {
     list_with(path, format, stop, &LAUNCHERS)
 }
 
-/// A listing that also keeps the text of the entries `want` names. Zip keeps
-/// launchers only.
+/// A listing that also keeps the text of the entries `want` names.
 pub fn list_with(path: &Path, format: Format, stop: &Cancel, want: &Want) -> Result<Listing> {
     let compressed = std::fs::metadata(path)?.len();
     let mut listing = match format {
-        Format::Zip => zip(&mut File::open(path)?)?,
+        Format::Zip => zip(&mut File::open(path)?, want)?,
         Format::Tar => tar(File::open(path)?, stop, want)?,
         Format::TarGz => tar(
             flate2::read::MultiGzDecoder::new(File::open(path)?),
@@ -239,6 +246,7 @@ fn tar(reader: impl Read, stop: &Cancel, want: &Want) -> Result<Listing> {
         read: 0,
     });
     let mut listing = Listing::default();
+    let mut kept = 0;
     let entries = archive.entries().context("Not a tar archive")?;
     for (i, entry) in entries.enumerate() {
         if stop.load(Ordering::Relaxed) {
@@ -281,7 +289,10 @@ fn tar(reader: impl Read, stop: &Cancel, want: &Want) -> Result<Listing> {
             .unwrap_or_default();
         let mode = header.mode().unwrap_or(0);
         let size = e.size();
-        let content = (kind == Kind::File && (want.entry)(&name) && size <= want.max)
+        let keep = kind == Kind::File && (want.entry)(&name) && size <= want.max;
+        let keep = keep && kept + size <= MAX_KEPT;
+        kept += if keep { size } else { 0 };
+        let content = keep
             .then(|| {
                 let mut b = vec![];
                 e.by_ref()
@@ -320,7 +331,7 @@ fn le64(b: &[u8], at: usize) -> Option<u64> {
 }
 
 /// The zip central directory, which is what extractors go by.
-fn zip(file: &mut File) -> Result<Listing> {
+fn zip(file: &mut File, want: &Want) -> Result<Listing> {
     let len = file.metadata()?.len();
     // The end record sits in the last 22 bytes plus a comment of up to 64 KiB.
     let tail_len = len.min(22 + 65535);
@@ -356,6 +367,7 @@ fn zip(file: &mut File) -> Result<Listing> {
     file.seek(SeekFrom::Start(offset))?;
     file.read_exact(&mut dir)?;
     let mut listing = Listing::default();
+    let mut kept = 0;
     let mut at = 0;
     while at + 46 <= dir.len() && dir[at..at + 4] == [b'P', b'K', 1, 2] {
         if listing.entries.len() >= MAX_ENTRIES {
@@ -410,9 +422,16 @@ fn zip(file: &mut File) -> Result<Listing> {
             _ => Kind::File,
         };
         // A symlink's target and a launcher's text are the entry's data.
-        let wanted = kind == Kind::Symlink || (kind == Kind::File && is_launcher(&name));
-        let data = (wanted && flags & 1 == 0 && size <= desktop::MAX_LAUNCHER)
-            .then(|| zip_data(file, local, packed, method).ok())
+        let max = if kind == Kind::Symlink {
+            4096
+        } else {
+            want.max
+        };
+        let wanted = kind == Kind::Symlink || (kind == Kind::File && (want.entry)(&name));
+        let keep = wanted && flags & 1 == 0 && size <= max && kept + size <= MAX_KEPT;
+        kept += if keep { size } else { 0 };
+        let data = keep
+            .then(|| zip_data(file, local, packed, method, max).ok())
             .flatten();
         let (target, content) = match kind {
             Kind::Symlink => (data.unwrap_or_default(), None),
@@ -438,7 +457,7 @@ fn zip(file: &mut File) -> Result<Listing> {
 }
 
 /// One small entry's bytes, stored or deflated.
-fn zip_data(file: &mut File, local: u64, packed: u64, method: u64) -> Result<String> {
+fn zip_data(file: &mut File, local: u64, packed: u64, method: u64, max: u64) -> Result<String> {
     let mut header = [0u8; 30];
     file.seek(SeekFrom::Start(local))?;
     file.read_exact(&mut header)?;
@@ -447,19 +466,19 @@ fn zip_data(file: &mut File, local: u64, packed: u64, method: u64) -> Result<Str
     }
     let skip = le16(&header, 26).unwrap_or(0) + le16(&header, 28).unwrap_or(0);
     file.seek(SeekFrom::Current(skip as i64))?;
-    let raw = file.by_ref().take(packed.min(desktop::MAX_LAUNCHER * 4));
+    let raw = file.by_ref().take(packed);
     let mut out = vec![];
     match method {
-        0 => raw.take(desktop::MAX_LAUNCHER).read_to_end(&mut out)?,
+        0 => raw.take(max).read_to_end(&mut out)?,
         8 => flate2::read::DeflateDecoder::new(raw)
-            .take(desktop::MAX_LAUNCHER)
+            .take(max)
             .read_to_end(&mut out)?,
         other => bail!("compression method {other}"),
     };
     Ok(String::from_utf8_lossy(&out).into_owned())
 }
 
-fn is_launcher(name: &str) -> bool {
+pub fn is_launcher(name: &str) -> bool {
     name.to_ascii_lowercase().ends_with(".desktop")
 }
 

@@ -25,6 +25,8 @@ pub fn inventory(path: &Path) -> Result<Report> {
         r.sha256 = Some(digest(&bytes));
         let mut archive = tar::Archive::new(flate2::read::GzDecoder::new(bytes.as_slice()));
         let mut total = 0usize;
+        let mut manifests = vec![];
+        let mut gyps = vec![];
         for (i, entry) in archive.entries()?.enumerate() {
             if i >= 10000 {
                 r.errors.push("Archive entry limit reached".into());
@@ -49,11 +51,26 @@ pub fn inventory(path: &Path) -> Result<Report> {
             }
             if p.file_name().is_some_and(|n| n == "package.json") {
                 manifest(&mut r, &p, &b)?;
+                manifests.push((p, b));
+            } else if p.file_name().is_some_and(|n| n == "binding.gyp") {
+                gyps.push((p, b));
             } else if p
                 .extension()
                 .is_some_and(|e| ["js", "cjs", "mjs", "sh"].iter().any(|x| e == *x))
             {
                 source_findings(&mut r, &p, &b);
+            }
+        }
+        for (gyp, text) in &gyps {
+            let dir = gyp.parent().unwrap_or(Path::new(""));
+            if let Some((m, b)) = manifests.iter().find(|(m, _)| m.parent() == Some(dir)) {
+                gyp_build(
+                    &mut r,
+                    m,
+                    &serde_json::from_slice(b).unwrap_or_default(),
+                    gyp,
+                    text,
+                );
             }
         }
     } else {
@@ -91,6 +108,10 @@ pub fn inventory(path: &Path) -> Result<Report> {
             manifest(&mut r, p, &b)?;
             count += 1;
             let value: serde_json::Value = serde_json::from_slice(&b)?;
+            let gyp = p.with_file_name("binding.gyp");
+            if let Ok(text) = read_file(&gyp, MAX_INPUT) {
+                gyp_build(&mut r, p, &value, &gyp, &text);
+            }
             if let Some(scripts) = value["scripts"].as_object() {
                 for command in scripts.values().filter_map(|s| s.as_str()) {
                     for token in command.split_whitespace().filter(|t| {
@@ -169,6 +190,40 @@ fn manifest(r: &mut Report, p: &Path, b: &[u8]) -> Result<()> {
     }
     Ok(())
 }
+/// npm runs `node-gyp rebuild` at install for a package with a binding.gyp and
+/// no install or preinstall script of its own, so the hook is not in `scripts`.
+fn gyp_build(r: &mut Report, manifest: &Path, value: &serde_json::Value, gyp: &Path, text: &[u8]) {
+    let scripts = &value["scripts"];
+    if scripts.get("install").is_some() || scripts.get("preinstall").is_some() {
+        return;
+    }
+    let text = String::from_utf8_lossy(text);
+    let mut evidence = format!(
+        "{}\nnpm runs node-gyp rebuild when it installs this package",
+        gyp.display()
+    );
+    // <!( and <!@( run a shell command while gyp reads the file.
+    for (n, line) in text
+        .lines()
+        .enumerate()
+        .filter(|(_, l)| l.contains("<!(") || l.contains("<!@("))
+        .take(5)
+    {
+        evidence.push_str(&format!("\nline {}: {}", n + 1, line.trim()));
+    }
+    r.add(
+        "package.gyp-build",
+        Severity::Review,
+        &format!(
+            "{}@{}: builds native code at install",
+            value["name"].as_str().unwrap_or("unnamed"),
+            value["version"].as_str().unwrap_or("unknown")
+        ),
+        format!("{}\n{evidence}", manifest.display()),
+        "The build runs a compiler and any command binding.gyp names, with your permissions, during npm install. Read binding.gyp, or install with --ignore-scripts.",
+    );
+}
+
 fn source_findings(r: &mut Report, p: &Path, b: &[u8]) {
     let scan = shell::analyze_content(&String::from_utf8_lossy(b));
     for error in scan.errors {

@@ -1,0 +1,17 @@
+{
+  "ecosystem": "sdist",
+  "entries": [
+    {
+      "name": "fixture-1.0/PKG-INFO",
+      "kind": "file",
+      "size": 14,
+      "content": "Name: fixture\n"
+    },
+    {
+      "name": "fixture-1.0/setup.py",
+      "kind": "file",
+      "size": 94,
+      "content": "import subprocess\nfrom setuptools import setup\nsubprocess.run(['true'])\nsetup(name='fixture')\n"
+    }
+  ]
+}

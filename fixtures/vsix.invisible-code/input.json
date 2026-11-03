@@ -1,0 +1,17 @@
+{
+  "ecosystem": "vsix",
+  "entries": [
+    {
+      "name": "extension/package.json",
+      "kind": "file",
+      "size": 40,
+      "content": "{\"publisher\": \"fixture\", \"name\": \"tool\"}"
+    },
+    {
+      "name": "extension/out/extension.js",
+      "kind": "file",
+      "size": 64,
+      "content": "const s = '️️️️️️️️️️️️️️️️️️️️️️️️️️️️️️️️️️️️️️️️️️️️️️️️️️';\n"
+    }
+  ]
+}

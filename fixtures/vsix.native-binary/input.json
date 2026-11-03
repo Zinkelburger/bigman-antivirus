@@ -1,0 +1,17 @@
+{
+  "ecosystem": "vsix",
+  "entries": [
+    {
+      "name": "extension/package.json",
+      "kind": "file",
+      "size": 40,
+      "content": "{\"publisher\": \"fixture\", \"name\": \"tool\"}"
+    },
+    {
+      "name": "extension/bin/helper.node",
+      "kind": "file",
+      "size": 4,
+      "content": "ELF"
+    }
+  ]
+}

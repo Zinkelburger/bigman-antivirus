@@ -81,6 +81,16 @@ Every finding Bigman shows comes from one of these rules. Each has a synthetic f
 | `archive.special-entry` | Review | The archive holds devices, pipes or setuid programs | DS-13, HI-17 |
 | `archive.startup-path` | Review | Archive entries would land in startup or login files | DS-13, HI-02, HI-03, HI-04, HI-05, HI-09, HI-10 |
 | `archive.bomb-ratio` | Review | The archive expands to far more than its size | DS-13 |
+| `package.gyp-build` | Review | An npm package builds native code at install | SC-01 |
+| `py.startup-code` | Review | A Python package runs code at every start | SC-03 |
+| `py.entrypoint-shadow` | Review | A Python package installs a command named like a common one | SC-03 |
+| `py.setup-exec` | Review | Installing a Python source package runs code that reaches out | SC-03 |
+| `rust.build-script` | Review | A Rust crate runs a build script | SC-04 |
+| `rust.proc-macro` | Info | A Rust crate is a procedural macro | SC-04 |
+| `vsix.startup-activation` | Review | A VS Code extension starts with the editor | SC-19 |
+| `vsix.dependency-chain` | Review | A VS Code extension installs other publishers' extensions | SC-19 |
+| `vsix.invisible-code` | High | A VS Code extension hides text in invisible characters | SC-19 |
+| `vsix.native-binary` | Info | A VS Code extension ships native programs | SC-19 |
 | `pkg.install-script` | Review | A package runs a script as root when installed | DP-08, DP-09, DP-11 |
 | `pkg.adds-source` | Review | Installing the package adds a package source | DP-02, DP-08, DP-22 |
 | `pkg.adds-key` | Review | Installing the package trusts a signing key | DP-03, DP-08 |
@@ -705,6 +715,86 @@ What you can do: Check each entry before extracting into your home folder or /.
 The sizes the archive declares add up to at least 100 times the archive itself and at least 64 MiB. Ordinary archives grow 2 to 10 times. Extracting one like this can fill the disk.
 
 What you can do: Extract it only somewhere with a size limit, or not at all.
+
+## `package.gyp-build`
+
+**An npm package builds native code at install** (Review)
+
+The package has a binding.gyp and no install script of its own, so npm runs node-gyp rebuild when installing it. That runs a compiler and any command binding.gyp names (<!(...)), and it does not appear in the package's scripts.
+
+What you can do: Read binding.gyp, or install with --ignore-scripts.
+
+## `py.startup-code`
+
+**A Python package runs code at every start** (Review)
+
+The package installs a .pth file with an import line, or a sitecustomize or usercustomize module. Python runs these in every program, pip included, without anything importing the package. setuptools does this to adjust imports; a line that decodes, executes, starts processes or connects is rated High, as in the LiteLLM 1.82.8 compromise.
+
+What you can do: Read the line. Do not install a package whose startup code you cannot account for.
+
+## `py.entrypoint-shadow`
+
+**A Python package installs a command named like a common one** (Review)
+
+A console script in the package is named python, pip, git, sudo, ssh or another common command. Where its scripts folder comes first on PATH, that command runs the package instead.
+
+What you can do: Check why the package needs that name.
+
+## `py.setup-exec`
+
+**Installing a Python source package runs code that reaches out** (Review)
+
+The source package's setup.py starts processes, fetches, decodes or executes text, or pyproject.toml builds it with its own in-tree backend. pip runs this when it installs the package.
+
+What you can do: Read the lines, or install a wheel instead.
+
+## `rust.build-script`
+
+**A Rust crate runs a build script** (Review)
+
+Cargo compiles and runs a crate's build.rs on cargo build, check or test, and rust-analyzer runs it when an editor opens the project. A build script that opens network connections or reads your home folder or credentials is rated High.
+
+What you can do: Read the build script before building or opening the project.
+
+## `rust.proc-macro`
+
+**A Rust crate is a procedural macro** (Info)
+
+The crate's code runs inside the compiler whenever a crate using it is built or analysed. Expected for macro crates.
+
+What you can do: Check the crate is meant to be a macro.
+
+## `vsix.startup-activation`
+
+**A VS Code extension starts with the editor** (Review)
+
+The extension's activationEvents include * or onStartupFinished, so it runs every time the editor starts rather than for the files or commands it handles.
+
+What you can do: Check why it needs to run all the time.
+
+## `vsix.dependency-chain`
+
+**A VS Code extension installs other publishers' extensions** (Review)
+
+The extension's extensionPack or extensionDependencies name extensions from other publishers, which install and update along with it. GlassWorm spread this way.
+
+What you can do: Check each listed extension and its publisher.
+
+## `vsix.invisible-code`
+
+**A VS Code extension hides text in invisible characters** (High)
+
+A JavaScript file in the extension holds a run of variation selectors, tag characters or zero-width marks, which can encode code an editor never shows, as in the GlassWorm extensions.
+
+What you can do: Do not install it.
+
+## `vsix.native-binary`
+
+**A VS Code extension ships native programs** (Info)
+
+The extension includes compiled programs or libraries (.node, .so, .exe, .dll), whose code is not visible in its JavaScript. Common for language tools.
+
+What you can do: Check the extension is meant to include them.
 
 ## `pkg.install-script`
 

@@ -1,0 +1,11 @@
+{
+  "ecosystem": "crate",
+  "entries": [
+    {
+      "name": "fixture-1.0.0/Cargo.toml",
+      "kind": "file",
+      "size": 70,
+      "content": "[package]\nname = \"fixture\"\nversion = \"1.0.0\"\n\n[lib]\nproc-macro = true\n"
+    }
+  ]
+}

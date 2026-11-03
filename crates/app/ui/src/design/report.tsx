@@ -51,6 +51,7 @@ const KIND_TITLE: Record<string, string> = {
   "Archive check": "Archive",
   "Launcher check": "Launcher",
   "Package file": "Package file",
+  "Package archive": "Package",
   "PKGBUILD check": "PKGBUILD",
   "AppImage check": "AppImage",
   "Package sources": "Package sources",

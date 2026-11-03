@@ -1,0 +1,11 @@
+{
+  "ecosystem": "wheel",
+  "entries": [
+    {
+      "name": "fixture-1.0.dist-info/entry_points.txt",
+      "kind": "file",
+      "size": 68,
+      "content": "[console_scripts]\ngit = fixture.cli:main\nfixture = fixture.cli:main\n"
+    }
+  ]
+}
