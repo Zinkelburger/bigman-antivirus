@@ -515,8 +515,10 @@ def capture(url: str, cited_in: list[str], known_snapshot: str | None = None) ->
         try:
             got = fetch(src, pace, key)
             title, text, meta = render(got)
-            if len(text.strip()) < 200 and via == "live" and snapshot:
-                raise ValueError("page text under 200 characters (likely a bot check)")
+            # A bot check or an app shell rendered by script is not a copy of the page,
+            # even when there is no snapshot to fall back on.
+            if len(text.strip()) < 200:
+                raise ValueError("page text under 200 characters (likely a bot check or a script-rendered page)")
             entry.update({
                 "title": title,
                 "site": meta.get("og:site_name"),

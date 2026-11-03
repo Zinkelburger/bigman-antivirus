@@ -4,6 +4,7 @@ title: "Chromium Docs - Lookalike Warnings in Google Chrome"
 captured: "2026-11-02T18:26:31Z"
 via: "live"
 sha256: "81b5230ce837e9bf8dc47b4a0b1b77563ff37d4cb255feb82b8a752f7abe13a7"
+wayback: "https://web.archive.org/web/20261103203946/https://chromium.googlesource.com/chromium/src/+/main/docs/security/lookalikes/lookalike-domains.md"
 cited_in:
   - "docs/threats/01-phishing-social-engineering.md"
 ---
@@ -13,6 +14,7 @@ cited_in:
 > Archived copy of a third-party page, kept so Bigman's findings survive if the original goes away. Copyright stays with the original publisher; cite the original URL.
 >
 > Original: <https://chromium.googlesource.com/chromium/src/+/main/docs/security/lookalikes/lookalike-domains.md>
+> Snapshot: <https://web.archive.org/web/20261103203946/https://chromium.googlesource.com/chromium/src/+/main/docs/security/lookalikes/lookalike-domains.md>
 
 [Chromium Docs](https://chromium.googlesource.com/chromium/src/+/main/docs/README.md)
 

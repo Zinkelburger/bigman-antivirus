@@ -15,6 +15,22 @@
    "content_type": "text/html",
    "sha256": "b7c05b44deed0637bcbb366a8f908398a52c15c8e6ef08d98003461c8448425f"
   },
+  "https://about.gitlab.com/blog/gitlab-threat-intelligence-reveals-north-korean-tradecraft/": {
+   "file": "docs/references/pages/about.gitlab.com/blog-gitlab-threat-intelligence-reveals-north-korean-tradecraft-f1a008c7.md",
+   "cited_in": [
+    "docs/research/interview-repo-lures.md",
+    "docs/threats/02-supply-chain-packages.md"
+   ],
+   "wayback": "https://web.archive.org/web/20261023114248/https://about.gitlab.com/blog/gitlab-threat-intelligence-reveals-north-korean-tradecraft/",
+   "title": "GitLab Threat Intelligence Team reveals North Korean tradecraft",
+   "site": "GitLab",
+   "published": "2026-02-19T12:00:00.000Z",
+   "captured": "2026-11-03T20:32:58Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "68728803ce35ca1870fae84ba0f1ea834e6b1f52b9463445e3f15607bde01fe0"
+  },
   "https://about.gitlab.com/blog/how-to-detect-and-prevent-contagious-interview-ide-attacks/": {
    "file": "docs/references/pages/about.gitlab.com/blog-how-to-detect-and-prevent-contagious-interview-ide-attacks-c51309f4.md",
    "cited_in": [
@@ -1445,7 +1461,8 @@
    "via": "live",
    "http_status": 200,
    "content_type": "text/html",
-   "sha256": "a58b8144500d23d5dbe74d49c49629fb81f93de4460979027383300e5c3214bc"
+   "sha256": "a58b8144500d23d5dbe74d49c49629fb81f93de4460979027383300e5c3214bc",
+   "wayback": "https://web.archive.org/web/20261103203651/https://attack.mitre.org/techniques/T1685/"
   },
   "https://attack.mitre.org/techniques/T1562/003/": {
    "captured": "2026-11-02T18:57:05Z",
@@ -1670,7 +1687,8 @@
    "via": "live",
    "http_status": 200,
    "content_type": "text/html",
-   "sha256": "d83cdd9a37db8a80d8b3cf4bf47c71527ba460b02a701a77fc7913ff0d7c8db7"
+   "sha256": "d83cdd9a37db8a80d8b3cf4bf47c71527ba460b02a701a77fc7913ff0d7c8db7",
+   "wayback": "https://web.archive.org/web/20261103203710/https://attack.mitre.org/techniques/T1684/001/"
   },
   "https://attack.mitre.org/techniques/T1677/": {
    "title": "Poisoned Pipeline Execution, Technique T1677 - Enterprise | MITRE ATT&CK®",
@@ -1858,6 +1876,22 @@
    ],
    "file": "docs/references/pages/blog.npmjs.org/post-180565383195-details-about-the-event-stream-incident-3a3b8ebd.md"
   },
+  "https://blog.nviso.eu/2025/11/13/contagious-interview-actors-now-utilize-json-storage-services-for-malware-delivery/": {
+   "file": "docs/references/pages/blog.nviso.eu/2025-11-13-contagious-interview-actors-now-utilize-json-storage-services-for-mal-11503f6c.md",
+   "cited_in": [
+    "docs/research/interview-repo-lures.md",
+    "docs/threats/02-supply-chain-packages.md"
+   ],
+   "wayback": "https://web.archive.org/web/20261001050258/https://blog.nviso.eu/2025/11/13/contagious-interview-actors-now-utilize-json-storage-services-for-malware-delivery/",
+   "title": "Contagious Interview Actors Now Utilize JSON Storage Services for Malware Delivery",
+   "site": "NVISO Labs",
+   "published": "2025-11-13T08:41:12+00:00",
+   "captured": "2026-11-03T20:33:01Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "5855b6e7b1af4139dd7fccbc056ed5ce94026dc1b3c61b515bc600b611327f1c"
+  },
   "https://blog.popey.com/2024/02/exodus-bitcoin-wallet-490k-swindle/": {
    "title": "Exodus Bitcoin Wallet: $490K Swindle",
    "site": "Alan Pope's blog",
@@ -2008,7 +2042,8 @@
    ],
    "wayback_error": "URLError: <urlopen error [Errno 111] Connection refused>",
    "data": "application/rss+xml feed",
-   "attempted": "2026-11-02T20:50:57Z"
+   "attempted": "2026-11-02T20:50:57Z",
+   "wayback": "https://web.archive.org/web/20261103203726/https://blog.qualys.com/vulnerabilities-threat-research/feed"
   },
   "https://blog.rust-lang.org/": {
    "title": "The Rust Programming Language Blog",
@@ -2146,7 +2181,8 @@
    ],
    "wayback_error": "URLError: <urlopen error [Errno 111] Connection refused>",
    "data": "application/rss+xml feed",
-   "attempted": "2026-11-02T20:50:58Z"
+   "attempted": "2026-11-02T20:50:58Z",
+   "wayback": "https://web.archive.org/web/20261103203837/https://bodhi.fedoraproject.org/rss/updates/?type=security"
   },
   "https://bodhi.fedoraproject.org/updates/?type=security&releases=F44": {
    "title": "Fedora Updates System",
@@ -2269,7 +2305,8 @@
    ],
    "wayback_error": "URLError: <urlopen error [Errno 111] Connection refused>",
    "data": "application/rss+xml feed",
-   "attempted": "2026-11-02T20:50:59Z"
+   "attempted": "2026-11-02T20:50:59Z",
+   "wayback": "https://web.archive.org/web/20261103203843/https://checkmarx.com/feed/"
   },
   "https://chromeenterprise.google/policies/": {
    "title": "Chrome Enterprise Policy List & Management | Documentation",
@@ -2312,7 +2349,8 @@
    "cited_in": [
     "docs/threats/01-phishing-social-engineering.md"
    ],
-   "file": "docs/references/pages/chromium.googlesource.com/chromium-src-main-docs-security-lookalikes-lookalike-domains-md-4f5d1c60.md"
+   "file": "docs/references/pages/chromium.googlesource.com/chromium-src-main-docs-security-lookalikes-lookalike-domains-md-4f5d1c60.md",
+   "wayback": "https://web.archive.org/web/20261103203946/https://chromium.googlesource.com/chromium/src/+/main/docs/security/lookalikes/lookalike-domains.md"
   },
   "https://cipherssecurity.com/fake-copyright-dmca-chrome-developer-phishing/": {
    "title": "Fake DMCA Chrome Developer Phishing Google 2026",
@@ -2391,6 +2429,21 @@
    ],
    "file": "docs/references/pages/cloud.google.com/docs-authentication-application-default-credentials-b67c5077.md"
   },
+  "https://code.claude.com/docs/en/settings-reference": {
+   "file": "docs/references/pages/code.claude.com/docs-en-settings-reference-b641351b.md",
+   "cited_in": [
+    "docs/research/interview-repo-lures.md",
+    "docs/threats/02-supply-chain-packages.md"
+   ],
+   "wayback": "https://web.archive.org/web/20261103124629/https://code.claude.com/docs/en/settings-reference",
+   "title": "All settings - Claude Code Docs",
+   "site": "Claude Code Docs",
+   "captured": "2026-11-03T20:33:00Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "9101e32e8c96f0814bb420a60c6d67214e88889cf91c7537cffc81746a316281"
+  },
   "https://code.visualstudio.com/docs/configure/settings-sync": {
    "title": "Settings Sync",
    "captured": "2026-11-02T18:25:22Z",
@@ -2437,7 +2490,8 @@
    "via": "live",
    "http_status": 200,
    "content_type": "text/html",
-   "sha256": "d02032286070b4dd9d8fbd985a7bdca8af8edf52b89ff177db3bfcb2c8a9c43d"
+   "sha256": "d02032286070b4dd9d8fbd985a7bdca8af8edf52b89ff177db3bfcb2c8a9c43d",
+   "wayback": "https://web.archive.org/web/20261103204026/https://login.sophos.com/login.sophos.com/oauth2/v2.0/authorize?p=B2C_1A_signup_signin&client_id=e027e788-3d7e-4cd0-a2fd-9474a9627f79&redirect_uri=https%3A%2F%2F3.id.sophos.com%2Fauth-code%2Ftoken_proxy&scope=openid&state=eyJjc3JmIjogImZlNTJUdlRvZFowMjdraHExaExuZndJRFVPVUFmRnl4Y1NPRGVLV1NpV0EiLCAiZW5kcG9pbnQiOiAibG9naW4ifQ&response_type=code&code_challenge_method=S256&code_challenge=YNU5gjc_l1zGCznrmIfVG0sIvEQ87LmZLYQrIB51nsE&response_mode=form_post"
   },
   "https://cseweb.ucsd.edu/~savage/papers/KDD09.pdf": {
    "title": "Beyond Blacklists: Learning to Detect Malicious Web Sites",
@@ -3431,6 +3485,22 @@
    ],
    "file": "docs/references/pages/embracethered.com/blog-posts-2021-spoofing-credential-dialogs-d70be190.md"
   },
+  "https://embracethered.com/blog/posts/2025/github-copilot-remote-code-execution-via-prompt-injection": {
+   "file": "docs/references/pages/embracethered.com/blog-posts-2025-github-copilot-remote-code-execution-via-prompt-injection-b172c453.md",
+   "cited_in": [
+    "docs/research/interview-repo-lures.md",
+    "docs/threats/02-supply-chain-packages.md"
+   ],
+   "wayback": "https://web.archive.org/web/20261022155936/https://embracethered.com/blog/posts/2025/github-copilot-remote-code-execution-via-prompt-injection/",
+   "title": "GitHub Copilot: Remote Code Execution via Prompt Injection (CVE-2025-53773) · Embrace The Red",
+   "site": "Embrace The Red",
+   "captured": "2026-11-03T20:33:07Z",
+   "via": "live",
+   "source_url": "https://embracethered.com/blog/posts/2025/github-copilot-remote-code-execution-via-prompt-injection/",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "01abf71f615ec2d607311dd5424bd72be05b43a3490ce3cbfdc2c708ae2a80db"
+  },
   "https://en.wikipedia.org/wiki/ClamAV": {
    "title": "ClamAV - Wikipedia",
    "captured": "2026-11-02T18:30:08Z",
@@ -4118,6 +4188,21 @@
     "docs/threats/07-network-exposure-and-remote-access.md"
    ],
    "file": "docs/references/pages/github.com/unhcsc-ccdc2026-fd9561ca.md"
+  },
+  "https://github.com/Ubuntu-Buddha/security-advisories": {
+   "file": "docs/references/pages/github.com/ubuntu-buddha-security-advisories-a939d367.md",
+   "cited_in": [
+    "docs/research/interview-repo-lures.md",
+    "docs/threats/01-phishing-social-engineering.md",
+    "docs/threats/02-supply-chain-packages.md"
+   ],
+   "title": "GitHub - Ubuntu-Buddha/security-advisories: Security advisories and malware-analysis writeups by Trig Bundgaard (@Ubuntu-Buddha).",
+   "site": "GitHub",
+   "captured": "2026-11-03T20:33:02Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "e65ef8291e08b42b5d9f8595740295998db6f2ab6d4534aeda1eace75fa24fa7"
   },
   "https://github.com/VirusTotal/yara-x": {
    "title": "GitHub - VirusTotal/yara-x: A rewrite of YARA in Rust.",
@@ -6832,6 +6917,21 @@
    ],
    "file": "docs/references/pages/opensourcemalware.com/blog-contagious-interview-vscode-2705c457.md"
   },
+  "https://opensourcemalware.com/blog/dprk-contagious-interview-campaign-fake-font-uses-malicious-vs-code-fonts": {
+   "file": "docs/references/pages/opensourcemalware.com/blog-dprk-contagious-interview-campaign-fake-font-uses-malicious-vs-code-fonts-ed091d82.md",
+   "cited_in": [
+    "docs/research/interview-repo-lures.md",
+    "docs/threats/02-supply-chain-packages.md"
+   ],
+   "wayback": "https://web.archive.org/web/20261018142434/https://opensourcemalware.com/blog/dprk-contagious-interview-campaign-fake-font-uses-malicious-vs-code-fonts",
+   "title": "DPRK Contagious Interview “Fake Font” Abuses VS Code Tasks",
+   "published": "2026-01-28T12:00:00.000Z",
+   "captured": "2026-11-03T20:33:03Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "11d9cf148d1965dda0d8bf8b809f1b1962eb9e95f8d80611998457a5b41d1143"
+  },
   "https://openssf.org/feed/": {
    "cited_in": [
     "docs/research/vulnerability-intelligence-and-feeds.md"
@@ -7126,6 +7226,7 @@
    "sha256": "99b3429db73106209bd5a48a9f0c2ed72e3ee0edd6978c06d8c5177f2a40c3ae",
    "wayback": "https://web.archive.org/web/20261017114422/https://research.checkpoint.com/2026/rce-and-api-token-exfiltration-through-claude-code-project-files-cve-2025-59536/",
    "cited_in": [
+    "docs/research/interview-repo-lures.md",
     "docs/threats/02-supply-chain-packages.md"
    ],
    "file": "docs/references/pages/research.checkpoint.com/2026-rce-and-api-token-exfiltration-through-claude-code-project-files-cve-2025-5-a83650c2.md"
@@ -9898,6 +9999,21 @@
    ],
    "file": "docs/references/pages/microsoft.com/en-us-security-blog-2025-08-21-think-before-you-clickfix-analyzing-the-clickfix-680fbaa8.md"
   },
+  "https://www.microsoft.com/en-us/security/blog/2026/03/11/contagious-interview-malware-delivered-through-fake-developer-job-interviews/": {
+   "file": "docs/references/pages/microsoft.com/en-us-security-blog-2026-03-11-contagious-interview-malware-delivered-through-fa-ce28ae83.md",
+   "cited_in": [
+    "docs/research/interview-repo-lures.md"
+   ],
+   "wayback": "https://web.archive.org/web/20261006100550/https://www.microsoft.com/en-us/security/blog/2026/03/11/contagious-interview-malware-delivered-through-fake-developer-job-interviews/",
+   "title": "Contagious Interview: Malware delivered through fake developer job interviews | Microsoft Security Blog",
+   "site": "Microsoft Security Blog",
+   "published": "2026-03-11T21:00:50+00:00",
+   "captured": "2026-11-03T20:33:05Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "f817b2a7e120f7624311c9f719ed1b27e3b1159c9b4a266d120acc73854d7983"
+  },
   "https://www.microsoft.com/en-us/security/blog/2026/05/28/typosquatted-npm-packages-used-steal-cloud-ci-cd-secrets/": {
    "title": "Typosquatted npm packages used to steal cloud and CI/CD secrets | Microsoft Security Blog",
    "site": "Microsoft Security Blog",
@@ -9925,6 +10041,23 @@
     "docs/threats/07-network-exposure-and-remote-access.md"
    ],
    "file": "docs/references/pages/microsoft.com/en-us-security-blog-2026-10-30-inside-malicious-claude-code-branded-cursor-exten-c81162a6.md"
+  },
+  "https://www.nbcnews.com/business/markets/binance-hack-fake-job-interview-heist-rcna607238": {
+   "file": "docs/references/pages/nbcnews.com/business-markets-binance-hack-fake-job-interview-heist-rcna607238-0d334bf6.md",
+   "cited_in": [
+    "docs/research/interview-repo-lures.md",
+    "docs/threats/01-phishing-social-engineering.md",
+    "docs/threats/02-supply-chain-packages.md"
+   ],
+   "wayback_error": "HTTP 403",
+   "title": "Binance says hackers used fake job interview to breach computer before $6.3 billion attack",
+   "site": "NBC News",
+   "published": "2026-11-03T15:56:05.016Z",
+   "captured": "2026-11-03T20:33:55Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "d4016e04a99f4faaaadd6309a87a5efbb694cb2e45591f9a859dcd7d8c296334"
   },
   "https://www.ndss-symposium.org/ndss-paper/how-bad-can-it-git-characterizing-secret-leakage-in-public-github-repositories/": {
    "title": "How Bad Can It Git? Characterizing Secret Leakage in Public GitHub Repositories - NDSS Symposium",
@@ -10320,6 +10453,20 @@
     "docs/threats/08-desktop-and-sandboxing.md"
    ],
    "file": "docs/references/pages/qualys.com/2025-three-bypasses-of-ubuntu-unprivileged-user-namespace-restrictions-txt-f39330e4.md"
+  },
+  "https://www.reddit.com/r/ClaudeCode/comments/1xmznwt/the_binance_theft_started_as_a_coding_assignment/": {
+   "file": "docs/references/pages/reddit.com/r-claudecode-comments-1xmznwt-the-binance-theft-started-as-a-coding-assignment-ac1f991d.md",
+   "cited_in": [
+    "docs/research/interview-repo-lures.md",
+    "docs/threats/01-phishing-social-engineering.md",
+    "docs/threats/02-supply-chain-packages.md"
+   ],
+   "title": "The Binance theft started as a coding assignment. I’ve been sent the same kind of repo all year. All were exploits.",
+   "captured": "2026-11-03T20:36:39Z",
+   "via": "reddit-api",
+   "sha256": "b9ff677cc763a9cf9b72687127a18fb8ad2890a1271ec6fc4318c60092e4514e",
+   "site": "Reddit, r/ClaudeCode",
+   "published": "2026-11-03T17:44:30Z"
   },
   "https://www.redhat.com/en/blog/future-red-hat-security-data": {
    "title": "The future of Red Hat security data",
