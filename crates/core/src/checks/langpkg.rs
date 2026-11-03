@@ -84,7 +84,7 @@ pub fn wanted(name: &str) -> bool {
 }
 
 /// Commands a console script could take the place of on PATH.
-const COMMON: &[&str] = &[
+pub(crate) const COMMON: &[&str] = &[
     "python", "python3", "pip", "pip3", "git", "ssh", "sudo", "su", "ls", "cd", "cat", "curl",
     "wget", "npm", "node", "npx", "bash", "sh", "cargo", "make", "gpg", "docker", "kubectl",
 ];

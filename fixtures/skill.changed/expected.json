@@ -1,0 +1,8 @@
+{
+  "driver": "skills-inventory",
+  "fires": [
+    "skill.changed"
+  ],
+  "about": "An approved skill whose SKILL.md changed afterwards.",
+  "input": "input.json"
+}

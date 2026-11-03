@@ -1,0 +1,8 @@
+{
+  "driver": "skill",
+  "fires": [
+    "skill.binary"
+  ],
+  "about": "A skill folder that ships a Linux program.",
+  "input": "input.json"
+}

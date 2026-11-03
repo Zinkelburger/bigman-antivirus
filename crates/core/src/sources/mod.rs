@@ -7,6 +7,7 @@ mod downloads;
 mod listeners;
 mod packages;
 mod reports;
+mod skills;
 mod snapshot;
 mod throughput;
 mod updates;
@@ -17,6 +18,7 @@ pub use downloads::Downloads;
 pub use listeners::Listeners;
 pub use packages::{transaction_summary, Packages};
 pub use reports::Reports;
+pub use skills::Skills;
 pub use snapshot::{network_snapshot, ConnectionRow, ListenerRow, NetworkSnapshot};
 pub use throughput::Throughput;
 pub use updates::{Preferences, Updates};
@@ -81,6 +83,7 @@ pub fn label(name: &str) -> &'static str {
         "reports" => "Checks you run",
         "downloads" => "New files in Downloads",
         "updates" => "Security updates, daily and after package changes",
+        "skills" => "AI skills and plugins, as they are installed or change",
         _ => "Other",
     }
 }
@@ -114,6 +117,7 @@ pub fn linux_sources(stop: crate::runner::Cancel) -> Vec<Box<dyn Source>> {
         Box::new(Downloads::new(crate::checks::setup::downloads(), stop)),
         Box::<Reports>::default(),
         Box::<Updates>::default(),
+        Box::new(Skills::new(crate::checks::skills::Places::current())),
     ];
     if let Some(history) = linux::package_history() {
         sources.push(Box::new(Packages::new(

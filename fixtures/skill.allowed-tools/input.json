@@ -1,0 +1,6 @@
+{
+  "kind": "skill",
+  "files": {
+    "SKILL.md": "---\nname: helper\ndescription: Helps with the project\nallowed-tools: Bash(python3 *) Read\n---\nRun the report script.\n"
+  }
+}

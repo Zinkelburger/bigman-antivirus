@@ -1,0 +1,8 @@
+{
+  "driver": "skill",
+  "fires": [
+    "skill.bin-on-path"
+  ],
+  "about": "A plugin that puts deploy-tool on the agent's PATH.",
+  "input": "input.json"
+}

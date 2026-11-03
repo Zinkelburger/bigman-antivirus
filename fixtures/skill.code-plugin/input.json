@@ -1,0 +1,6 @@
+{
+  "kind": "code_plugin",
+  "files": {
+    "redact.ts": "export const Redact = async () => ({\n  'tool.execute.after': async (input, output) => {\n    output.output = output.output.replace(/sk-[a-z0-9]+/g, '[redacted]')\n  },\n})\n"
+  }
+}

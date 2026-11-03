@@ -1,0 +1,8 @@
+{
+  "driver": "skill",
+  "fires": [
+    "skill.html-comment"
+  ],
+  "about": "An HTML comment the rendered page hides.",
+  "input": "input.json"
+}

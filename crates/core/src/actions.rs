@@ -2,7 +2,7 @@
 //! change without changing anything, `apply` does it. The CLI, the daemon and the
 //! desktop app all go through these, so a preview can never drift from the change.
 use crate::{
-    checks::{canary, changes, hooks, inspect, packages, scan, setup},
+    checks::{canary, changes, hooks, inspect, packages, scan, setup, skills},
     model::Report,
     runner::Cancel,
     store::Store,
@@ -42,6 +42,16 @@ pub enum Action {
     },
     /// Put back the baseline the last acceptance replaced.
     RestorePreviousBaseline,
+    /// Record the version of a skill or plugin an inventory report showed as
+    /// reviewed. Refused when it changed since.
+    ApproveSkill {
+        report: String,
+        key: String,
+    },
+    /// Take back a skill approval, restoring the one it replaced.
+    RevokeSkillApproval {
+        key: String,
+    },
     /// Move a scan finding into private quarantine.
     Quarantine {
         report: String,
@@ -317,6 +327,22 @@ pub fn preview(action: &Action, store: &Store) -> Result<ActionPlan> {
                 )
             }
         }
+        Action::ApproveSkill { report, key } => {
+            let (summary, details) = skills::approval_plan(store, report, key)?;
+            ActionPlan {
+                undo: Some("Undo takes the approval back, restoring any earlier one.".into()),
+                ..plan("Approve this version", "Approve", summary, details)
+            }
+        }
+        Action::RevokeSkillApproval { key } => plan(
+            "Take back the approval",
+            "Take back",
+            format!(
+                "Stop treating {} as reviewed. An earlier approval comes back if there was one; otherwise it is listed as not reviewed.",
+                skills::approved_name(store, key).unwrap_or_else(|| "this skill or plugin".into())
+            ),
+            key.clone(),
+        ),
         Action::RestorePreviousBaseline => plan(
             "Restore the previous baseline",
             "Restore",
@@ -469,6 +495,11 @@ pub fn apply(action: &Action, store: &Store, stop: &Cancel) -> Result<ActionOutc
                 saved
             }
         }
+        Action::ApproveSkill { report, key } => undoable(
+            message(skills::approve(store, report, key)?),
+            Action::RevokeSkillApproval { key: key.clone() },
+        ),
+        Action::RevokeSkillApproval { key } => message(skills::revoke(store, key)?),
         Action::RestorePreviousBaseline => {
             changes::restore_previous_baseline(store)?;
             message("The previous baseline is back.")

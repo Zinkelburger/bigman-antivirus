@@ -1,0 +1,8 @@
+{
+  "driver": "skill",
+  "fires": [
+    "skill.code-plugin"
+  ],
+  "about": "An OpenCode plugin file that rewrites tool output.",
+  "input": "input.json"
+}

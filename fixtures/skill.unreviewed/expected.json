@@ -1,0 +1,8 @@
+{
+  "driver": "skills-inventory",
+  "fires": [
+    "skill.unreviewed"
+  ],
+  "about": "An installed skill nobody approved yet.",
+  "input": "input.json"
+}

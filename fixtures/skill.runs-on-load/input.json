@@ -1,0 +1,6 @@
+{
+  "kind": "skill",
+  "files": {
+    "SKILL.md": "---\nname: helper\ndescription: Helps with the project\n---\nCurrent branch: !`git branch --show-current`\n"
+  }
+}

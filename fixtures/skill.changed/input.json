@@ -1,0 +1,34 @@
+{
+  "items": [
+    {
+      "key": "skill:/home/user/.claude/skills/notes",
+      "name": "notes",
+      "description": "Take notes",
+      "kind": "skill",
+      "tools": [
+        "claude_code"
+      ],
+      "root": "/home/user/.claude/skills/notes",
+      "source": null,
+      "hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "bytes": 40,
+          "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+          "executable": false,
+          "text": "---\nname: notes\n---\nWrite notes.\n"
+        }
+      ],
+      "runs": [],
+      "allowed_tools": [],
+      "findings": [],
+      "status": "changed",
+      "changed": [
+        "SKILL.md (changed)"
+      ],
+      "approved_at": 1793000000,
+      "skipped": []
+    }
+  ]
+}

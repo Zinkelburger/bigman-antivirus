@@ -1,0 +1,8 @@
+{
+  "driver": "skill",
+  "fires": [
+    "skill.background-command"
+  ],
+  "about": "A plugin with a monitor that starts with every session.",
+  "input": "input.json"
+}

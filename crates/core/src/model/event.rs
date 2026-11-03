@@ -21,6 +21,8 @@ pub enum SourceId {
     Advisory,
     Extension,
     Import,
+    /// AI tool skills and plugins that appeared or changed.
+    Skill,
 }
 
 impl SourceId {
@@ -39,6 +41,7 @@ impl SourceId {
             SourceId::Advisory => "advisory",
             SourceId::Extension => "extension",
             SourceId::Import => "import",
+            SourceId::Skill => "skill",
         }
     }
     pub fn parse(s: &str) -> Option<SourceId> {
@@ -46,7 +49,7 @@ impl SourceId {
     }
 }
 
-pub const ALL_SOURCES: [SourceId; 13] = [
+pub const ALL_SOURCES: [SourceId; 14] = [
     SourceId::Network,
     SourceId::Listener,
     SourceId::Receipt,
@@ -60,6 +63,7 @@ pub const ALL_SOURCES: [SourceId; 13] = [
     SourceId::Advisory,
     SourceId::Extension,
     SourceId::Import,
+    SourceId::Skill,
 ];
 
 /// Where an event's evidence lives.

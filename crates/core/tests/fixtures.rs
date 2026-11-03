@@ -219,6 +219,28 @@ fn run(dir: &Path, expected: &Expected) -> BTreeSet<String> {
             checks::langpkg::assess(&mut r, eco, &listing);
         }
         "package" => checks::pkgfile::assess(&mut r, &serde_json::from_value(json()).unwrap()),
+        "skill" => {
+            #[derive(Deserialize)]
+            struct Skill {
+                kind: checks::skills::Kind,
+                files: std::collections::BTreeMap<String, String>,
+            }
+            let s: Skill = serde_json::from_value(json()).unwrap();
+            let inputs: Vec<checks::skills::Input> = s
+                .files
+                .iter()
+                .map(|(path, text)| checks::skills::Input {
+                    executable: path.starts_with("bin/"),
+                    ..checks::skills::Input::text(path, text)
+                })
+                .collect();
+            r.findings = checks::skills::assess(s.kind, &inputs).findings;
+        }
+        "skills-inventory" => {
+            let items: Vec<checks::skills::SkillItem> =
+                serde_json::from_value(json()["items"].clone()).unwrap();
+            return rules_fired(&checks::skills::report(&items, None));
+        }
         "pkgbuild" => {
             let text = text();
             let install = fs::read_dir(dir)

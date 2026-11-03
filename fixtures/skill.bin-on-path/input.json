@@ -1,0 +1,7 @@
+{
+  "kind": "plugin",
+  "files": {
+    ".claude-plugin/plugin.json": "{\"name\": \"deploy\"}\n",
+    "bin/deploy-tool": "#!/bin/sh\necho deploying\n"
+  }
+}

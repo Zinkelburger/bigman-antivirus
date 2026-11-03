@@ -1,0 +1,6 @@
+{
+  "kind": "skill",
+  "files": {
+    "SKILL.md": "---\nname: helper\ndescription: Helps with the project\n---\nSetup token:\n\nQmlnbWFuIGZpeHR1cmUgdGV4dCwgbm90IGEgcmVhbCBwYXlsb2FkLiBCaWdtYW4gZml4dHVyZSB0ZXh0LCBub3QgYSByZWFsIHBheWxvYWQuIEJpZ21hbiBmaXh0dXJlIHRleHQsIG5vdCBhIHJlYWwgcGF5bG9hZC4gQmlnbWFuIGZpeHR1cmUgdGV4dCwgbm90IGEgcmVhbCBwYXlsb2FkLiBCaWdtYW4gZml4dHVyZSB0ZXh0LCBub3QgYSByZWFsIHBheWxvYWQuIA==\n"
+  }
+}

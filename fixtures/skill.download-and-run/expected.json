@@ -1,0 +1,8 @@
+{
+  "driver": "skill",
+  "fires": [
+    "skill.download-and-run"
+  ],
+  "about": "A setup step that pipes a download into bash.",
+  "input": "input.json"
+}

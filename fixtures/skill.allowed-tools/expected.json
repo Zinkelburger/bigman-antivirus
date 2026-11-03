@@ -1,0 +1,8 @@
+{
+  "driver": "skill",
+  "fires": [
+    "skill.allowed-tools"
+  ],
+  "about": "A skill that pre-approves running python3 with any arguments.",
+  "input": "input.json"
+}

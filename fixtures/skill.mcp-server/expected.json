@@ -1,0 +1,8 @@
+{
+  "driver": "skill",
+  "fires": [
+    "skill.mcp-server"
+  ],
+  "about": "A plugin whose .mcp.json starts a Node server.",
+  "input": "input.json"
+}
