@@ -109,9 +109,13 @@ static BUILD_REACH: LazyLock<Regex> = LazyLock::new(|| {
 static BUILD_SPAWN: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"Command::new\(").expect("valid regex"));
 
+/// Tag characters in the longest emoji flag (U+1F3F4, a region and subdivision
+/// of up to six, then the cancel tag), such as the flag of England.
+const FLAG_TAGS: usize = 7;
+
 /// A run of invisible characters long enough to carry code (GlassWorm-style):
 /// variation selectors, tag characters and zero-width marks. Emoji flags are
-/// tag runs after U+1F3F4 and do not count.
+/// short tag runs after U+1F3F4 and do not count; a longer run after one does.
 fn invisible_run(text: &str) -> Option<usize> {
     let invisible = |c: char| matches!(c, '\u{FE00}'..='\u{FE0F}' | '\u{E0100}'..='\u{E01EF}' | '\u{E0000}'..='\u{E007F}' | '\u{200B}'..='\u{200D}' | '\u{2060}'..='\u{2064}');
     let mut longest = 0;
@@ -124,6 +128,9 @@ fn invisible_run(text: &str) -> Option<usize> {
                 after_flag = prev == '\u{1F3F4}';
             }
             run += 1;
+            if after_flag && (run > FLAG_TAGS || !matches!(c, '\u{E0020}'..='\u{E007F}')) {
+                after_flag = false;
+            }
             if !after_flag {
                 longest = longest.max(run);
             }
@@ -367,25 +374,49 @@ fn python(r: &mut Report, eco: Ecosystem, files: &[&Entry]) {
     }
 }
 
-fn rust(r: &mut Report, files: &[&Entry]) {
+/// The crate's top Cargo.toml, its folder prefix, and the entry name of the
+/// build script it runs (`build.rs` unless it names another or `build = false`).
+fn crate_manifest<'a>(files: &[&'a Entry]) -> (Option<&'a Entry>, String, Option<String>) {
     let manifest = files
         .iter()
+        .copied()
         .filter(|e| base(&e.name) == "Cargo.toml")
         .min_by_key(|e| depth(&e.name));
     let root = manifest
         .map(|m| m.name.trim_end_matches("Cargo.toml").to_string())
         .unwrap_or_default();
     let toml = manifest.and_then(|m| m.content.as_deref()).unwrap_or("");
-    static PROC: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new(r"(?m)^\s*proc[-_]macro\s*=\s*true").expect("valid regex"));
-    let declared = BUILD.captures(toml);
-    let build_path = match declared.as_ref() {
+    let build = match BUILD.captures(toml) {
         Some(c) if c.get(2).is_some_and(|v| v.as_str() == "false") => None,
         Some(c) => Some(c.get(1).map_or("build.rs", |m| m.as_str()).to_string()),
         None => Some("build.rs".to_string()),
     };
-    if let Some(rel) = build_path {
-        let path = format!("{root}{rel}");
+    let build = build.map(|rel| format!("{root}{}", rel.trim_start_matches("./")));
+    (manifest, root, build)
+}
+
+/// A build script the crate names that the listing has but did not keep the
+/// text of, because only `build.rs` is kept on a first listing.
+pub fn unread_build_script(listing: &Listing) -> Option<String> {
+    let files: Vec<&Entry> = listing
+        .entries
+        .iter()
+        .filter(|e| e.kind == Kind::File)
+        .collect();
+    let (_, _, build) = crate_manifest(&files);
+    let build = build?;
+    files
+        .iter()
+        .find(|e| e.name == build && e.content.is_none() && e.size <= crate::store::MAX_INPUT)
+        .map(|e| e.name.clone())
+}
+
+fn rust(r: &mut Report, files: &[&Entry]) {
+    let (manifest, root, build_path) = crate_manifest(files);
+    let toml = manifest.and_then(|m| m.content.as_deref()).unwrap_or("");
+    static PROC: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"(?m)^\s*proc[-_]macro\s*=\s*true").expect("valid regex"));
+    if let Some(path) = build_path {
         if let Some(script) = files.iter().find(|e| e.name == path) {
             let text = script.content.as_deref().unwrap_or("");
             let reach = line_matches(text, &BUILD_REACH);
@@ -736,6 +767,15 @@ mod tests {
         assert_eq!(
             invisible_run("\u{1F3F4}\u{E0067}\u{E0062}\u{E0065}\u{E006E}\u{E0067}\u{E007F}"),
             None
+        );
+        // A payload placed after a flag is not a flag.
+        assert_eq!(
+            invisible_run(&format!("'\u{1F3F4}{}'", "\u{E0041}".repeat(500))),
+            Some(500)
+        );
+        assert_eq!(
+            invisible_run(&format!("'\u{1F3F4}\u{E0067}{}'", "\u{FE0F}".repeat(20))),
+            Some(21)
         );
     }
 

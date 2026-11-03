@@ -481,6 +481,26 @@ impl Collector {
         }
     }
 
+    /// `.git/config`, unless `.git` or the file links outside the project: a
+    /// cloned folder cannot point Bigman at another repository's settings.
+    fn git_config(&self, r: &mut Report) -> Option<String> {
+        let target = self.root.join(".git/config").canonicalize().ok()?;
+        if !target.starts_with(&self.root) {
+            r.coverage.skip(
+                ".git/config",
+                crate::model::SkipReason::NotApplicable,
+                format!(
+                    "Links to {}, outside the project; not read",
+                    target.display()
+                ),
+            );
+            return None;
+        }
+        read_file(&target, MAX_INPUT)
+            .ok()
+            .map(|b| String::from_utf8_lossy(&b).into_owned())
+    }
+
     /// Every interesting file in a configuration folder at the root, which may
     /// itself be a link to a folder inside the project.
     fn config_dir(&mut self, r: &mut Report, name: &str) {
@@ -545,9 +565,12 @@ pub fn repo_check(dir: &Path) -> Result<Report> {
         }
     }
     // Then nested instruction files, .envrc and .gitattributes, within a budget.
+    // walkdir never shows entries above min_depth to filter_entry, so the walk
+    // starts at depth 1 to prune top-level dependency and configuration folders,
+    // and root files (already read above) are passed over in the loop.
     let walker = walkdir::WalkDir::new(&c.root)
         .follow_links(false)
-        .min_depth(2)
+        .min_depth(1)
         .max_depth(8)
         .sort_by_file_name()
         .into_iter()
@@ -559,7 +582,7 @@ pub fn repo_check(dir: &Path) -> Result<Report> {
         });
     let mut seen = 0;
     for e in walker.flatten() {
-        if e.file_type().is_dir() {
+        if e.file_type().is_dir() || e.depth() < 2 {
             continue;
         }
         seen += 1;
@@ -583,9 +606,7 @@ pub fn repo_check(dir: &Path) -> Result<Report> {
             c.add(&mut r, rel);
         }
     }
-    let git_config = read_file(&c.root.join(".git/config"), MAX_INPUT)
-        .ok()
-        .map(|b| String::from_utf8_lossy(&b).into_owned());
+    let git_config = c.git_config(&mut r);
     r.coverage
         .checked
         .push(format!("{} configuration files", c.files.len()));
@@ -638,6 +659,37 @@ mod tests {
             !format!("{r:?}").contains("hunter2"),
             "the outside target is never read"
         );
+    }
+
+    #[test]
+    fn dependency_folders_at_the_root_are_not_searched() {
+        let t = tempfile::tempdir().unwrap();
+        let d = t.path();
+        for dir in ["node_modules/pkg", ".git/x", "target/debug", "packages/app"] {
+            std::fs::create_dir_all(d.join(dir)).unwrap();
+        }
+        // Files in dependencies would be findings if the walk went into them.
+        std::fs::write(d.join("node_modules/pkg/CLAUDE.md"), "hi\u{200B}\n").unwrap();
+        std::fs::write(d.join("node_modules/pkg/.envrc"), "export A=1\n").unwrap();
+        std::fs::write(d.join("target/debug/.envrc"), "export A=1\n").unwrap();
+        std::fs::write(d.join("packages/app/CLAUDE.md"), "ok\u{200B}\n").unwrap();
+        let r = repo_check(d).unwrap();
+        assert_eq!(rules(&r), [("repo.hidden-instructions", Severity::High)]);
+        assert!(r.findings[0].evidence.contains("packages/app/CLAUDE.md"));
+    }
+
+    #[test]
+    fn a_git_folder_linking_outside_the_project_is_not_read() {
+        let t = tempfile::tempdir().unwrap();
+        let other = t.path().join("other");
+        std::fs::create_dir_all(&other).unwrap();
+        std::fs::write(other.join("config"), "[core]\n\tfsmonitor = ./x\n").unwrap();
+        let d = t.path().join("project");
+        std::fs::create_dir_all(&d).unwrap();
+        std::os::unix::fs::symlink(&other, d.join(".git")).unwrap();
+        let r = repo_check(&d).unwrap();
+        assert!(r.findings.is_empty(), "{:?}", rules(&r));
+        assert!(r.coverage.skipped.iter().any(|s| s.what == ".git/config"));
     }
 
     #[test]

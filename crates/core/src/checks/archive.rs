@@ -53,16 +53,24 @@ impl Format {
 
 /// The format from the first bytes; the file name does not count.
 pub fn format_of(path: &Path) -> Option<Format> {
-    let mut head = [0u8; 512];
-    let mut file = File::open(path).ok()?;
+    format_of_head(&head(&mut File::open(path).ok()?))
+}
+
+/// Up to the first 512 bytes the reader gives.
+fn head(reader: &mut impl Read) -> Vec<u8> {
+    let mut head = vec![0u8; 512];
     let mut n = 0;
     while n < head.len() {
-        match file.read(&mut head[n..]) {
+        match reader.read(&mut head[n..]) {
             Ok(0) | Err(_) => break,
             Ok(read) => n += read,
         }
     }
-    let head = &head[..n];
+    head.truncate(n);
+    head
+}
+
+fn format_of_head(head: &[u8]) -> Option<Format> {
     Some(match head {
         [b'P', b'K', 3, 4, ..] | [b'P', b'K', 5, 6, ..] => Format::Zip,
         [0x1f, 0x8b, ..] => Format::TarGz,
@@ -172,11 +180,21 @@ pub(crate) fn file_digest(path: &Path) -> Result<String> {
 /// Which entries' text a listing keeps, and up to how many bytes each.
 pub struct Want {
     pub entry: fn(&str) -> bool,
+    /// Entries kept by their exact name as well, for names only known after a
+    /// first listing (a crate's custom build script).
+    pub names: Vec<String>,
     pub max: u64,
+}
+
+impl Want {
+    fn keeps(&self, name: &str) -> bool {
+        (self.entry)(name) || self.names.iter().any(|n| n == name)
+    }
 }
 
 pub const LAUNCHERS: Want = Want {
     entry: is_launcher,
+    names: Vec::new(),
     max: desktop::MAX_LAUNCHER,
 };
 
@@ -207,19 +225,80 @@ pub fn list_with(path: &Path, format: Format, stop: &Cancel, want: &Want) -> Res
     Ok(listing)
 }
 
+/// A compressed tar stream that is `size` bytes of `path` from `offset`, such as
+/// a .deb member, listed in place without copying it out.
+pub fn list_part(
+    path: &Path,
+    offset: u64,
+    size: u64,
+    stop: &Cancel,
+    want: &Want,
+) -> Result<Listing> {
+    let part = || -> Result<std::io::Take<File>> {
+        let mut file = File::open(path)?;
+        file.seek(SeekFrom::Start(offset))?;
+        Ok(file.take(size))
+    };
+    let format = format_of_head(&head(&mut part()?)).context("Unknown compression")?;
+    let mut listing = match format {
+        Format::Tar => tar(part()?, stop, want)?,
+        Format::TarGz => tar(flate2::read::MultiGzDecoder::new(part()?), stop, want)?,
+        Format::TarXz | Format::TarZst | Format::TarBz2 => {
+            let tool = tool(format);
+            let cmd = runner::stream_parser_command(tool, &["-dc"])?;
+            piped(tool, cmd, Some(Box::new(part()?)), stop, want)?
+        }
+        Format::Zip | Format::Unsupported(_) => bail!("{} is not a tar stream", format.label()),
+    };
+    listing.compressed = size;
+    Ok(listing)
+}
+
+fn tool(format: Format) -> &'static str {
+    match format {
+        Format::TarXz => "xz",
+        Format::TarZst => "zstd",
+        _ => "bzip2",
+    }
+}
+
 /// xz, zstd and bzip2 streams go through the system tool, isolated like the
 /// PDF parsers, and are read as they come out.
 fn decompressed(tool: &str, path: &Path, stop: &Cancel, want: &Want) -> Result<Listing> {
-    let mut cmd = runner::parser_command(tool, &["-dc"], path)?;
+    let cmd = runner::parser_command(tool, &["-dc"], path)?;
+    piped(tool, cmd, None, stop, want)
+}
+
+/// Runs a decompressor, feeding it `input` on stdin when given, and lists the
+/// tar stream it writes.
+fn piped(
+    tool: &str,
+    mut cmd: std::process::Command,
+    input: Option<Box<dyn Read + Send>>,
+    stop: &Cancel,
+    want: &Want,
+) -> Result<Listing> {
     let mut child = cmd
-        .stdin(Stdio::null())
+        .stdin(if input.is_some() {
+            Stdio::piped()
+        } else {
+            Stdio::null()
+        })
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .spawn()
         .with_context(|| format!("Cannot start {tool}"))?;
+    let feeder = input.zip(child.stdin.take()).map(|(mut from, mut to)| {
+        std::thread::spawn(move || {
+            let _ = std::io::copy(&mut from, &mut to);
+        })
+    });
     let listing = tar(child.stdout.take().unwrap(), stop, want);
     let _ = child.kill();
     let _ = child.wait();
+    if let Some(feeder) = feeder {
+        let _ = feeder.join();
+    }
     listing
 }
 
@@ -289,7 +368,7 @@ fn tar(reader: impl Read, stop: &Cancel, want: &Want) -> Result<Listing> {
             .unwrap_or_default();
         let mode = header.mode().unwrap_or(0);
         let size = e.size();
-        let keep = kind == Kind::File && (want.entry)(&name) && size <= want.max;
+        let keep = kind == Kind::File && want.keeps(&name) && size <= want.max;
         let keep = keep && kept + size <= MAX_KEPT;
         kept += if keep { size } else { 0 };
         let content = keep
@@ -427,7 +506,7 @@ fn zip(file: &mut File, want: &Want) -> Result<Listing> {
         } else {
             want.max
         };
-        let wanted = kind == Kind::Symlink || (kind == Kind::File && (want.entry)(&name));
+        let wanted = kind == Kind::Symlink || (kind == Kind::File && want.keeps(&name));
         let keep = wanted && flags & 1 == 0 && size <= max && kept + size <= MAX_KEPT;
         kept += if keep { size } else { 0 };
         let data = keep
@@ -584,7 +663,8 @@ pub fn assess(r: &mut Report, listing: &Listing) {
     let mut escapes = Group::default();
     let mut special = Group::default();
     let mut startup = Group::default();
-    let mut escaping_links: Vec<String> = vec![];
+    // Links already seen that leave the archive, by their normalised name.
+    let mut escaping_links = std::collections::HashSet::<String>::new();
     let mut expanded: u64 = 0;
     for e in &listing.entries {
         if e.kind == Kind::File {
@@ -610,14 +690,19 @@ pub fn assess(r: &mut Report, listing: &Listing) {
                     "is a hard link to"
                 };
                 escapes.push(format!("{} {what} {}", e.name, e.target));
-                escaping_links.push(parts(&e.name).collect::<Vec<_>>().join("/"));
+                escaping_links.insert(parts(&e.name).collect::<Vec<_>>().join("/"));
             }
         }
-        if let Some(through) = escaping_links.iter().find(|l| {
-            let name = parts(&e.name).collect::<Vec<_>>().join("/");
-            name.starts_with(&format!("{l}/"))
-        }) {
-            escapes.push(format!("{} is written through {through}", e.name));
+        // Each folder above the entry, shortest first, looked up rather than
+        // compared against every link, so a large archive stays linear.
+        if !escaping_links.is_empty() {
+            let names: Vec<&str> = parts(&e.name).collect();
+            if let Some(through) = (1..names.len())
+                .map(|n| names[..n].join("/"))
+                .find(|folder| escaping_links.contains(folder))
+            {
+                escapes.push(format!("{} is written through {through}", e.name));
+            }
         }
         match e.kind {
             Kind::Device => special.push(format!("{} is a device file", e.name)),
@@ -639,10 +724,7 @@ pub fn assess(r: &mut Report, listing: &Listing) {
             let location = format!("In the archive: {}", e.name);
             let file_name = parts(&e.name).last().unwrap_or(&e.name).to_string();
             // Unread (too large, encrypted, unusual compression) still counts as a launcher.
-            let text = e
-                .content
-                .as_deref()
-                .unwrap_or("[Desktop Entry]\nExec=(not read)\n");
+            let text = e.content.as_deref().unwrap_or(desktop::UNREAD);
             desktop::assess(r, &location, &file_name, text, e.mode & 0o111 != 0);
         }
     }

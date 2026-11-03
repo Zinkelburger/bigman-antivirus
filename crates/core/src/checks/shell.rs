@@ -54,8 +54,9 @@ pub fn analyze_content(content: &str) -> Report {
         ),
         (
             "shell.permissions",
-            // setuid or setgid (u+s, 4755, 2755) or world-writable (777, 666, o+w).
-            r"\bchmod\s+(-[A-Za-z]+\s+)*([ugoa]*[+=][rwxXt]*s|[ugoa]*o[ugoa]*[+=][rxXt]*w|a?[+=][rxXt]*w|[0-7]?[2-7][0-7]{3}\b|0?[0-7]{2}[2367]\b)",
+            // setuid or setgid (u+s, 4755, 2755) or world-writable (777, 666, o+w,
+            // a+w). A bare +w honours the umask, so it is the owner's write bit.
+            r"\bchmod\s+(-[A-Za-z]+\s+)*([ugoa]*[+=][rwxXt]*s|[ugoa]*[oa][ugoa]*[+=][rxXt]*w|[0-7]?[2-7][0-7]{3}\b|0?[0-7]{2}[2367]\b)",
             Severity::High,
             "Broad or privileged file permissions",
             "Prefer the minimum permissions required.",
@@ -136,6 +137,8 @@ mod tests {
             "chmod u+s x",
             "chmod o+w x",
             "chmod a+rw x",
+            "chmod a+w x",
+            "chmod go+w x",
         ] {
             assert!(broad(cmd), "{cmd}");
         }
@@ -146,6 +149,8 @@ mod tests {
             "chmod +x x",
             "chmod u+rwx x",
             "chmod -R go-w d",
+            "chmod +w x",
+            "chmod -R u+w d",
         ] {
             assert!(!broad(cmd), "{cmd}");
         }

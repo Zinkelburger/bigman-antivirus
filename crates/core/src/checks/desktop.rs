@@ -3,14 +3,18 @@
 //! apply to a launcher on disk and to one listed inside an archive.
 use crate::{
     checks::shell,
-    model::{Report, Severity},
-    store::{digest, read_file, Store},
+    model::{Report, Severity, SkipReason},
+    store::{digest, read_file, Store, MAX_INPUT},
 };
 use anyhow::Result;
 use std::{os::unix::fs::PermissionsExt, path::Path};
 
-/// Launchers are small; anything larger is not read for these rules.
+/// How much of a launcher inside an archive is kept for these rules; a larger
+/// one is judged as `UNREAD`.
 pub const MAX_LAUNCHER: u64 = 64 * 1024;
+/// Stands in for a launcher too large to read: padding does not make a launcher
+/// any less able to run, so it is still judged as one.
+pub const UNREAD: &str = "[Desktop Entry]\nExec=(not read)\n";
 
 /// Extensions a launcher's name can borrow to pass for something other than a program.
 const DOCUMENT: &[&str] = &[
@@ -31,10 +35,26 @@ pub fn looks_like_launcher(head: &[u8]) -> bool {
 
 /// A launcher file given to Inspect.
 pub fn launcher(store: &Store, path: &Path) -> Result<Report> {
-    let bytes = read_file(path, MAX_LAUNCHER)?;
     let mut r = Report::new("Launcher check", path.display());
-    r.sha256 = Some(digest(&bytes));
-    let text = String::from_utf8_lossy(&bytes);
+    let text = match read_file(path, MAX_INPUT) {
+        Ok(bytes) => {
+            r.sha256 = Some(digest(&bytes));
+            String::from_utf8_lossy(&bytes).into_owned()
+        }
+        Err(_)
+            if std::fs::symlink_metadata(path)
+                .is_ok_and(|m| m.is_file() && m.len() > MAX_INPUT) =>
+        {
+            r.sha256 = Some(crate::checks::archive::file_digest(path)?);
+            r.coverage.skip(
+                "Launcher text",
+                SkipReason::LimitReached,
+                format!("Larger than {MAX_INPUT} bytes, so not read; judged as a launcher whose command is unknown"),
+            );
+            UNREAD.to_string()
+        }
+        Err(e) => return Err(e),
+    };
     let executable = std::fs::metadata(path).is_ok_and(|m| m.permissions().mode() & 0o111 != 0);
     let name = path
         .file_name()
@@ -272,6 +292,22 @@ mod tests {
         let mut r = Report::new("t", "t");
         assert!(assess(&mut r, name, name, text, false));
         r.findings.into_iter().map(|f| f.rule).collect()
+    }
+
+    #[test]
+    fn a_launcher_padded_past_the_archive_limit_is_still_read() {
+        let d = tempfile::tempdir().unwrap();
+        let store = Store::open(Some(d.path().join("s"))).unwrap();
+        let path = d.path().join("Invoice.pdf.desktop");
+        let padding = "# padding\n".repeat(7 * 1024);
+        std::fs::write(
+            &path,
+            format!("[Desktop Entry]\n{padding}Type=Application\nExec=sh -c \"echo test\"\n"),
+        )
+        .unwrap();
+        let r = launcher(&store, &path).unwrap();
+        assert!(r.findings.iter().any(|f| f.rule == "desktop.masquerade"));
+        assert!(!r.is_incomplete());
     }
 
     #[test]

@@ -21,6 +21,21 @@ pub enum Inspector {
     Pdf,
 }
 
+impl Inspector {
+    /// The check's name as reports show it.
+    pub fn label(&self) -> &'static str {
+        match self {
+            Inspector::Archive => "Archive check",
+            Inspector::Installer => "Installer check",
+            Inspector::Launcher => "Launcher check",
+            Inspector::Lockfile => "Lockfile check",
+            Inspector::PackageFile => "Package check",
+            Inspector::Packages => "Package scripts",
+            Inspector::Pdf => "PDF check",
+        }
+    }
+}
+
 pub fn choose(target: &str) -> Inspector {
     if target.starts_with("https://") {
         return Inspector::Installer;
@@ -99,13 +114,14 @@ pub fn inspect_any(store: &Store, target: &str, stop: &Cancel) -> Result<Report>
 /// language-package rules look at.
 const ARCHIVE_TEXT: archive::Want = archive::Want {
     entry: |name| archive::is_launcher(name) || langpkg::wanted(name),
+    names: Vec::new(),
     max: crate::store::MAX_INPUT,
 };
 
 /// An archive's entries. An npm package archive also gets its script
 /// inventory; wheels, sdists, crates and VS Code extensions their own rules.
 fn archive_or_package(store: &Store, path: &Path, stop: &Cancel) -> Result<Report> {
-    let (mut listed, listing) = archive::check_with(path, stop, &ARCHIVE_TEXT)?;
+    let (mut listed, mut listing) = archive::check_with(path, stop, &ARCHIVE_TEXT)?;
     let npm = path.extension().is_some_and(|e| e == "tgz" || e == "gz")
         && listing
             .entries
@@ -123,7 +139,11 @@ fn archive_or_package(store: &Store, path: &Path, stop: &Cancel) -> Result<Repor
             .map(|n| n.to_string_lossy().into_owned())
             .unwrap_or_default();
         let names: Vec<&str> = listing.entries.iter().map(|e| e.name.as_str()).collect();
-        if let Some(eco) = langpkg::detect(&file_name, &names) {
+        let eco = langpkg::detect(&file_name, &names);
+        if eco == Some(langpkg::Ecosystem::Crate) {
+            read_build_script(path, stop, &mut listing);
+        }
+        if let Some(eco) = eco {
             listed.kind = "Package archive".into();
             listed.coverage.checked(eco.label());
             listed.coverage.push(langpkg::notes(eco).into());
@@ -134,6 +154,28 @@ fn archive_or_package(store: &Store, path: &Path, stop: &Cancel) -> Result<Repor
     };
     store.save(&r)?;
     Ok(r)
+}
+
+/// A crate's Cargo.toml can name its build script anywhere (`build = "x/gen.rs"`);
+/// the first listing only keeps `build.rs`, so a script elsewhere is read in a
+/// second, narrower listing. If that fails the script stays unread, which the
+/// build-script rule reports.
+fn read_build_script(path: &Path, stop: &Cancel, listing: &mut archive::Listing) {
+    let Some(name) = langpkg::unread_build_script(listing) else {
+        return;
+    };
+    let want = archive::Want {
+        entry: |_| false,
+        names: vec![name.clone()],
+        max: crate::store::MAX_INPUT,
+    };
+    let content = archive::format_of(path)
+        .and_then(|format| archive::list_with(path, format, stop, &want).ok())
+        .and_then(|again| again.entries.into_iter().find(|e| e.name == name))
+        .and_then(|e| e.content);
+    if let Some(e) = listing.entries.iter_mut().find(|e| e.name == name) {
+        e.content = content;
+    }
 }
 
 /// A project folder: its package scripts and what the tree could run on open.
@@ -176,6 +218,9 @@ pub fn project(store: &Store, dir: &Path) -> Result<Report> {
                 r.coverage
                     .checked
                     .push(format!("{name}: {}", l.coverage.checked.join(", ")));
+                // What the lockfile check could not read keeps the project
+                // report incomplete, as it does the lockfile's own.
+                r.coverage.skipped.extend(l.coverage.skipped);
             }
             Err(e) => r.coverage.skipped.push(crate::model::Skipped {
                 what: name.into(),
@@ -267,6 +312,64 @@ mod tests {
             .coverage
             .checked
             .contains(&"Rust crate: Cargo.toml, build.rs".to_string()));
+    }
+
+    #[test]
+    fn a_crates_custom_build_script_is_read() {
+        let d = tempfile::tempdir().unwrap();
+        let path = d.path().join("fixture-1.0.0.crate");
+        let mut tar = tar::Builder::new(flate2::write::GzEncoder::new(
+            fs::File::create(&path).unwrap(),
+            flate2::Compression::default(),
+        ));
+        for (name, body) in [
+            (
+                "fixture-1.0.0/Cargo.toml",
+                &b"[package]\nname = \"fixture\"\nbuild = \"scripts/gen.rs\"\n"[..],
+            ),
+            (
+                "fixture-1.0.0/scripts/gen.rs",
+                &b"fn main() { let _ = std::fs::read(\".ssh/id_ed25519\"); }\n"[..],
+            ),
+        ] {
+            let mut h = tar::Header::new_gnu();
+            h.set_size(body.len() as u64);
+            h.set_mode(0o644);
+            h.set_path(name).unwrap();
+            h.set_cksum();
+            tar.append(&h, body).unwrap();
+        }
+        tar.into_inner().unwrap().finish().unwrap();
+        let state = tempfile::tempdir().unwrap();
+        let store = Store::open(Some(state.path().join("s"))).unwrap();
+        let r = inspect_any(&store, &path.to_string_lossy(), &crate::runner::cancel()).unwrap();
+        let f = r
+            .findings
+            .iter()
+            .find(|f| f.rule == "rust.build-script")
+            .unwrap();
+        assert_eq!(f.severity, crate::model::Severity::High);
+        assert!(!f.evidence.contains("too large"), "{}", f.evidence);
+    }
+
+    #[test]
+    fn a_project_lockfile_that_cannot_be_read_keeps_the_report_incomplete() {
+        let d = tempfile::tempdir().unwrap();
+        fs::write(
+            d.path().join("package.json"),
+            r#"{"name":"p","version":"1.0.0"}"#,
+        )
+        .unwrap();
+        fs::write(d.path().join("pnpm-lock.yaml"), "lockfileVersion: '10.0'\n").unwrap();
+        let state = tempfile::tempdir().unwrap();
+        let store = Store::open(Some(state.path().join("s"))).unwrap();
+        let r = project(&store, d.path()).unwrap();
+        assert!(r.is_incomplete());
+        assert!(r
+            .coverage
+            .skipped
+            .iter()
+            .any(|s| s.what.contains("pnpm-lock.yaml")));
     }
 
     #[test]

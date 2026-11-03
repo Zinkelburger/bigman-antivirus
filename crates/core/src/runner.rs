@@ -205,6 +205,16 @@ pub fn spawn_detached(cmd: &mut Command) -> Result<()> {
 }
 /// A parser is exposed only to its input and system runtime. No home or network.
 pub fn parser_command(tool: &str, args: &[&str], input: &std::path::Path) -> Result<Command> {
+    isolated(tool, args, Some(input))
+}
+
+/// A parser isolated like `parser_command` that reads its input from stdin, for
+/// data that is part of a larger file (a .deb member), so it need not be copied.
+pub fn stream_parser_command(tool: &str, args: &[&str]) -> Result<Command> {
+    isolated(tool, args, None)
+}
+
+fn isolated(tool: &str, args: &[&str], input: Option<&std::path::Path>) -> Result<Command> {
     if !available("bwrap") {
         anyhow::bail!("bwrap is required to isolate {tool}; external parsing skipped");
     }
@@ -240,21 +250,14 @@ pub fn parser_command(tool: &str, args: &[&str], input: &std::path::Path) -> Res
             c.args(["--ro-bind", p, p]);
         }
     }
-    c.args([
-        "--proc",
-        "/proc",
-        "--dev",
-        "/dev",
-        "--tmpfs",
-        "/tmp",
-        "--ro-bind",
-    ])
-    .arg(input)
-    .arg("/input.pdf")
-    .args(["--chdir", "/tmp", "--"])
-    .arg(executable)
-    .args(args)
-    .arg("/input.pdf");
+    c.args(["--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp"]);
+    if let Some(input) = input {
+        c.arg("--ro-bind").arg(input).arg("/input.pdf");
+    }
+    c.args(["--chdir", "/tmp", "--"]).arg(executable).args(args);
+    if input.is_some() {
+        c.arg("/input.pdf");
+    }
     unsafe {
         c.pre_exec(|| {
             for (resource, value) in [
