@@ -5,6 +5,7 @@ import { useRules, useReceipt, type Finding, type Receipt, type ReceiptScript } 
 import { ActionButton } from "./components/ActionButton";
 import { CoverageList } from "./components/CoverageList";
 import { DataTable } from "./components/DataTable";
+import { Disclosure } from "./components/Disclosure";
 import { EvidenceBlock } from "./components/EvidenceBlock";
 import { FileTree, type FileTreeEntry, type FileTreeGroup } from "./components/FileTree";
 import { IncompleteNotice } from "./components/IncompleteNotice";
@@ -105,12 +106,9 @@ function Scripts({ receipt, marked = false }: { receipt: Receipt; marked?: boole
       </p>
       {withHits.map(render)}
       {marked && rest.length > 0 ? (
-        <details className="rounded-panel border border-rule bg-surface">
-          <summary className="cursor-pointer px-3 py-2 text-body text-ink">
-            {plural(rest.length, "other script")} with no marked lines
-          </summary>
-          <div className="flex flex-col gap-4 p-3">{rest.map(render)}</div>
-        </details>
+        <Disclosure summary={<span className="font-normal">{plural(rest.length, "other script")} with no marked lines</span>}>
+          <div className="flex flex-col gap-4">{rest.map(render)}</div>
+        </Disclosure>
       ) : (
         rest.map(render)
       )}

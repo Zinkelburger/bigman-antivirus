@@ -6,6 +6,7 @@ import {
   CheckStatus,
   DaemonGate,
   DataTable,
+  Disclosure,
   nowSeconds,
   PageHeader,
   PathPicker,
@@ -18,7 +19,7 @@ import {
 } from "@/design";
 import { desktopShell, useCheck, useHistory, type Report } from "@/ipc";
 
-const KINDS = new Set(["Installer inspection", "Restricted installer rehearsal", "Package script inventory", "PDF triage", "YARA-X scan", "osv integration"]);
+const KINDS = new Set(["Installer inspection", "Restricted installer rehearsal", "Package script inventory", "Project inspection", "Repository check", "Lockfile check", "PDF triage", "YARA-X scan", "osv integration"]);
 
 const columns = (now: number): ColumnDef<Report>[] => [
   { id: "when", header: "When", accessorFn: (r) => r.created, cell: ({ row }) => ago(row.original.created, now), meta: { width: "9rem" } },
@@ -36,34 +37,59 @@ const columns = (now: number): ColumnDef<Report>[] => [
   },
 ];
 
-/** Expert inspections that need extra input or send data off the machine. */
-function MoreInspections({ onRun, busy }: { onRun: (request: "yara" | "osv", target: string, rules: string) => void; busy: boolean }) {
+type More = { type: "yara"; target: string; rules: string } | { type: "osv"; target: string } | { type: "lockfile"; target: string; against: string };
+
+/** Inspections that need a second input or send data off the machine. */
+function MoreInspections({ onRun, busy }: { onRun: (request: More) => void; busy: boolean }) {
   const [rules, setRules] = useState("");
   const [target, setTarget] = useState("");
+  const [lockfile, setLockfile] = useState("");
+  const [older, setOlder] = useState("");
   const choose = async (kind: "file" | "directory", title: string, set: (v: string) => void) => {
     const chosen = await desktopShell().choosePath(kind, title);
     if (chosen) set(chosen);
   };
   return (
-    <details className="rounded-panel border border-rule bg-surface p-4">
-      <summary className="cursor-pointer font-semibold text-ink">More inspections: YARA-X rules and dependency advisories</summary>
-      <div className="mt-3 flex flex-col gap-3">
-        <PathPicker label="File or folder" value={target} onChange={setTarget} onBrowse={() => void choose("directory", "Choose what to scan", setTarget)} />
-        <PathPicker label="YARA-X rules file you reviewed" value={rules} onChange={setRules} onBrowse={() => void choose("file", "Choose a YARA-X rules file", setRules)} />
-        <p className="m-0 max-w-[56ch] text-small text-ink-muted">
-          Rule matches are results of those rules, not proof of malware. Dependency advisories run OSV-Scanner on a
-          project folder and send its package names and versions to osv.dev.
-        </p>
-        <div className="flex gap-2">
-          <ActionButton disabled={busy || !target || !rules} onClick={() => onRun("yara", target, rules)}>
-            Scan with these rules
-          </ActionButton>
-          <ActionButton disabled={busy || !target} onClick={() => onRun("osv", target, rules)}>
-            Check dependency advisories
-          </ActionButton>
-        </div>
+    <Disclosure summary="More inspections: lockfile changes, YARA-X rules and dependency advisories">
+      <div className="flex flex-col gap-6">
+        <section aria-labelledby="lockfile-changes" className="flex flex-col gap-3">
+          <h3 id="lockfile-changes" className="m-0 text-body font-semibold text-ink">
+            What a lockfile change adds
+          </h3>
+          <p className="m-0 max-w-[56ch] text-small text-ink-muted">
+            Compares a lockfile with an older copy, such as the one from before a pull request, and checks only what is
+            new or changed: dependencies from outside the registry, missing hashes, new install scripts, and packages
+            whose download address or hash changed without a new version.
+          </p>
+          <PathPicker label="Lockfile" value={lockfile} onChange={setLockfile} onBrowse={() => void choose("file", "Choose the lockfile", setLockfile)} placeholder="/home/you/project/package-lock.json" />
+          <PathPicker label="Older copy of it" value={older} onChange={setOlder} onBrowse={() => void choose("file", "Choose the older lockfile", setOlder)} />
+          <div>
+            <ActionButton disabled={busy || !lockfile || !older} onClick={() => onRun({ type: "lockfile", target: lockfile, against: older })}>
+              Compare lockfiles
+            </ActionButton>
+          </div>
+        </section>
+        <section aria-labelledby="rules-and-advisories" className="flex flex-col gap-3">
+          <h3 id="rules-and-advisories" className="m-0 text-body font-semibold text-ink">
+            YARA-X rules and dependency advisories
+          </h3>
+          <PathPicker label="File or folder" value={target} onChange={setTarget} onBrowse={() => void choose("directory", "Choose what to scan", setTarget)} />
+          <PathPicker label="YARA-X rules file you reviewed" value={rules} onChange={setRules} onBrowse={() => void choose("file", "Choose a YARA-X rules file", setRules)} />
+          <p className="m-0 max-w-[56ch] text-small text-ink-muted">
+            Rule matches are results of those rules, not proof of malware. Dependency advisories run OSV-Scanner on a
+            project folder and send its package names and versions to osv.dev.
+          </p>
+          <div className="flex gap-2">
+            <ActionButton disabled={busy || !target || !rules} onClick={() => onRun({ type: "yara", target, rules })}>
+              Scan with these rules
+            </ActionButton>
+            <ActionButton disabled={busy || !target} onClick={() => onRun({ type: "osv", target })}>
+              Check dependency advisories
+            </ActionButton>
+          </div>
+        </section>
       </div>
-    </details>
+    </Disclosure>
   );
 }
 
@@ -134,9 +160,15 @@ export function InspectPage() {
           {showForm && (
             <MoreInspections
               busy={check.isPending}
-              onRun={(kind, path, rules) => {
-                setRanOn(path);
-                check.mutate(kind === "yara" ? { type: "yara", rules, target: path } : { type: "audit", tool: "osv", path });
+              onRun={(more) => {
+                setRanOn(more.type === "lockfile" ? `${more.target}, compared with ${more.against}` : more.target);
+                check.mutate(
+                  more.type === "yara"
+                    ? { type: "yara", rules: more.rules, target: more.target }
+                    : more.type === "lockfile"
+                      ? { type: "lockfile", path: more.target, against: more.against }
+                      : { type: "audit", tool: "osv", path: more.target },
+                );
               }}
             />
           )}

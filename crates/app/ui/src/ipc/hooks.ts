@@ -84,7 +84,7 @@ function useRefreshAll() {
 
 type CheckRequest = Extract<
   Request,
-  { type: "doctor" | "scan" | "update_signatures" | "pdf" | "inspect" | "inspect_any" | "packages" | "changes" | "audit" | "yara" | "canary_test" | "advisories" }
+  { type: "doctor" | "scan" | "update_signatures" | "pdf" | "inspect" | "inspect_any" | "packages" | "lockfile" | "repo_check" | "package_sources" | "changes" | "audit" | "yara" | "canary_test" | "advisories" }
 >;
 
 /**

@@ -1,4 +1,4 @@
-import { ActionButton, CheckStatus, LastResult } from "@/design";
+import { ActionButton, CheckStatus, Disclosure, LastResult } from "@/design";
 import { useCheck, useHistory } from "@/ipc";
 
 const HOW = (
@@ -19,10 +19,11 @@ export function UpdatesView() {
       {!check.data && !check.isPending && <LastResult report={last} empty="Security updates have not been checked yet." />}
       <section aria-label="Security updates" className="flex flex-col gap-3">
         {last || check.data ? (
-          <details className="max-w-[56ch] text-small text-ink-muted">
-            <summary className="cursor-pointer text-ink">How this works</summary>
-            <p className="m-0 mt-2">{HOW}</p>
-          </details>
+          <div className="max-w-[56ch] text-small text-ink-muted">
+            <Disclosure panel={false} summary="How this works">
+              <p className="m-0">{HOW}</p>
+            </Disclosure>
+          </div>
         ) : (
           <p className="m-0 max-w-[56ch] text-ink-muted">{HOW}</p>
         )}
@@ -37,6 +38,32 @@ export function UpdatesView() {
         </div>
       </section>
       <CheckStatus check={check} running="Checking for security updates" detail="Reading installed packages and the distribution's security data." />
+      <PackageSources />
     </div>
+  );
+}
+
+/** Where updates come from: signatures, HTTPS, key scope and overrides of each package source. */
+function PackageSources() {
+  const check = useCheck();
+  const last = useHistory().data?.find((r) => r.kind === "Package sources");
+  return (
+    <section aria-labelledby="package-sources" className="flex flex-col gap-3 border-t border-rule pt-5">
+      <h2 id="package-sources" className="m-0 text-body font-semibold text-ink">
+        Package sources
+      </h2>
+      <p className="m-0 max-w-[56ch] text-ink-muted">
+        Where updates come from: apt, dnf, zypper and pacman repositories, Flatpak remotes and Nix caches. Bigman
+        reads their configuration for skipped signature checks, plain HTTP, keys trusted too widely and third-party
+        sources that outrank your distribution. No repository is contacted.
+      </p>
+      {!check.data && !check.isPending && <LastResult report={last} empty="Package sources have not been checked yet." />}
+      <div>
+        <ActionButton disabled={check.isPending} onClick={() => check.mutate({ type: "package_sources" })}>
+          Check package sources
+        </ActionButton>
+      </div>
+      <CheckStatus check={check} running="Reading package-source configuration" />
+    </section>
   );
 }

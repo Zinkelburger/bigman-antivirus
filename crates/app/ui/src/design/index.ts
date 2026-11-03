@@ -7,6 +7,7 @@ export { CoverageList, SKIP_REASON } from "./components/CoverageList";
 export { DataTable } from "./components/DataTable";
 export { DiffView, type DiffHunk, type DiffLine } from "./components/DiffView";
 export { Drilldown } from "./components/Drilldown";
+export { Disclosure } from "./components/Disclosure";
 export { EmptyState } from "./components/EmptyState";
 export { EvidenceBlock } from "./components/EvidenceBlock";
 export { FilterChips } from "./components/FilterChips";

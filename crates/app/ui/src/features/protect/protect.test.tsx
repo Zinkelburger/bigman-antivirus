@@ -59,4 +59,14 @@ describe("Protect updates", () => {
     expect(within(result).getByRole("heading", { name: "Security updates: 3 security updates" })).toBeInTheDocument();
     expect(within(result).getByText("sudo dnf upgrade --advisories=FEDORA-2026-4a1b2c3d4e,FEDORA-2026-31601794bf,FEDORA-2026-d732fb97a0")).toBeInTheDocument();
   });
+
+  it("checks package sources from the same view", async () => {
+    useShell.setState({ protectView: "updates" });
+    const { user } = renderWithDaemon(<ProtectPage />);
+    const sources = await screen.findByRole("region", { name: "Package sources" });
+    expect(within(sources).getByText("Package sources have not been checked yet.")).toBeInTheDocument();
+    await user.click(within(sources).getByRole("button", { name: "Check package sources" }));
+    const result = await within(sources).findByRole("region", { name: "Result" });
+    expect(within(result).getByText(/outranks the distribution/)).toBeInTheDocument();
+  });
 });

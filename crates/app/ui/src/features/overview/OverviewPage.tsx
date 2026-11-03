@@ -115,16 +115,19 @@ function ResultLine({ events, status, rangeLabel, now }: { events: Event[]; stat
   const toReview = events.filter((e) => e.severity !== "info");
   const scan = status.last_scan;
   const incomplete = scan && reportStatus(scan) === "Incomplete" ? scan : null;
-  const first = toReview[0];
+  // The eye lands on the newest High entry when there is one, else the newest to review.
+  const high = toReview.filter((e) => e.severity === "high");
+  const first = high[0] ?? toReview[0];
   return (
     <>
       {first && (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <p className="m-0 text-body font-semibold text-ink">
-            Findings to review: {plural(toReview.length, "entry")} from the {rangeLabel.toLowerCase()}.
+            Findings to review: {plural(toReview.length, "entry")} from the {rangeLabel.toLowerCase()}
+            {high.length > 0 && `, ${high.length === toReview.length ? (high.length === 1 ? "rated" : "all rated") : `${String(high.length)} rated`} High`}.
           </p>
-          <ActionButton variant="quiet" onClick={() => open({ title: first.summary, content: <EventPanel event={first} /> })}>
-            Open the latest
+          <ActionButton onClick={() => open({ title: first.summary, content: <EventPanel event={first} /> })}>
+            {high.length > 0 ? "Open the latest High entry" : "Open the latest"}
           </ActionButton>
         </div>
       )}
@@ -157,7 +160,7 @@ function sinceLastLook(unread: Unread | undefined) {
 const DAY = 86_400;
 
 function updatesTile(r: Report | undefined, now: number) {
-  if (!r) return { state: "empty" as const, value: "Not checked", detail: "Check for security updates.", severity: null };
+  if (!r) return { state: "empty" as const, value: "Not checked", detail: "Bigman checks daily while background checks run. Open to check now.", severity: null };
   const age = now - r.created;
   const exploited = r.findings.filter((f) => f.rule === "advisory.exploited").length;
   const restart = r.findings.some((f) => f.rule === "advisory.reboot-required");

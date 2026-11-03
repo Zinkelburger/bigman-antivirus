@@ -5,6 +5,7 @@ import {
   ActionDialog,
   CheckStatus,
   DataTable,
+  Disclosure,
   EmptyState,
   ago,
   IncompleteNotice,
@@ -133,9 +134,8 @@ export function CanariesView() {
         )}
       </section>
 
-      <details className="rounded-panel border border-rule bg-surface p-4">
-        <summary className="cursor-pointer font-semibold text-ink">A hosted token from a provider</summary>
-        <div className="mt-3 flex flex-col gap-3">
+      <Disclosure summary="A hosted token from a provider">
+        <div className="flex flex-col gap-3">
           <p className="m-0 max-w-[56ch] text-ink-muted">
             Only needed to notice a stolen token being used on another computer. Paste the HTTPS URL your provider
             gave you. Bigman writes a shortcut and does not visit the URL.
@@ -146,7 +146,7 @@ export function CanariesView() {
             <ActionDialog action={{ kind: "create_hosted_canary", path: hostedPath, url: hostedUrl }} label="Save shortcut…" disabled={!hostedPath || !hostedUrl.startsWith("https://")} />
           </div>
         </div>
-      </details>
+      </Disclosure>
     </div>
   );
 }

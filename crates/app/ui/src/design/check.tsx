@@ -38,7 +38,7 @@ export function CheckStatus({ check, running, detail }: { check: CheckLike; runn
   if (check.data) {
     return (
       <section aria-label="Result" className="rounded-panel border border-rule bg-surface p-4">
-        <h2 ref={heading} tabIndex={-1} className="m-0 mb-3 rounded-control text-body font-semibold text-ink">
+        <h2 ref={heading} tabIndex={-1} className="m-0 mb-3 rounded-control text-body font-semibold text-ink outline-none">
           {reportTitle(check.data.kind)}: {reportFigure(check.data) ?? reportStatus(check.data)}
         </h2>
         <p className="sr-only" role="status">
