@@ -561,7 +561,7 @@ What you can do: Check where the download comes from, or remove the line before 
 
 A source file hands text to the Function constructor with require, or to eval, Function or vm right next to where it fetched or decoded that text. Fake take-home projects use this to run a payload when the app starts; nothing needs to be installed.
 
-What you can do: Do not run the project on a computer with keys, wallets or work access. Find where the text comes from first.
+What you can do: Do not run the project on a computer with keys, wallets or work access. Find where the text comes from first; to watch it run, use bigman try, a disposable container without your files or keys.
 
 ## `repo.encoded-url`
 
@@ -585,7 +585,7 @@ What you can do: Read what the project does with the reply; if it runs it, do no
 
 A file named as a font, image or media file is readable text, such as hex, base64 or JavaScript. Genuine ones are binary. Lures hide their payload this way and decode it from a loader or an editor task.
 
-What you can do: Do not open or run the project; find what reads the file.
+What you can do: Do not open or run the project on this computer; find what reads the file. To watch it run, use bigman try, a disposable container without your files or keys.
 
 ## `repo.mcp-server`
 

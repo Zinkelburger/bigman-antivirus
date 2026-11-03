@@ -38,7 +38,7 @@
 | SC-21 | Poisoned AI coding-tool configuration (agent hooks, project MCP, rules files) | High | Partial | Repo-check rules for `.claude/` hooks, helpers and loosened settings, Copilot auto-approve, `.mcp.json`, `.cursor/`, instruction files, hidden Unicode |
 | SC-22 | Malicious MCP servers and AI-tool packages | Medium | Partial | MCP config inventory; flag unpinned `npx`/`uvx` servers and unknown publishers |
 | SC-23 | Credential harvesting and exfiltration channels (cross-cutting) | High | Partial (`shell.credentials`, canary) | Extend credential regex set; exfil-channel rules; more decoy canaries |
-| SC-24 | Take-home repositories whose own code runs a hidden payload on start | High | Partial | `repo.code-loader`, `repo.encoded-url`, `repo.payload-host`, `repo.disguised-asset`; `repo-check URL` before cloning; `persistence.shadowed-command` for swapped tools |
+| SC-24 | Take-home repositories whose own code runs a hidden payload on start | High | Partial | `repo.code-loader`, `repo.encoded-url`, `repo.payload-host`, `repo.disguised-asset`; `repo-check URL` before cloning; `persistence.shadowed-command` for swapped tools; `bigman try` to run it in a disposable container |
 
 ## Attacks
 
@@ -650,6 +650,7 @@
 - **Bigman today:** Partial.
   - `repo.code-loader` (High), `repo.encoded-url`, `repo.payload-host` and `repo.disguised-asset` (High) run in `repo-check`, in project inspection, and on a repository URL before cloning.
   - `persistence.shadowed-command`: `bigman changes` and the live monitor watch `~/.local/bin` and `~/bin` and raise High when a new or changed file there hides a system command.
+  - `bigman try DIR` (and Inspect's **Run it in a disposable container**) runs the project in a rootless Podman container that holds a copy of it and nothing else from the computer, and deletes it on exit. A loader that runs there finds no keys, wallets or browser data. The container shares the kernel and, with network on, reaches the local network.
   - Not covered: loaders spread across many files or built from generated strings, and tools swapped inside `node_modules/.bin`, a global npm prefix or editor extension folders.
 - **Proposed mitigation / detection:** Follow the decoded address into the project's other files; watch the global npm prefix and `~/.vscode/extensions` for changes outside a package manager.
 - **Test case idea:** The fixtures `repo.code-loader`, `repo.encoded-url`, `repo.payload-host`, `repo.disguised-asset` and `persistence.shadowed-command`.

@@ -117,6 +117,29 @@ sys.exit(1 if detected else 0)
         value({'type': 'apply', 'action': {'kind': 'package_policy', 'path': str(project)}}, 'done')
         assert 'ignore-scripts=true' in (project / '.npmrc').read_text()
 
+        # A disposable container: refused without Podman; with it, the preview names
+        # the image and limits, and applying opens a terminal through the user's
+        # service manager that runs `bigman try` on this exact folder.
+        container = {'kind': 'open_container', 'path': str(project), 'offline': True, 'port': 8080}
+        assert 'Podman is not installed' in ask({'type': 'preview', 'action': container})['value']['message']
+        calls = root / 'calls'
+        for tool in ('podman', 'systemd-run', 'xterm'):
+            fake = tools / tool
+            fake.write_text(f'#!{sys.executable}\nimport sys\nopen({str(calls)!r}, "a").write(" ".join(sys.argv[1:]) + "\\n")\n')
+            fake.chmod(0o700)
+        plan = value({'type': 'preview', 'action': container}, 'plan')
+        facts = {f['label']: f['value'] for f in plan['facts']}
+        assert facts['Image'].startswith('docker.io/library/node:lts, because the project has package.json'), plan
+        assert facts['Network'] == 'None' and 'kernel' in plan['note'], plan
+        assert '--network none' in plan['details'] and '--publish 127.0.0.1:8080:8080' in plan['details'], plan
+        assert not calls.exists(), 'a preview must not start anything'
+        value({'type': 'apply', 'action': container}, 'done')
+        launched = calls.read_text()
+        assert launched.startswith('--user --collect --quiet --unit bigman-try-'), launched
+        assert f'-- xterm -e {bin_dir / "bigman"} --state {root / "state"} try --yes --pause --offline --port 8080 {project.resolve()}' in launched, launched
+        for tool in ('podman', 'systemd-run', 'xterm'):
+            (tools / tool).unlink()
+
         # Startup baseline: compare, accept exactly what was reviewed, then no changes.
         (home / '.bashrc').write_text('echo original startup\n')
         reviewed = value({'type': 'changes'}, 'report')
@@ -245,7 +268,7 @@ sys.exit(1 if detected else 0)
             assert len(posted) == 1 and posted[0]['severity'] == 'high' and posted[0]['rule'] == 'repo.autorun-task', posted
             assert 'take-home' in posted[0]['summary'], posted
             assert not any('take-home' in e['summary'] for e in scan_events()), 'the project also entered as a report'
-        print('PASS: scan, previewed quarantine and restore, nonexecuting inspection, package policy, reviewed baseline, verified canary, history, timeline, live push, unread, receipt preview, Downloads and project watches and CLI over the daemon socket')
+        print('PASS: scan, previewed quarantine and restore, nonexecuting inspection, package policy, disposable container launch, reviewed baseline, verified canary, history, timeline, live push, unread, receipt preview, Downloads and project watches and CLI over the daemon socket')
     finally:
         daemon.terminate()
         daemon.wait(timeout=10)

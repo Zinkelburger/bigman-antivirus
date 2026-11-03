@@ -168,7 +168,7 @@ fn loader(r: &mut Report, f: &File, run: &Regex, fetch: &dyn Fn(&str) -> bool) {
         Severity::High,
         &format!("{} runs text it fetches or decodes as code", f.path.display()),
         evidence,
-        "This is how fake take-home projects deliver malware: starting the app runs whatever the text says, with your permissions. Do not run the project on a computer that holds keys, wallets or work access; read where the text comes from first.",
+        "This is how fake take-home projects deliver malware: starting the app runs whatever the text says, with your permissions. Do not run the project on a computer that holds keys, wallets or work access; read where the text comes from first. To watch it run, use bigman try, which opens a disposable container without your files or keys.",
     );
 }
 

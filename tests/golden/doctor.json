@@ -44,6 +44,13 @@ exit 1
     {
       "rule": "tool.missing",
       "severity": "info",
+      "summary": "podman is not installed",
+      "evidence": "Disposable containers",
+      "action": "Open Setup for an installation plan. Optional tools are not required for unrelated features."
+    },
+    {
+      "rule": "tool.missing",
+      "severity": "info",
       "summary": "lynis is not installed",
       "evidence": "System hardening audit",
       "action": "Open Setup for an installation plan. Optional tools are not required for unrelated features."

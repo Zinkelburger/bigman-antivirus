@@ -8,6 +8,7 @@ import { useAction, usePreview, type Action, type ActionPlan, type Report } from
 import { ActionButton } from "./components/ActionButton";
 import { ConfirmDanger } from "./components/ConfirmDanger";
 import { EvidenceBlock } from "./components/EvidenceBlock";
+import { KeyValue } from "./components/KeyValue";
 import { PreviewDialog } from "./components/PreviewDialog";
 import { Skeleton } from "./components/Skeleton";
 import { nowSeconds } from "./format";
@@ -50,7 +51,11 @@ function Plan({ plan }: { plan: ActionPlan }) {
   return (
     <>
       <p className="m-0 max-w-[56ch] text-ink">{plan.summary}</p>
-      {plan.details && <EvidenceBlock text={plan.details} label="Exactly what changes" />}
+      {plan.note && <p className="m-0 max-w-[56ch] text-ink">{plan.note}</p>}
+      {plan.facts.length > 0 && (
+        <KeyValue items={plan.facts.map((f) => ({ label: f.label, value: f.value, mono: f.label === "Copied in" }))} />
+      )}
+      {plan.details && <EvidenceBlock text={plan.details} label={plan.details_label ?? "Exactly what changes"} />}
       {plan.undo && (
         <p className="m-0 text-small text-ink-muted">
           <span className="font-semibold">To undo: </span>
@@ -113,6 +118,8 @@ function Host({ current }: { current: OpenAction }) {
         if (!open) close(null);
       }}
       title={plan?.title ?? current.label.replace(/…$/, "")}
+      // A plan with facts describes a run, not a change to this computer.
+      planHeading={plan && plan.facts.length > 0 ? "What happens" : undefined}
       plan={planView}
       ready={plan !== null && problem === null}
       confirmLabel={plan?.verb ?? "Confirm"}

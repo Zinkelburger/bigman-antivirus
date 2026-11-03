@@ -6,6 +6,7 @@ pub mod changes;
 pub mod channels;
 pub mod denials;
 pub mod desktop;
+pub mod disposable;
 pub mod doctor;
 pub mod gitremote;
 pub mod hooks;

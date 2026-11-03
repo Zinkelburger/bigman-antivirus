@@ -606,7 +606,7 @@
     "severity": "high",
     "title": "The project runs text it fetches or decodes as code",
     "explanation": "A source file hands text to the Function constructor with require, or to eval, Function or vm right next to where it fetched or decoded that text. Fake take-home projects use this to run a payload when the app starts; nothing needs to be installed.",
-    "remediation": "Do not run the project on a computer with keys, wallets or work access. Find where the text comes from first.",
+    "remediation": "Do not run the project on a computer with keys, wallets or work access. Find where the text comes from first; to watch it run, use bigman try, a disposable container without your files or keys.",
     "threats": [
       "SC-24",
       "PH-10"
@@ -639,7 +639,7 @@
     "severity": "high",
     "title": "A font, image or media file is really text",
     "explanation": "A file named as a font, image or media file is readable text, such as hex, base64 or JavaScript. Genuine ones are binary. Lures hide their payload this way and decode it from a loader or an editor task.",
-    "remediation": "Do not open or run the project; find what reads the file.",
+    "remediation": "Do not open or run the project on this computer; find what reads the file. To watch it run, use bigman try, a disposable container without your files or keys.",
     "threats": [
       "SC-24",
       "SC-20",

@@ -44,6 +44,7 @@ Package installation plans support Fedora, Debian and Ubuntu. Packages come from
 | Project watch | The daemon watches the folders people keep code in (`~/Projects`, `~/projects`, `~/src`, `~/code`, `~/Code`, `~/git`, `~/dev`, `~/repos`, `~/workspace`, `~/Developer`, `~/work`) and Downloads for a new project folder. A clone is checked once git finishes its checkout, an unpacked or new folder once it stops changing, with the full project inspection; a High finding notifies you | Only folders directly inside those; a deeper layout such as `~/src/github.com/OWNER/REPO` is not watched. It notifies, it does not block: an editor opened in the first seconds after a clone can still run a task. Folders with no project files (no `.git`, `package.json`, `.vscode` and similar) are skipped |
 | Downloads watch | The daemon checks each new file in Downloads (`XDG_DOWNLOAD_DIR`) once it stops changing, with the inspector above or a ClamAV scan, and posts one first-seen entry per file contents; files that arrived while it was stopped are checked when it starts | Runs while `bigmand` runs; partial browser downloads are skipped; it reads the file after it lands, so a desktop that previews or indexes it first is not prevented from doing so |
 | Project script policy | Previews and writes `ignore-scripts=true` to project `.npmrc`, retaining a backup | Explicit `npm run` and command-line overrides can still execute code; this is not package trust certification |
+| Disposable container | `bigman try PATH`, or **Run it in a disposable container** under an Inspect result: a shell in a rootless Podman container holding a copy of the folder or file and nothing else from this computer (no home folder, keys, browser data, agent sockets or environment variables). The image is chosen from the project files (Node, Python, Rust, Go, Ruby, otherwise Debian); the shell runs as an unprivileged user with no capabilities, 4 GiB of memory and 4,096 processes. The container and its copy are deleted when the shell exits or its window closes, and a later run removes any a killed session left. `--offline` removes the network, `--port N` opens one port on 127.0.0.1 | A container shares the kernel, so it is weaker than a separate computer or a virtual machine. With network, code inside reaches the internet, your local network and services on this computer that listen on its network address (not those on 127.0.0.1). Images come from Docker Hub by tag. Nothing comes back, including work done inside |
 | Restricted rehearsal | Runs an explicitly approved saved installer hash in an offline Bubblewrap environment, optionally traced with strace | No host install or promotion; restrictions can prevent completion; not a malware-detonation service |
 | PDF triage | Escaped/raw PDF names, PDFiD, pdf-parser statistics, pdfinfo links | External tools require Bubblewrap; compressed/encrypted or unsupported content may remain unexamined |
 | Startup changes | Compares startup, cron, shell, PAM, loader, kernel-module, udev, SSH, name-resolution and desktop-handler files, and the programs in `~/.local/bin` and `~/bin` (content, mode, owner, file capabilities), with a reviewed baseline, and attributes each change to its package: an update the package database explains is Info, a package's file that no longer matches is Review, or High for PAM, loader and SSH files. A new or changed program in your own bin folder that hides a system command (git, ssh, node) is High | Baseline records prior state, not trust or the writer; root-only files are compared by metadata; sudoers needs the optional helper |
@@ -74,6 +75,8 @@ bigman packages ./downloaded-package.tgz
 bigman check ~/Downloads/tool_1.0_amd64.deb   # picks the inspector: archive, launcher, package file, PDF, …
 bigman repo-check ./cloned-project
 bigman repo-check https://github.com/OWNER/take-home   # read it before you clone it
+bigman try ./take-home                      # shell in a disposable container with a copy of it
+bigman try --offline --port 3000 ./take-home -- npm start
 bigman lockfile ./package-lock.json --against ./old/package-lock.json
 bigman package-sources
 bigman package-policy ./project                 # preview
@@ -96,6 +99,8 @@ bigman sandbox REPORT_ID --approve-sha256 SHA256_FROM_REPORT
 ```
 
 The saved file is rehashed before launch. The sandbox exposes system runtime files read-only, uses a disposable home/work directory, clears inherited environment credentials, omits host service/agent sockets, and denies networking through a separate network namespace. It has wall-clock, CPU, address-space, output, descriptor, file-size and UID-relative process limits. The process limit is not a dedicated cgroup quota. If Bubblewrap cannot enforce the profile, execution fails without an unrestricted retry. Missing strace makes behavioral coverage incomplete even if the script finishes.
+
+`bigman try` shows the exact Podman commands and asks before starting (`--yes` skips the question). The folder is copied in with `podman cp`, never mounted, so nothing inside can write to it. `--image` takes a full image name with its registry; `--root` makes the shell root inside the container, for installing system packages, at the cost that an escape would act as your account. The command after `--` runs instead of a shell, and its exit code is returned. In the app, the same preview opens a terminal through `systemd-run --user`, because rootless Podman cannot start under the daemon's no-new-privileges setting.
 
 Inspection fetches use HTTPS, bounded size/time/redirects, public destination checks and DNS pinning through curl. Each redirect is checked. Proxies and curl user configuration are disabled for these fetches. Installers that need private endpoints can be downloaded separately and explicitly inspected as local files.
 
@@ -173,6 +178,7 @@ bigman setup clamav --apply
 bigman setup shellcheck --apply
 bigman setup sandbox --apply            # bubblewrap + strace
 bigman setup pdf --apply                # Poppler utilities
+bigman setup container --apply          # Podman, for bigman try
 bigman audit lynis
 bigman audit osv ./project              # may query advisory services
 bigman audit osquery

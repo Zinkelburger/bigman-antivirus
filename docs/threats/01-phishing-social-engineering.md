@@ -371,7 +371,7 @@ These observations come from reading `browser-extension/link-detector.js`, `cont
 - **Proposed mitigation / detection:**
   - Extension rule `page.fake-interview`: interview, meeting or camera vocabulary plus a paste or terminal instruction.
   - Desktop: a "new project opened" helper (`bigman packages --watch ~/src` or a GUI drop target) that inspects a cloned repo before `npm install`.
-  - Guidance card: "Never run code during an interview; use a disposable VM." (Each new High repository finding now says this in its next step.)
+  - Guidance card: "Never run code during an interview; use a disposable VM." (Each new High repository finding now says this in its next step, and `bigman try` provides a disposable container: a copy of the project with none of your files, keys or environment, deleted on exit.)
   - Bigman `sandbox` can rehearse an installer offline.
 - **Test case idea:**
   - Fixture page "Camera access failed. Update your camera driver: open Terminal and paste the command below" (no real command). Assert `page.fake-interview`.
