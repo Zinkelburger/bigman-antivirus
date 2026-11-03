@@ -209,7 +209,19 @@ sys.exit(1 if detected else 0)
         assert cli('sources').returncode == 0
         network = cli('network')
         assert network.returncode == 0 and 'listeners' in json.loads(network.stdout), network.stderr
-        print('PASS: scan, previewed quarantine and restore, nonexecuting inspection, package policy, reviewed baseline, verified canary, history, timeline, live push, unread, receipt preview and CLI over the daemon socket')
+        # The Downloads watch: a new file is checked by the matching inspector and
+        # posted once, as a download, not again as a report.
+        (downloads / 'Invoice.pdf.desktop').write_text('[Desktop Entry]\nType=Application\nName=Invoice.pdf\nExec=sh -c "echo fixture"\nIcon=application-pdf\n')
+        def download_events():
+            return value({'type': 'events', 'since': 0, 'until': None, 'sources': ['download'], 'limit': 100}, 'events')
+        deadline = time.monotonic() + 20
+        while not any('Invoice.pdf.desktop' in e['summary'] for e in download_events()):
+            assert time.monotonic() < deadline, 'the Downloads watch did not post the new file'
+            time.sleep(0.25)
+        posted = [e for e in download_events() if 'Invoice.pdf.desktop' in e['summary']]
+        assert len(posted) == 1 and posted[0]['severity'] == 'high' and posted[0]['rule'] == 'desktop.masquerade', posted
+        assert not any('Invoice.pdf.desktop' in e['summary'] for e in scan_events()), 'the download also entered as a report'
+        print('PASS: scan, previewed quarantine and restore, nonexecuting inspection, package policy, reviewed baseline, verified canary, history, timeline, live push, unread, receipt preview, Downloads watch and CLI over the daemon socket')
     finally:
         daemon.terminate()
         daemon.wait(timeout=10)

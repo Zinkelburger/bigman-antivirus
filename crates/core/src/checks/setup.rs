@@ -8,8 +8,32 @@ use std::{
     path::{Path, PathBuf},
     process::Command,
 };
+/// The Downloads folder: XDG_DOWNLOAD_DIR from user-dirs.dirs, which desktops
+/// localise (~/Téléchargements), else ~/Downloads.
 pub fn downloads() -> PathBuf {
-    home().join("Downloads")
+    let config = std::env::var_os("XDG_CONFIG_HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| home().join(".config"));
+    fs::read_to_string(config.join("user-dirs.dirs"))
+        .ok()
+        .and_then(|text| user_dir(&text, "XDG_DOWNLOAD_DIR", &home()))
+        .unwrap_or_else(|| home().join("Downloads"))
+}
+
+/// One `XDG_..._DIR="$HOME/..."` line; only $HOME-relative or absolute paths.
+fn user_dir(text: &str, key: &str, home: &Path) -> Option<PathBuf> {
+    let value = text
+        .lines()
+        .find_map(|l| l.trim().strip_prefix(key)?.strip_prefix('='))?
+        .trim()
+        .trim_matches('"');
+    let path = match value.strip_prefix("$HOME") {
+        Some(rest) => home.join(rest.trim_start_matches('/')),
+        None if value.starts_with('/') => PathBuf::from(value),
+        None => return None,
+    };
+    // "$HOME/" alone means the desktop turned the folder off.
+    (path != home).then_some(path)
 }
 /// Optional tool groups Setup can install, with the binaries that show they are present.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, ts_rs::TS)]
@@ -196,8 +220,6 @@ pub fn service_plan(store: &Store) -> Result<Vec<(String, String)>> {
         quote(&store.root.to_string_lossy())?
     );
     let monitor=format!("[Unit]\nDescription=Bigman local canary and persistence monitor\n[Service]\nType=simple\nExecStart={base} watch\nRestart=on-failure\nRestartSec=5\nNoNewPrivileges=true\nUMask=0077\n[Install]\nWantedBy=default.target\n");
-    let scan=format!("[Unit]\nDescription=Bigman daily Downloads scan\n[Service]\nType=oneshot\nExecStart={base} scan {} --notify\nNoNewPrivileges=true\nUMask=0077\n",quote(&downloads().to_string_lossy())?);
-    let timer="[Unit]\nDescription=Daily Bigman scan\n[Timer]\nOnCalendar=daily\nPersistent=true\nRandomizedDelaySec=15m\n[Install]\nWantedBy=timers.target\n";
     let update=format!("[Unit]\nDescription=Bigman private signature update\n[Service]\nType=oneshot\nExecStart={base} update\nNoNewPrivileges=true\nUMask=0077\n");
     let daemon = format!(
         "[Unit]\nDescription=Bigman collector daemon\n[Service]\nType=simple\nExecStart={} --state {}\nRestart=on-failure\nRestartSec=10\nNoNewPrivileges=true\nUMask=0077\n[Install]\nWantedBy=default.target\n",
@@ -210,19 +232,34 @@ pub fn service_plan(store: &Store) -> Result<Vec<(String, String)>> {
         ("bigman-update.service".into(), update),
         ("bigman-update.timer".into(), update_timer.into()),
         ("bigman-monitor.service".into(), monitor),
-        ("bigman-scan.service".into(), scan),
-        ("bigman-scan.timer".into(), timer.into()),
     ])
 }
+
+/// Units earlier versions installed: the daily Downloads scan, which the
+/// daemon's Downloads watch replaces. Installing or removing clears them.
+const LEGACY: [&str; 2] = ["bigman-scan.timer", "bigman-scan.service"];
 pub fn services(store: &Store, apply: bool, remove: bool, stop: &Cancel) -> Result<String> {
     let plan = service_plan(store)?;
     let root = std::env::var_os("XDG_CONFIG_HOME")
         .map(PathBuf::from)
         .unwrap_or_else(|| home().join(".config"))
         .join("systemd/user");
+    let legacy: Vec<&str> = LEGACY
+        .iter()
+        .copied()
+        .filter(|n| root.join(n).exists())
+        .collect();
     if !apply {
+        let replaced = if legacy.is_empty() {
+            String::new()
+        } else {
+            format!(
+                "\n\nAlso stops and deletes {}, the daily Downloads scan from an earlier version; the collector daemon now checks each new download as it arrives.",
+                legacy.join(" and ")
+            )
+        };
         return Ok(format!(
-            "{} per-user units in {}\n{}",
+            "{} per-user units in {}{replaced}\n{}",
             if remove {
                 "Remove"
             } else {
@@ -235,6 +272,19 @@ pub fn services(store: &Store, apply: bool, remove: bool, stop: &Cancel) -> Resu
         ));
     }
     fs::create_dir_all(&root)?;
+    if legacy.contains(&"bigman-scan.timer") {
+        let o = runner::run(
+            Command::new("systemctl").args(["--user", "disable", "--now", "bigman-scan.timer"]),
+            30,
+            stop,
+        )?;
+        if !o.ok() {
+            bail!("Could not disable the old daily scan: {}", o.stderr);
+        }
+    }
+    for n in &legacy {
+        fs::remove_file(root.join(n))?;
+    }
     if remove {
         let o = runner::run(
             Command::new("systemctl").args([
@@ -243,7 +293,6 @@ pub fn services(store: &Store, apply: bool, remove: bool, stop: &Cancel) -> Resu
                 "--now",
                 "bigmand.service",
                 "bigman-monitor.service",
-                "bigman-scan.timer",
                 "bigman-update.timer",
             ]),
             30,
@@ -289,7 +338,6 @@ pub fn services(store: &Store, apply: bool, remove: bool, stop: &Cancel) -> Resu
                 "--now",
                 "bigmand.service",
                 "bigman-monitor.service",
-                "bigman-scan.timer",
                 "bigman-update.timer",
             ]),
             30,
@@ -407,6 +455,24 @@ pub fn write_native_manifest(path: &Path, extension: &str) -> Result<()> {
 }
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn the_downloads_folder_follows_user_dirs() {
+        let home = Path::new("/home/sam");
+        let text = "# comment\nXDG_DESKTOP_DIR=\"$HOME/Bureau\"\nXDG_DOWNLOAD_DIR=\"$HOME/Téléchargements\"\n";
+        assert_eq!(
+            user_dir(text, "XDG_DOWNLOAD_DIR", home),
+            Some(PathBuf::from("/home/sam/Téléchargements"))
+        );
+        assert_eq!(
+            user_dir("XDG_DOWNLOAD_DIR=\"$HOME/\"\n", "XDG_DOWNLOAD_DIR", home),
+            None
+        );
+        assert_eq!(
+            user_dir("XDG_DOWNLOAD_DIR=\"/data/dl\"\n", "XDG_DOWNLOAD_DIR", home),
+            Some(PathBuf::from("/data/dl"))
+        );
+    }
+
     use super::*;
     #[test]
     fn service_argument_escaping() {

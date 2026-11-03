@@ -17,6 +17,7 @@ pub enum SourceId {
     Flatpak,
     Container,
     Scan,
+    Download,
     Advisory,
     Extension,
     Import,
@@ -34,6 +35,7 @@ impl SourceId {
             SourceId::Flatpak => "flatpak",
             SourceId::Container => "container",
             SourceId::Scan => "scan",
+            SourceId::Download => "download",
             SourceId::Advisory => "advisory",
             SourceId::Extension => "extension",
             SourceId::Import => "import",
@@ -44,7 +46,7 @@ impl SourceId {
     }
 }
 
-pub const ALL_SOURCES: [SourceId; 12] = [
+pub const ALL_SOURCES: [SourceId; 13] = [
     SourceId::Network,
     SourceId::Listener,
     SourceId::Receipt,
@@ -54,6 +56,7 @@ pub const ALL_SOURCES: [SourceId; 12] = [
     SourceId::Flatpak,
     SourceId::Container,
     SourceId::Scan,
+    SourceId::Download,
     SourceId::Advisory,
     SourceId::Extension,
     SourceId::Import,

@@ -249,9 +249,9 @@ export function SetupPage() {
 
           <Item title="Background services" done={null}>
             <p className="m-0 max-w-[56ch] text-ink-muted">
-              Per-user units for the collector that keeps Activity and Network history while this window is closed, the
-              canary and startup monitor, a daily Downloads scan and daily signature updates. They follow your login
-              session; nothing system-wide is enabled.
+              Per-user units for the collector that keeps Activity and Network history while this window is closed and
+              checks each new file in Downloads as it arrives, the canary and startup monitor, and daily signature
+              updates. They follow your login session; nothing system-wide is enabled.
             </p>
             <div className="flex gap-2">
               <ActionDialog action={{ kind: "services", remove: false }} label="Install services…" disabled={down} />

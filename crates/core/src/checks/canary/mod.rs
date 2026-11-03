@@ -214,6 +214,20 @@ impl Watcher {
         }
         errors
     }
+    /// Watches one directory with `mask`, for watchers other than the canaries'.
+    pub fn add_dir(&mut self, dir: &Path, mask: u32) -> Result<()> {
+        let c = CString::new(dir.as_os_str().as_bytes())?;
+        let wd = unsafe { libc::inotify_add_watch(self.file.as_raw_fd(), c.as_ptr(), mask) };
+        if wd < 0 {
+            bail!(
+                "Cannot watch {}: {}",
+                dir.display(),
+                std::io::Error::last_os_error()
+            );
+        }
+        self.watches.insert(wd, dir.to_path_buf());
+        Ok(())
+    }
     pub fn events(&mut self) -> Result<Vec<(Option<PathBuf>, u32)>> {
         let mut buffer = [0u8; 65536];
         let mut out = vec![];

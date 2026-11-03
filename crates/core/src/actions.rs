@@ -275,9 +275,9 @@ pub fn preview(action: &Action, store: &Store) -> Result<ActionPlan> {
                 if *remove { "Remove background services" } else { "Install background services" },
                 if *remove { "Remove" } else { "Install" },
                 if *remove {
-                    "Stop and remove Bigman's per-user collector, monitor and daily scan and update units. Reports, the timeline and canary files stay."
+                    "Stop and remove Bigman's per-user collector, monitor and daily update units. Reports, the timeline and canary files stay."
                 } else {
-                    "Write and enable per-user units: the collector daemon that keeps Activity and Network history while the window is closed, the canary and startup monitor, a daily Downloads scan and daily signature updates. Nothing system-wide."
+                    "Write and enable per-user units: the collector daemon that keeps Activity and Network history while the window is closed, which also checks each new file in Downloads as it arrives, the canary and startup monitor, and daily signature updates. Nothing system-wide."
                 },
                 setup::services(store, false, *remove, &crate::runner::cancel())?,
             )

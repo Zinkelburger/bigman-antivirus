@@ -3,6 +3,7 @@
 //! source is one module here and its fixtures; the UI renders any Event.
 mod connections;
 mod denials;
+mod downloads;
 mod listeners;
 mod packages;
 mod reports;
@@ -12,6 +13,7 @@ mod updates;
 
 pub use connections::Connections;
 pub use denials::Denials;
+pub use downloads::Downloads;
 pub use listeners::Listeners;
 pub use packages::{transaction_summary, Packages};
 pub use reports::Reports;
@@ -77,6 +79,7 @@ pub fn label(name: &str) -> &'static str {
         "packages" => "Package installs and updates",
         "denials" => "SELinux and AppArmor denials",
         "reports" => "Checks you run",
+        "downloads" => "New files in Downloads",
         "updates" => "Security updates, daily and after package changes",
         _ => "Other",
     }
@@ -105,7 +108,10 @@ pub fn linux_sources(stop: crate::runner::Cancel) -> Vec<Box<dyn Source>> {
         Box::new(Throughput::new(Box::new(linux::SysNetCounters))),
         Box::new(Connections::new(Box::new(linux::ProcSockets))),
         Box::new(Listeners::new(Box::new(linux::ProcSockets))),
-        Box::new(Denials::new(Box::new(linux::Journalctl { stop }))),
+        Box::new(Denials::new(Box::new(linux::Journalctl {
+            stop: stop.clone(),
+        }))),
+        Box::new(Downloads::new(crate::checks::setup::downloads(), stop)),
         Box::<Reports>::default(),
         Box::<Updates>::default(),
     ];

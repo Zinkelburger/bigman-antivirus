@@ -45,13 +45,22 @@ pub fn report_sentence(r: &Report) -> String {
         "Restricted installer rehearsal" => format!("Rehearsed {} in a sandbox", r.subject),
         kind => format!("{kind}: {}", r.subject),
     };
+    if r.kind == "Canary triggered" {
+        what
+    } else {
+        format!("{what} · {}", report_outcome(r))
+    }
+}
+
+/// "no findings", "2 findings to review" or "incomplete".
+pub fn report_outcome(r: &Report) -> String {
     let to_review = r.summary.map(|s| s.to_review as usize).unwrap_or_else(|| {
         r.findings
             .iter()
             .filter(|f| f.severity != Severity::Info)
             .count()
     });
-    let outcome = if r.is_incomplete() {
+    if r.is_incomplete() {
         "incomplete".to_string()
     } else if to_review == 0 {
         "no findings".to_string()
@@ -60,11 +69,6 @@ pub fn report_sentence(r: &Report) -> String {
             "{to_review} finding{} to review",
             if to_review == 1 { "" } else { "s" }
         )
-    };
-    if r.kind == "Canary triggered" {
-        what
-    } else {
-        format!("{what} · {outcome}")
     }
 }
 
@@ -94,6 +98,14 @@ impl Source for Reports {
         reports.sort_by_key(|r| r.created);
         let mut observations = vec![];
         for r in &reports {
+            // The Downloads watch posts its own reports; leave them for it.
+            if super::downloads::IN_FLIGHT
+                .lock()
+                .unwrap()
+                .contains(&r.subject)
+            {
+                continue;
+            }
             // Keyed by id, not time: a long scan saved late still arrives once.
             let id_key = format!("report-id:{}", r.id);
             if ctx.db.seen(&id_key).unwrap_or(false) {
