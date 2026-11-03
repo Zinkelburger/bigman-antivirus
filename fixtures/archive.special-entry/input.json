@@ -1,0 +1,15 @@
+{
+  "compressed": 4096,
+  "entries": [
+    {
+      "name": "tool/bin/helper",
+      "kind": "file",
+      "mode": 2541,
+      "size": 8192
+    },
+    {
+      "name": "tool/run/control",
+      "kind": "fifo"
+    }
+  ]
+}

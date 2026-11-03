@@ -1,0 +1,16 @@
+{
+  "compressed": 4096,
+  "entries": [
+    {
+      "name": "dotfiles/",
+      "kind": "dir",
+      "mode": 493
+    },
+    {
+      "name": "dotfiles/.bashrc",
+      "kind": "file",
+      "mode": 420,
+      "size": 3500
+    }
+  ]
+}

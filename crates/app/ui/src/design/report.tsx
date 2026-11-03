@@ -48,6 +48,8 @@ const KIND_TITLE: Record<string, string> = {
   "Security updates": "Security updates",
   "Project inspection": "Project",
   "Lockfile check": "Lockfile",
+  "Archive check": "Archive",
+  "Launcher check": "Launcher",
   "Package sources": "Package sources",
   "Repository check": "Project",
   "Package script inventory": "Package scripts",

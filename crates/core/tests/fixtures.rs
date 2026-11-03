@@ -196,6 +196,11 @@ fn run(dir: &Path, expected: &Expected) -> BTreeSet<String> {
             let now = value["now"].as_u64().unwrap_or(0);
             checks::channels::assess(&mut r, &serde_json::from_value(value).unwrap(), now)
         }
+        "archive" => checks::archive::assess(&mut r, &serde_json::from_value(json()).unwrap()),
+        "desktop" => {
+            let name = input.file_name().unwrap().to_string_lossy();
+            checks::desktop::assess(&mut r, &input.display().to_string(), &name, &text(), false);
+        }
         "advisories" => {
             checks::advisories::assess(&mut r, &serde_json::from_value(json()).unwrap())
         }
@@ -319,9 +324,12 @@ fn rule_ids_in_source_and_registry_match() {
     for file in files {
         for cap in literal.captures_iter(&fs::read_to_string(&file).unwrap()) {
             let id = cap[1].to_string();
-            let file_name = [".json", ".lock", ".log", ".dat", ".sh", ".py"]
-                .iter()
-                .any(|s| id.ends_with(s));
+            // File and host names that share a family's first word.
+            let file_name = [
+                ".json", ".lock", ".log", ".dat", ".sh", ".py", ".desktop", ".com", ".org",
+            ]
+            .iter()
+            .any(|s| id.ends_with(s));
             if !file_name && families.contains(id.split('.').next().unwrap()) {
                 used.insert(id);
             }

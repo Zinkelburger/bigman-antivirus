@@ -1,0 +1,8 @@
+{
+  "driver": "archive",
+  "fires": [
+    "archive.startup-path"
+  ],
+  "about": "A dotfiles archive with a shell startup file.",
+  "input": "input.json"
+}

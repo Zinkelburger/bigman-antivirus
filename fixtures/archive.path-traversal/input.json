@@ -1,0 +1,15 @@
+{
+  "compressed": 4096,
+  "entries": [
+    {
+      "name": "report/summary.txt",
+      "kind": "file",
+      "size": 300
+    },
+    {
+      "name": "report/../../notes.txt",
+      "kind": "file",
+      "size": 40
+    }
+  ]
+}

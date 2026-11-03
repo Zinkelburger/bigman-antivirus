@@ -53,4 +53,21 @@ describe("Inspect", () => {
     const result = await screen.findByRole("region", { name: "Result" });
     expect(within(result).getByRole("heading", { name: /^Installer/ })).toBeInTheDocument();
   });
+
+  it("routes archives and launchers to their own checks and lists them afterwards", async () => {
+    const { user } = renderWithDaemon(<InspectPage />);
+    const field = await screen.findByLabelText("File, folder or HTTPS URL");
+    await user.type(field, "/home/sam/Downloads/Meeting_Notice.pdf.desktop");
+    await user.click(screen.getByRole("button", { name: "Inspect" }));
+    let result = await screen.findByRole("region", { name: "Result" });
+    expect(within(result).getByRole("heading", { name: /^Launcher: / })).toBeInTheDocument();
+    expect(within(result).getByText("desktop.masquerade")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Inspect something else" }));
+    await user.type(await screen.findByLabelText("File, folder or HTTPS URL"), "/home/sam/Downloads/photos.zip");
+    await user.click(screen.getByRole("button", { name: "Inspect" }));
+    result = await screen.findByRole("region", { name: "Result" });
+    expect(within(result).getByRole("heading", { name: /^Archive: / })).toBeInTheDocument();
+    expect(within(result).getByText("archive.path-traversal")).toBeInTheDocument();
+    expect((await screen.findAllByRole("row", { name: /^.*Launcher.*Meeting_Notice\.pdf\.desktop/ })).length).toBeGreaterThan(0);
+  });
 });

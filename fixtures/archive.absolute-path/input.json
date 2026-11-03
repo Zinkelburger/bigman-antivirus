@@ -1,0 +1,16 @@
+{
+  "compressed": 4096,
+  "entries": [
+    {
+      "name": "opt/tool/README",
+      "kind": "file",
+      "size": 120
+    },
+    {
+      "name": "/opt/tool/bin/tool",
+      "kind": "file",
+      "mode": 493,
+      "size": 2048
+    }
+  ]
+}

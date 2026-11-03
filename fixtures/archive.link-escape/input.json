@@ -1,0 +1,15 @@
+{
+  "compressed": 4096,
+  "entries": [
+    {
+      "name": "docs",
+      "kind": "symlink",
+      "target": "/home/user"
+    },
+    {
+      "name": "docs/notes.txt",
+      "kind": "file",
+      "size": 40
+    }
+  ]
+}

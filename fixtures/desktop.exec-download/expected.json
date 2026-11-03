@@ -1,0 +1,8 @@
+{
+  "driver": "desktop",
+  "fires": [
+    "desktop.exec-download"
+  ],
+  "about": "A launcher whose command fetches a file (never run).",
+  "input": "update.desktop"
+}

@@ -1,0 +1,8 @@
+{
+  "driver": "desktop",
+  "fires": [
+    "desktop.launcher"
+  ],
+  "about": "An ordinary launcher for a program.",
+  "input": "tool.desktop"
+}

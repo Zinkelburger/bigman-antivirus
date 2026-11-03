@@ -1,0 +1,8 @@
+{
+  "driver": "archive",
+  "fires": [
+    "archive.bomb-ratio"
+  ],
+  "about": "10 KiB that declares 1 GiB of contents.",
+  "input": "input.json"
+}

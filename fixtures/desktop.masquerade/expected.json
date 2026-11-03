@@ -1,0 +1,8 @@
+{
+  "driver": "desktop",
+  "fires": [
+    "desktop.masquerade"
+  ],
+  "about": "A launcher named like a PDF with a PDF icon (the APT36 pattern).",
+  "input": "Meeting_Ltr_ID1543ops.pdf.desktop"
+}

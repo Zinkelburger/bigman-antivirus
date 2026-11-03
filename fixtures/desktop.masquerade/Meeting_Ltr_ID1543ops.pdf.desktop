@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Meeting_Ltr_ID1543ops.pdf
+Exec=sh -c "echo test"
+Icon=application-pdf
+Terminal=false

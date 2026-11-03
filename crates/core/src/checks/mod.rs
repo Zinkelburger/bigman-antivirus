@@ -1,9 +1,11 @@
 //! One module per check. Each check produces a `Report` and owns no UI.
 pub mod advisories;
+pub mod archive;
 pub mod canary;
 pub mod changes;
 pub mod channels;
 pub mod denials;
+pub mod desktop;
 pub mod doctor;
 pub mod hooks;
 pub mod inspect;

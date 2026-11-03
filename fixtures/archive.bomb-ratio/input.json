@@ -1,0 +1,10 @@
+{
+  "compressed": 10240,
+  "entries": [
+    {
+      "name": "zeros.bin",
+      "kind": "file",
+      "size": 1073741824
+    }
+  ]
+}

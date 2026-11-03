@@ -1,0 +1,8 @@
+{
+  "driver": "archive",
+  "fires": [
+    "archive.absolute-path"
+  ],
+  "about": "A tarball whose entry is named from the root.",
+  "input": "input.json"
+}

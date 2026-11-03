@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Tool
+Exec=tool %F
+Icon=tool
+Terminal=false

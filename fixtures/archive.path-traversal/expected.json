@@ -1,0 +1,8 @@
+{
+  "driver": "archive",
+  "fires": [
+    "archive.path-traversal"
+  ],
+  "about": "A zip whose entry climbs two folders up.",
+  "input": "input.json"
+}

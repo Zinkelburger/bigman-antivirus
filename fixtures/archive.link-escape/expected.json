@@ -1,0 +1,8 @@
+{
+  "driver": "archive",
+  "fires": [
+    "archive.link-escape"
+  ],
+  "about": "A symlink to /home/user, then a file written through it.",
+  "input": "input.json"
+}

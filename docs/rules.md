@@ -75,6 +75,15 @@ Every finding Bigman shows comes from one of these rules. Each has a synthetic f
 | `channel.priority-override` | Review | A third-party source outranks the distribution | DP-22, DP-12 |
 | `channel.personal-repo` | Info | Personal repositories are configured | DP-12 |
 | `channel.third-party` | Info | Third-party package sources are configured | DP-10, DP-22 |
+| `archive.absolute-path` | High | Archive entries are named with an absolute path | DS-13 |
+| `archive.path-traversal` | High | Archive entries climb out of the extraction folder | DS-13 |
+| `archive.link-escape` | High | Links in the archive point outside it | DS-13 |
+| `archive.special-entry` | Review | The archive holds devices, pipes or setuid programs | DS-13, HI-17 |
+| `archive.startup-path` | Review | Archive entries would land in startup or login files | DS-13, HI-02, HI-03, HI-04, HI-05, HI-09, HI-10 |
+| `archive.bomb-ratio` | Review | The archive expands to far more than its size | DS-13 |
+| `desktop.launcher` | Review | This is a program launcher, not a document | DS-09 |
+| `desktop.masquerade` | High | A program launcher is made to look like a file | DS-09 |
+| `desktop.exec-download` | High | A program launcher downloads something when opened | DS-09, DP-18 |
 | `canary.event` | High | A decoy file was opened or changed | CR-22 |
 | `canary.verified` | Info | Local read detection verified | CR-22 |
 | `canary.notifications-unavailable` | Info | Desktop pop-ups are not available |  |
@@ -639,6 +648,78 @@ What you can do: Remove the ones you no longer use.
 An inventory of sources not run by the distribution or Flathub. Each can ship updates for anything it packages; an abandoned one whose domain changes hands can ship anything.
 
 What you can do: Remove sources you no longer use.
+
+## `archive.absolute-path`
+
+**Archive entries are named with an absolute path** (High)
+
+An entry is named from the root, like /etc/x or C:\x, so an extractor that keeps names as they are writes it there instead of into the folder you chose. Current GNU tar, bsdtar and unzip strip the leading slash; some other tools have not.
+
+What you can do: Do not extract it with an unfamiliar tool. List it first with bsdtar -tvf.
+
+## `archive.path-traversal`
+
+**Archive entries climb out of the extraction folder** (High)
+
+An entry name uses .. to reach above the folder it is extracted into, for example to overwrite ~/.bashrc. Ordinary archives never need this.
+
+What you can do: Do not extract it.
+
+## `archive.link-escape`
+
+**Links in the archive point outside it** (High)
+
+A symbolic or hard link inside the archive points at an absolute path or above the extraction folder. Later entries written through the link, or the next program that follows it, land outside the folder.
+
+What you can do: Do not extract it.
+
+## `archive.special-entry`
+
+**The archive holds devices, pipes or setuid programs** (Review)
+
+An entry is a device file or named pipe, or a program marked setuid or setgid. User archives rarely need these. Extracting as an ordinary user drops the setuid bits and refuses devices; extracting as root keeps them.
+
+What you can do: Extract it only as yourself, never with sudo.
+
+## `archive.startup-path`
+
+**Archive entries would land in startup or login files** (Review)
+
+An entry's path ends in a place that runs at login or controls access: autostart, user systemd units, shell startup files, SSH authorized_keys, cron or ld.so.preload. Extracted into your home folder or /, it takes effect without being opened.
+
+What you can do: Check each entry before extracting into your home folder or /.
+
+## `archive.bomb-ratio`
+
+**The archive expands to far more than its size** (Review)
+
+The sizes the archive declares add up to at least 100 times the archive itself and at least 64 MiB. Ordinary archives grow 2 to 10 times. Extracting one like this can fill the disk.
+
+What you can do: Extract it only somewhere with a size limit, or not at all.
+
+## `desktop.launcher`
+
+**This is a program launcher, not a document** (Review)
+
+A .desktop file runs the command on its Exec line when opened. It can sit in a folder or an archive looking like any other file. Commands it runs are also checked with the installer rules.
+
+What you can do: Open it only if you expected a program from where it came from.
+
+## `desktop.masquerade`
+
+**A program launcher is made to look like a file** (High)
+
+A .desktop launcher borrows a document's look: a double extension like report.pdf.desktop, a Name such as Invoice.pdf, or a PDF, office or folder icon. File managers show the Name and icon, so it reads as a document while opening it runs a command.
+
+What you can do: Do not open it. Delete it unless you know who made it and why.
+
+## `desktop.exec-download`
+
+**A program launcher downloads something when opened** (High)
+
+The launcher's command runs curl or wget. What it downloads is not part of this check and can change at any time.
+
+What you can do: Do not open it.
 
 ## `canary.event`
 

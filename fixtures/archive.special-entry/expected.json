@@ -1,0 +1,8 @@
+{
+  "driver": "archive",
+  "fires": [
+    "archive.special-entry"
+  ],
+  "about": "A setuid program and a named pipe.",
+  "input": "input.json"
+}
