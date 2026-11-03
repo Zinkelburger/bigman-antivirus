@@ -4,4 +4,4 @@
  * What noticed something. Drives the Activity filter chips; adding a source
  * needs no UI change.
  */
-export type SourceId = "network" | "listener" | "receipt" | "startup" | "canary" | "denial" | "flatpak" | "container" | "scan" | "download" | "advisory" | "extension" | "import";
+export type SourceId = "network" | "listener" | "receipt" | "startup" | "canary" | "denial" | "flatpak" | "container" | "scan" | "download" | "project" | "advisory" | "extension" | "import";

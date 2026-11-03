@@ -6,6 +6,7 @@ mod denials;
 mod downloads;
 mod listeners;
 mod packages;
+mod projects;
 mod reports;
 mod snapshot;
 mod throughput;
@@ -16,6 +17,7 @@ pub use denials::Denials;
 pub use downloads::Downloads;
 pub use listeners::Listeners;
 pub use packages::{transaction_summary, Packages};
+pub use projects::Projects;
 pub use reports::Reports;
 pub use snapshot::{network_snapshot, ConnectionRow, ListenerRow, NetworkSnapshot};
 pub use throughput::Throughput;
@@ -80,6 +82,7 @@ pub fn label(name: &str) -> &'static str {
         "denials" => "SELinux and AppArmor denials",
         "reports" => "Checks you run",
         "downloads" => "New files in Downloads",
+        "projects" => "New project folders",
         "updates" => "Security updates, daily and after package changes",
         _ => "Other",
     }
@@ -111,7 +114,11 @@ pub fn linux_sources(stop: crate::runner::Cancel) -> Vec<Box<dyn Source>> {
         Box::new(Denials::new(Box::new(linux::Journalctl {
             stop: stop.clone(),
         }))),
-        Box::new(Downloads::new(crate::checks::setup::downloads(), stop)),
+        Box::new(Downloads::new(
+            crate::checks::setup::downloads(),
+            stop.clone(),
+        )),
+        Box::new(Projects::new(projects::roots(), stop)),
         Box::<Reports>::default(),
         Box::<Updates>::default(),
     ];

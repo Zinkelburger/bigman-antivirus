@@ -360,6 +360,7 @@ These observations come from reading `browser-extension/link-detector.js`, `cont
   - A download of a script or AppImage from a domain first seen today.
   - Slack or Teams lookalike workspace domains.
 - **Bigman today:** **Partial.** `bigman repo-check` (and Inspect on a folder) shows what a take-home repository runs on open: auto-run tasks (High when hidden or downloading), devcontainer commands, git hooks and config commands.
+  - The daemon's project watch checks a repository cloned or unpacked into `~/Projects`, `~/src`, `~/code`, Downloads and similar folders as soon as git finishes, and notifies on a High finding.
   - `bigman repo-check https://github.com/OWNER/REPO` (also GitLab, Codeberg, Bitbucket, and Inspect's URL field) reads the repository before it is cloned: git fetches the latest commit into a bare repository, so nothing is checked out or run.
   - It also reads the project's own source: `repo.code-loader` (text run with the Function constructor and `require`, or `eval` next to a fetch or decode), `repo.encoded-url`, `repo.payload-host` and `repo.disguised-asset` (a font or image that is text). See SC-24.
   - AI-tool settings shipped with the project that redirect its API traffic or approve commands for you: `repo.ai-settings`; instruction files that tell the assistant to pipe a download into a shell: `repo.instructions-run-download`.

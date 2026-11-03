@@ -18,6 +18,8 @@ pub enum SourceId {
     Container,
     Scan,
     Download,
+    /// A project folder that was cloned or unpacked.
+    Project,
     Advisory,
     Extension,
     Import,
@@ -36,6 +38,7 @@ impl SourceId {
             SourceId::Container => "container",
             SourceId::Scan => "scan",
             SourceId::Download => "download",
+            SourceId::Project => "project",
             SourceId::Advisory => "advisory",
             SourceId::Extension => "extension",
             SourceId::Import => "import",
@@ -46,7 +49,7 @@ impl SourceId {
     }
 }
 
-pub const ALL_SOURCES: [SourceId; 13] = [
+pub const ALL_SOURCES: [SourceId; 14] = [
     SourceId::Network,
     SourceId::Listener,
     SourceId::Receipt,
@@ -57,6 +60,7 @@ pub const ALL_SOURCES: [SourceId; 13] = [
     SourceId::Container,
     SourceId::Scan,
     SourceId::Download,
+    SourceId::Project,
     SourceId::Advisory,
     SourceId::Extension,
     SourceId::Import,
