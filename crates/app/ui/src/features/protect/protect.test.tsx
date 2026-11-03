@@ -2,7 +2,7 @@ import { screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { renderWithDaemon } from "@/test-utils";
 import { ProtectPage } from "./ProtectPage";
-import { useProtectView } from "./store";
+import { useProtectView } from "@/shell/protect-view";
 
 describe("Protect", () => {
   it("scans the Downloads folder and shows the result", async () => {

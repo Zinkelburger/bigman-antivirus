@@ -1,0 +1,15 @@
+{
+  "now": 1793300000,
+  "units": {
+    "rpcbind.service": {
+      "load": "loaded",
+      "enabled": "enabled",
+      "active": "active"
+    },
+    "rpcbind.socket": {
+      "load": "loaded",
+      "enabled": "enabled",
+      "active": "active"
+    }
+  }
+}

@@ -21,8 +21,8 @@
 | NE-13 | Outbound connections to unexpected hosts (C2, mining pools, blocklisted ranges) | High | Partial | Rootless established-connection snapshot matched against user-imported DROP or FireHOL level 1 lists and a mining-pool port list |
 | NE-14 | Reverse-shell-like process behaviour (a shell whose stdio is a socket) | Critical | Partial (`shell.network-listener` static rule, `trace.network` in the sandbox) | `net.shell-socket-stdio` for processes the user can inspect, with an optional root or auditd mode |
 | NE-15 | DNS tampering (`/etc/hosts`, `resolv.conf`, NetworkManager and resolved DNS) | High | Gap | Add these files to the `bigman changes` baseline; diff the effective DNS servers from `resolvectl` |
-| NE-16 | LLMNR, mDNS and NetBIOS name poisoning on untrusted LANs | Medium | Gap | Report LLMNR and mDNS state from resolved and NetworkManager; flag UDP 5355 and 5353 listeners |
-| NE-17 | cups-browsed IPP chain (CVE-2024-47176 and related) and CUPS DDoS reflection | High (if active) | Gap | `cups.browsed-active` plus `BrowseRemoteProtocols` lint, cross-checked with UDP 631 |
+| NE-16 | LLMNR, mDNS and NetBIOS name poisoning on untrusted LANs | Medium | Partial (LLMNR) | Report LLMNR and mDNS state from resolved and NetworkManager; flag UDP 5355 and 5353 listeners |
+| NE-17 | cups-browsed IPP chain (CVE-2024-47176 and related) and CUPS DDoS reflection | High (if active) | Partial | `cups.browsed-active` plus `BrowseRemoteProtocols` lint, cross-checked with UDP 631 |
 | NE-18 | Router UPnP/NAT-PMP port mappings and router-level exposure | Medium | Gap | Guidance view, plus an optional read-only UPnP IGD port-mapping listing behind an explicit user action |
 | NE-19 | VPN/WireGuard configuration hygiene (keys, hooks, AllowedIPs, leaks) | Medium | Gap | Metadata-only audit: file modes, presence of `PostUp`/`PreUp` hooks, `SaveConfig`, full-tunnel and DNS settings |
 | NE-20 | Unexpected tunnels and remote-access agents (ngrok, cloudflared, Tailscale Funnel, VNC/RDP) | High | Partial (`ssh -R`) | Known-binary and known-unit inventory plus outbound tunnel endpoints, as "review" findings |
@@ -330,7 +330,7 @@
   - `nft list ruleset` (root). `/etc/firewalld/firewalld.conf` is mode 0600 on Fedora 44, so reading it is root-only there.
   - Shipped zone definitions under `/usr/lib/firewalld/zones/` (world-readable).
   - Suspicious states: no firewall active; default zone with wide port ranges; ruleset hash changed since baseline; a cron or systemd unit that invokes `iptables`, `nft` or `ufw` (cross-check with the `shell.persistence` and `shell.privilege` analyzer rules).
-- **Bigman today:** Partial. `bigman doctor` records `systemctl is-active firewalld ufw opensnitch` exit and output in details only. There are no findings. OpenSnitch setup and launch exist (`bigman setup firewall`).
+- **Bigman today:** Partial. `harden.firewall.off` reports that neither firewalld nor ufw is active (Review when something is listening), and `harden.firewall.open_range` reports a firewalld zone on an active network that opens a wide port range, such as Fedora Workstation's 1025-65535 (Review when a program is reachable only because of it). Both read firewalld over D-Bus without root and offer a previewed change with an undo ([hardening research](../research/hardening.md)). Tampered rules are not detected. OpenSnitch setup and launch exist (`bigman setup firewall`).
 - **Proposed mitigation / detection:**
   - `firewall.none-active` (High).
   - `firewall.permissive-zone`: parse the zone XML for `port` ranges wider than 1,000 ports or services beyond a small allow-list, and explain it as "any app listening on 1025-65535 is reachable from this network".
@@ -433,7 +433,7 @@
   - T1557 Adversary-in-the-Middle: https://attack.mitre.org/techniques/T1557/
 
 ### NE-16 LLMNR, mDNS and NetBIOS name poisoning
-- **What it is:** When normal DNS fails, multicast name protocols ask the whole LAN "who is `fileserver`?", and any host can answer. On untrusted Wi-Fi, a poisoner can redirect connections and capture authentication attempts. systemd-resolved enables LLMNR by default on many distros and sends single-label names to LLMNR. A Fedora request to disable it (Red Hat bug 2228188) was closed EOL on 2026-06-08 without a change. mDNS (Avahi, resolved) and NetBIOS (Samba `nmbd`) have similar trust models.
+- **What it is:** When normal DNS fails, multicast name protocols ask the whole LAN "who is `fileserver`?", and any host can answer. On untrusted Wi-Fi, a poisoner can redirect connections and capture authentication attempts. Upstream systemd-resolved builds with LLMNR fully on (`default-llmnr=yes`), which Debian and Arch inherit when resolved is installed and enabled (it is not by default on either). Fedora builds it in `resolve` mode: it does not answer LLMNR, but it still sends single-label names that DNS cannot resolve to the LAN, which is the half a poisoner needs. Ubuntu builds it off. A Fedora request to disable it (Red Hat bug 2228188) was closed EOL on 2026-06-08 without a change. mDNS (Avahi, resolved) and NetBIOS (Samba `nmbd`) have similar trust models.
 - **Real-world examples:** MITRE ATT&CK T1557.001, now titled "Name Resolution Poisoning and SMB Relay". Fedora bug 2228188 and the linked systemd PR "Disable LLMNR protocol in default builds" (open at the time of capture).
 - **What a defender inspects (indicators):**
   - UDP 5355 (LLMNR), 5353 (mDNS) and 137/138 (NetBIOS) listeners on 0.0.0.0.
@@ -441,7 +441,7 @@
   - `resolved.conf` `LLMNR=`/`MulticastDNS=`.
   - NetworkManager `connection.llmnr` and `connection.mdns`.
   - `systemctl is-active avahi-daemon nmb`.
-- **Bigman today:** Gap. The listener rules treat systemd-resolved's LLMNR listener on 5355 as a distribution default rather than a wildcard finding; `name.llmnr-enabled` is not implemented.
+- **Bigman today:** Partial. `harden.name.llmnr` (Info) reads the global LLMNR mode from `resolvectl status` and offers a previewed resolved drop-in with `LLMNR=no` and an undo. The listener rules still treat resolved's 5355 listener as a distribution default. mDNS and NetBIOS are not reported yet.
 - **Proposed mitigation / detection:** `name.llmnr-enabled` and `name.mdns-enabled` (Review, with "matters on public Wi-Fi" context). Suggest `LLMNR=no` in a resolved drop-in, and per-connection settings for untrusted networks. Report-only.
 - **Test case idea:** Fixture `resolvectl status` text containing `Protocols: +DefaultRoute +LLMNR -mDNS -DNSOverTLS` and a fixture resolved.conf. Assert `name.llmnr-enabled`. With `LLMNR=no` in the drop-in fixture, assert no finding.
 - **References:**
@@ -464,7 +464,7 @@
   - `/etc/cups/cups-browsed.conf` `BrowseRemoteProtocols` containing `cups` (vulnerable configuration; `dnssd` only is the mitigation).
   - Package versions of `cups-browsed`, `libcupsfilters`, `libppd` and `cups-filters` against distro advisories.
   - Unexpected printers in `lpstat -v` (rootless).
-- **Bigman today:** Gap.
+- **Bigman today:** Partial. `harden.service.cups_browsed` (Review when the firewall lets other computers reach UDP 631, Info otherwise) reports an enabled cups-browsed and offers a previewed `systemctl disable --now` with an undo ([hardening research](../research/hardening.md)). Its version and `BrowseRemoteProtocols` are not linted yet.
 - **Proposed mitigation / detection:** `cups.browsed-active` (Review if enabled; High if UDP 631 is listening on a wildcard address and `BrowseRemoteProtocols` includes `cups`), `cups.unexpected-printer` (baseline `lpstat -v`), and a feed-driven `pkg.cve.cups-browsed`. Guidance: disable cups-browsed if you don't need auto-discovery.
 - **Test case idea:** Fixture `cups-browsed.conf` with `BrowseRemoteProtocols dnssd cups`, a fixture UDP row `00000000:0277` (0.0.0.0:631) and fixture `is-active` output. Assert High. With `BrowseRemoteProtocols dnssd`, assert Review.
 - **References:**
@@ -561,7 +561,7 @@
 - **What it is:** Some daemons are rarely needed on a single-user workstation but are often pulled in by package groups and listen on wildcard addresses: `rpcbind` (111), NFS, Samba (139/445), `telnetd`, VNC (5900+) and `xrdp` (3389). Each is an additional pre-authentication attack surface. CCDC guidance is blunt: disable anything that is not needed for the host's role.
 - **Real-world examples:** WinterKnight (2026) asks why a host runs a service its role doesn't need. Samba and rpcbind are historic sources of remote CVEs. The specific recent CVEs were not re-verified for this catalogue.
 - **What a defender inspects (indicators):** `systemctl list-unit-files --state=enabled` for `rpcbind.socket`, `nfs-server`, `smb`, `nmb`, `xinetd`, `telnet.socket`, `vncserver@`, `xrdp` and `gnome-remote-desktop`; listener ports 111, 2049, 139, 445, 23, 5900-5910 and 3389 on non-loopback addresses.
-- **Bigman today:** Partial. When bound beyond loopback they appear in Network > Listening programs with `net.listener.wildcard` (Review), without naming the service or its role.
+- **Bigman today:** Partial. When bound beyond loopback they appear in Network > Listening programs with `net.listener.wildcard` (Review). `harden.service.network` names enabled rpcbind, Samba, FTP, telnet, xrdp and Cockpit units, rates them by whether the firewall lets other computers reach them, and offers to turn each off with an undo ([hardening research](../research/hardening.md)). NFS and VNC servers are not named yet.
 - **Proposed mitigation / detection:** `service.legacy-network-daemon` (Review), with a one-line role question: "Is this machine a file server?". Guidance: `systemctl disable --now` (shown as text for the user to run, never run by Bigman).
 - **Test case idea:** Fixture `systemctl list-sockets` output with a `0.0.0.0:111 rpcbind.socket` row. Assert a finding naming `rpcbind.socket`.
 - **References:**

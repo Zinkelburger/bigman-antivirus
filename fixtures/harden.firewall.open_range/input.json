@@ -1,0 +1,44 @@
+{
+  "now": 1793300000,
+  "firewall": {
+    "state": "firewalld",
+    "zones": [
+      {
+        "name": "FedoraWorkstation",
+        "default": true,
+        "interfaces": [
+          "wlp1s0"
+        ],
+        "sources": [],
+        "target": "default",
+        "services": [],
+        "ports": [
+          {
+            "protocol": "tcp",
+            "from": 1025,
+            "to": 65535
+          },
+          {
+            "protocol": "udp",
+            "from": 1025,
+            "to": 65535
+          }
+        ]
+      }
+    ]
+  },
+  "listeners": [
+    {
+      "protocol": "tcp",
+      "local": "0.0.0.0:4000",
+      "remote": null,
+      "state": "listen",
+      "uid": 1000,
+      "process": {
+        "pid": 4242,
+        "name": "beam.smp",
+        "exe": null
+      }
+    }
+  ]
+}

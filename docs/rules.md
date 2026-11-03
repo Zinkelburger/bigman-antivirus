@@ -58,6 +58,22 @@ Every finding Bigman shows comes from one of these rules. Each has a synthetic f
 | `net.listener.lan_service` | Review | A local AI or notebook server is reachable from the network | NE-09, NE-10 |
 | `denial.selinux` | Info | SELinux stopped or logged an access | DS-18 |
 | `denial.apparmor` | Info | AppArmor stopped or logged an access | DS-18 |
+| `harden.sshd` | Review | The SSH server is on | NE-01, NE-02, NE-03, NE-05, NE-20 |
+| `harden.service.cups_browsed` | Review | cups-browsed adds printers from the network | NE-17 |
+| `harden.service.network` | Review | A network service a desktop rarely needs is on | NE-01, NE-22 |
+| `harden.firewall.off` | Review | No firewall is running | NE-12, NE-01 |
+| `harden.firewall.open_range` | Review | The firewall opens every high port | NE-12, NE-01, NE-11 |
+| `harden.sysctl.ptrace_scope` | Review | Programs can read each other's memory | CR-07, HI-25 |
+| `harden.sysctl.kptr_restrict` | Info | Kernel addresses are visible to programs | HI-25 |
+| `harden.sysctl.dmesg_restrict` | Info | Every program can read the kernel log | HI-25 |
+| `harden.name.llmnr` | Info | This computer asks the local network for names | NE-16 |
+| `harden.screen_lock` | Review | The screen does not lock by itself | DS-15 |
+| `harden.autologin` | Review | Someone is logged in automatically at startup | DS-15 |
+| `harden.disk_encryption` | Info | The disk is not encrypted | DS-22 |
+| `harden.secure_boot` | Info | Secure Boot is off | HI-21, DP-23 |
+| `harden.group.docker` | Review | Your account is in the docker group | HI-16 |
+| `harden.home.readable` | Review | Other accounts can open your home folder | CR-10 |
+| `harden.npm.ignore_scripts` | Info | npm runs dependency install scripts | SC-01 |
 | `lynis.finding` | Review | Lynis recommendation | HI-24 |
 | `osv.advisory` | Review | A dependency has a published advisory | SC-05, SC-10 |
 | `yara.output` | Review | YARA-X rules matched | MW-01 |
@@ -477,6 +493,134 @@ What you can do: If the program needed this to work, a local policy module can a
 AppArmor refused a confined program something its profile does not allow, or logged it in complain mode.
 
 What you can do: If the program needed this to work, its profile can be extended; Bigman shows the record and never changes profiles for you.
+
+## `harden.sshd`
+
+**The SSH server is on** (Review)
+
+sshd accepts logins from other computers. On a desktop it is often turned on once and forgotten, and it is the way in that the October 2026 tampered editor extension used through a reverse tunnel. Review when other computers can reach it or no firewall is running, Info when the firewall blocks it or you logged in over the network recently.
+
+What you can do: If you do not log in to this computer remotely, turn it off; the undo turns it back on. Bigman will not turn it off while you are logged in over the network.
+
+## `harden.service.cups_browsed`
+
+**cups-browsed adds printers from the network** (Review)
+
+cups-browsed listens for printer announcements from the whole network. Its 2024 vulnerabilities (CVE-2024-47176 and related) let a device on the network add a printer that runs commands when you print. Review when other computers can reach UDP 631.
+
+What you can do: Turn it off unless you rely on network printers appearing by themselves; printers already set up keep working.
+
+## `harden.service.network`
+
+**A network service a desktop rarely needs is on** (Review)
+
+rpcbind, Samba, an FTP or telnet server, xrdp or Cockpit is enabled. Each accepts connections from other computers. Review when the firewall lets other computers reach it, Info otherwise.
+
+What you can do: Turn off the ones you do not use; the undo turns each back on.
+
+## `harden.firewall.off`
+
+**No firewall is running** (Review)
+
+Neither firewalld nor ufw is active, so any program that listens on the network is reachable from every network this computer joins. Review when something is listening, Info when nothing is yet.
+
+What you can do: Turn on the firewall your distribution ships; Bigman can do it for firewalld or ufw.
+
+## `harden.firewall.open_range`
+
+**The firewall opens every high port** (Review)
+
+A firewalld zone on an active network allows a wide range of ports, like Fedora Workstation's 1025-65535, so development servers, debuggers and anything else listening on a high port are reachable. Review when a program is reachable only because of the range, Info otherwise.
+
+What you can do: Close the range and allow the few ports you need by name.
+
+## `harden.sysctl.ptrace_scope`
+
+**Programs can read each other's memory** (Review)
+
+kernel.yama.ptrace_scope is 0, so any program running as you can attach to your other programs and read secrets out of their memory.
+
+What you can do: Set it to 1: programs can still debug what they start, and sudo is needed to attach to anything else.
+
+## `harden.sysctl.kptr_restrict`
+
+**Kernel addresses are visible to programs** (Info)
+
+kernel.kptr_restrict is 0, so kernel memory addresses are shown to every program, which helps local kernel exploits.
+
+What you can do: Set it to 1; profilers then need sudo for kernel symbols.
+
+## `harden.sysctl.dmesg_restrict`
+
+**Every program can read the kernel log** (Info)
+
+kernel.dmesg_restrict is 0. The kernel log can reveal addresses and hardware details useful to an exploit.
+
+What you can do: Set it to 1; dmesg then needs sudo.
+
+## `harden.name.llmnr`
+
+**This computer asks the local network for names** (Info)
+
+systemd-resolved uses LLMNR, so names missing from DNS are asked of every device on the local network, and any of them can answer. On public Wi-Fi that is used to capture sign-ins and redirect connections.
+
+What you can do: Turn LLMNR off with a resolved drop-in; .local names and DNS keep working.
+
+## `harden.screen_lock`
+
+**The screen does not lock by itself** (Review)
+
+GNOME or KDE Plasma is set never to lock when you step away, or not to lock after sleep.
+
+What you can do: Turn automatic locking on; Bigman sets a five-minute delay that you can change in your desktop's settings.
+
+## `harden.autologin`
+
+**Someone is logged in automatically at startup** (Review)
+
+The display manager logs an account in without a password when the computer starts. Review when the disk is also unencrypted, Info otherwise.
+
+What you can do: Turn automatic login off in your desktop's user or login-screen settings.
+
+## `harden.disk_encryption`
+
+**The disk is not encrypted** (Info)
+
+The system or home folder is not on an encrypted device, so anyone holding the disk can read your files and keys.
+
+What you can do: Encryption is set up when installing; back up and reinstall with encryption on.
+
+## `harden.secure_boot`
+
+**Secure Boot is off** (Info)
+
+The firmware starts any boot loader and kernel, so boot-level malware can load before Linux.
+
+What you can do: Turn it on in the firmware setup, after enrolling the signing key of any out-of-tree kernel module you use.
+
+## `harden.group.docker`
+
+**Your account is in the docker group** (Review)
+
+Members of the docker group can start a container that mounts the whole disk, which is administrator access without a password, for you and for any program you run.
+
+What you can do: Leave the group and use sudo, rootless Docker or Podman; the undo adds you back.
+
+## `harden.home.readable`
+
+**Other accounts can open your home folder** (Review)
+
+Your home folder lets other accounts on this computer list or open it. Review when other people's accounts exist, Info otherwise.
+
+What you can do: Remove access for others (chmod o-rwx); the undo restores the previous mode.
+
+## `harden.npm.ignore_scripts`
+
+**npm runs dependency install scripts** (Info)
+
+npm runs preinstall, install and postinstall scripts from every dependency during npm install. Self-spreading npm worms in 2025 ran from those scripts.
+
+What you can do: Set ignore-scripts=true in your user .npmrc and rebuild only the packages that need it.
 
 ## `lynis.finding`
 

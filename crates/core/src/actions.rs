@@ -2,7 +2,7 @@
 //! change without changing anything, `apply` does it. The CLI, the daemon and the
 //! desktop app all go through these, so a preview can never drift from the change.
 use crate::{
-    checks::{canary, changes, inspect, packages, scan, setup},
+    checks::{canary, changes, hardening, inspect, packages, scan, setup},
     model::Report,
     runner::Cancel,
     store::Store,
@@ -75,6 +75,20 @@ pub enum Action {
     /// Register the browser extension's native-messaging host.
     RegisterNativeHost {
         extension_id: String,
+    },
+    /// Make a hardening suggestion's change. The daemon works out the change
+    /// from the computer's current state; the id only says which suggestion.
+    Harden {
+        id: String,
+    },
+    /// Reverse a hardening change Bigman made, from its record.
+    UndoHardening {
+        id: String,
+    },
+    /// Stop (or resume) suggesting a hardening change.
+    KeepSetting {
+        id: String,
+        keep: bool,
     },
 }
 
@@ -199,6 +213,66 @@ fn paths(list: &[PathBuf]) -> String {
 
 pub fn preview(action: &Action, store: &Store) -> Result<ActionPlan> {
     Ok(match action {
+        Action::Harden { id } => {
+            let (s, change, _) = hardening::find(store, id, &crate::runner::cancel())?;
+            let verb = match &s.fix {
+                hardening::Fix::Bigman { verb, .. } => verb.clone(),
+                _ => "Change".into(),
+            };
+            ActionPlan {
+                undo: Some(format!(
+                    "Offered right after the change, and later under Changed by Bigman (bigman harden {id} --undo), each with its own preview."
+                )),
+                // Paragraphs: what it costs, then who runs the commands below.
+                ..plan(
+                    &s.title,
+                    &verb,
+                    format!("{}\n\n{}", s.tradeoff, change.who()),
+                    change.describe(),
+                )
+            }
+        }
+        Action::UndoHardening { id } => {
+            let a = hardening::applied_change(store, id)?;
+            plan(
+                &format!("Undo: {}", a.title),
+                "Undo",
+                format!(
+                    "Put the setting back the way it was before Bigman changed it.\n\n{}",
+                    a.revert.who()
+                ),
+                a.undo,
+            )
+        }
+        Action::KeepSetting { id, keep } => {
+            let title = hardening::review(store, &crate::runner::cancel())?
+                .suggestions
+                .into_iter()
+                .find(|s| s.id == *id)
+                .map(|s| s.title)
+                .context("This suggestion no longer applies: the setting may have changed since you last looked")?;
+            ActionPlan {
+                undo: Some(if *keep {
+                    format!("Suggest again… under Left as it is (bigman harden {id} --suggest-again).")
+                } else {
+                    format!("Leave as it is… on the suggestion (bigman harden {id} --keep).")
+                }),
+                ..plan(
+                    &if *keep {
+                        format!("Stop suggesting: {title}")
+                    } else {
+                        format!("Suggest again: {title}")
+                    },
+                    if *keep { "Stop suggesting" } else { "Suggest again" },
+                    if *keep {
+                        "Bigman stops counting this suggestion and lists it under Left as it is. Nothing on this computer changes."
+                    } else {
+                        "Bigman counts this suggestion again. Nothing on this computer changes."
+                    },
+                    "",
+                )
+            }
+        },
         Action::JournalAccess { remove } => {
             let command = setup::journal_group_plan(*remove)?;
             ActionPlan {
@@ -401,6 +475,25 @@ pub fn preview(action: &Action, store: &Store) -> Result<ActionPlan> {
 
 pub fn apply(action: &Action, store: &Store, stop: &Cancel) -> Result<ActionOutcome> {
     Ok(match action {
+        Action::Harden { id } => undoable(
+            message(hardening::apply(store, id, stop)?),
+            Action::UndoHardening { id: id.clone() },
+        ),
+        Action::UndoHardening { id } => message(hardening::undo(store, id, stop)?),
+        Action::KeepSetting { id, keep } => {
+            hardening::keep(store, id, *keep)?;
+            undoable(
+                message(if *keep {
+                    "Left as it is. Bigman no longer counts it."
+                } else {
+                    "Bigman suggests it again."
+                }),
+                Action::KeepSetting {
+                    id: id.clone(),
+                    keep: !*keep,
+                },
+            )
+        }
         Action::InstallTool { tool } => message(setup::install_tool(tool, true, stop)?),
         Action::JournalAccess { remove } => {
             let done = message(setup::journal_group(*remove, stop)?);

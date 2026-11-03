@@ -1,0 +1,8 @@
+{
+  "driver": "hardening",
+  "fires": [
+    "harden.autologin"
+  ],
+  "about": "GDM logging alice in automatically.",
+  "input": "input.json"
+}

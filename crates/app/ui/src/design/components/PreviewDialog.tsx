@@ -19,6 +19,8 @@ export interface PreviewDialogProps {
   acknowledgment?: string | undefined;
   /** False until the plan has loaded; confirming is not possible before. */
   ready?: boolean;
+  /** Where focus goes when the dialog closes; call preventDefault to choose it. */
+  onCloseAutoFocus?: ((event: Event) => void) | undefined;
 }
 
 type Phase = { step: "plan" } | { step: "running" } | { step: "result"; result: ReactNode } | { step: "error"; message: string };
@@ -34,6 +36,7 @@ export function PreviewDialog({
   undo,
   acknowledgment,
   ready = true,
+  onCloseAutoFocus,
 }: PreviewDialogProps) {
   const [phase, setPhase] = useState<Phase>({ step: "plan" });
   const [acknowledged, setAcknowledged] = useState(false);
@@ -57,7 +60,9 @@ export function PreviewDialog({
     <Dialog.Root open={open} onOpenChange={change}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-40 bg-scrim" />
-        <Dialog.Content className="fixed top-1/2 left-1/2 z-50 flex max-h-[85vh] w-[min(640px,calc(100vw-48px))] -translate-x-1/2 -translate-y-1/2 flex-col rounded-panel border border-rule bg-surface shadow-panel">
+        <Dialog.Content
+          onCloseAutoFocus={onCloseAutoFocus}
+          className="fixed top-1/2 left-1/2 z-50 flex max-h-[85vh] w-[min(640px,calc(100vw-48px))] -translate-x-1/2 -translate-y-1/2 flex-col rounded-panel border border-rule bg-surface shadow-panel">
           <div className="flex items-center justify-between gap-4 border-b border-rule px-5 py-3">
             <Dialog.Title className="text-title font-semibold text-ink">{title}</Dialog.Title>
             <Dialog.Close

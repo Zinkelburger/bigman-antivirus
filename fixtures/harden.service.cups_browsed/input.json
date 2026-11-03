@@ -1,0 +1,47 @@
+{
+  "now": 1793300000,
+  "units": {
+    "cups-browsed.service": {
+      "load": "loaded",
+      "enabled": "enabled",
+      "active": "active"
+    }
+  },
+  "listeners": [
+    {
+      "protocol": "udp",
+      "local": "0.0.0.0:631",
+      "remote": null,
+      "state": "unconnected",
+      "uid": 0,
+      "process": null
+    }
+  ],
+  "firewall": {
+    "state": "firewalld",
+    "zones": [
+      {
+        "name": "FedoraWorkstation",
+        "default": true,
+        "interfaces": [
+          "wlp1s0"
+        ],
+        "sources": [],
+        "target": "default",
+        "services": [
+          {
+            "name": "ipp-client",
+            "ports": [
+              {
+                "protocol": "udp",
+                "from": 631,
+                "to": 631
+              }
+            ]
+          }
+        ],
+        "ports": []
+      }
+    ]
+  }
+}

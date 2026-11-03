@@ -10,6 +10,8 @@ import sys
 import tempfile
 import time
 
+import hardening_fakes
+
 binary = Path(sys.argv[1]).resolve()
 with tempfile.TemporaryDirectory(prefix='bigman-integration-') as work:
     root = Path(work)
@@ -142,4 +144,73 @@ sys.exit(1 if detected else 0)
     assert 'bigman-monitor.service' in preview
     assert not (home / '.config/systemd/user/bigman-monitor.service').exists()
     assert all((p.stat().st_mode & 0o077) == 0 for p in (state / 'reports').iterdir())
-    print('PASS: scan mapping, missing scanner, quarantine/restore, nonexecuting inspection, script policy, reviewed baseline drift protection, real canary alerts, native boundaries, service preview, private history')
+
+    # Hardening, with stand-in systemctl, pkexec, npm and kwriteconfig6 (see hardening_fakes.py).
+    hhome = root / 'harden-home'
+    htools = root / 'harden-tools'
+    hhome.mkdir()
+    henv = dict(env, HOME=str(hhome), XDG_CONFIG_HOME=str(hhome / '.config'), **hardening_fakes.install(htools))
+    hardening_fakes.prepare_home(hhome)
+
+    def harden(*args, codes=(0,)):
+        return run('harden', *args, codes=codes, raw=True, custom_env=henv).stdout.decode()
+
+    def refused(*args):
+        return run('harden', *args, codes=(1, 2), raw=True, custom_env=henv).stderr.decode()
+
+    review = json.loads(harden(codes=(1, 2)))  # lsblk and other tools are absent, so coverage is incomplete
+    ids = {s['id']: s for s in review['suggestions']}
+    assert {'harden.sshd', 'harden.screen_lock', 'harden.home.readable', 'harden.npm.ignore_scripts', 'harden.firewall.off'} <= ids.keys(), ids.keys()
+    assert ids['harden.sshd']['fix'] == {'kind': 'bigman', 'admin': True, 'verb': 'Turn off'}
+    assert ids['harden.firewall.off']['fix']['kind'] == 'manual'  # neither firewalld nor ufw is installed
+    assert any(s['what'] == 'Disk encryption' for s in review['report']['coverage']['skipped'])
+
+    # A preview changes nothing and names the exact command and who runs it.
+    preview = harden('harden.sshd')
+    assert 'systemctl disable --now sshd.service' in preview and 'Polkit asks for your password' in preview, preview
+    assert hardening_fakes.pkexec_calls(htools) == [] and hardening_fakes.unit(htools, 'sshd.service')['enabled'] == 'enabled'
+
+    # A dismissed password dialog changes nothing and records no undo.
+    (htools / 'deny-pkexec').touch()
+    assert 'Administrator approval was not given' in refused('harden.sshd', '--apply')
+    (htools / 'deny-pkexec').unlink()
+    assert hardening_fakes.unit(htools, 'sshd.service')['active'] == 'active'
+    assert json.loads(harden(codes=(1, 2)))['applied'] == []
+
+    # Applied through one pkexec call, checked again, and undone the same way.
+    assert 'new setting is in place' in harden('harden.sshd', '--apply')
+    assert hardening_fakes.pkexec_calls(htools)[-1] == ['systemctl', 'disable', '--now', 'sshd.service']
+    assert hardening_fakes.unit(htools, 'sshd.service') == {'load': 'loaded', 'enabled': 'disabled', 'active': 'inactive'}
+    after = json.loads(harden(codes=(1, 2)))
+    assert 'harden.sshd' not in {s['id'] for s in after['suggestions']}
+    assert [a['id'] for a in after['applied']] == ['harden.sshd'] and 'enable --now sshd.service' in after['applied'][0]['undo']
+    assert 'Put back' in harden('harden.sshd', '--undo')
+    assert hardening_fakes.pkexec_calls(htools)[-1] == ['systemctl', 'enable', '--now', 'sshd.service']
+    assert hardening_fakes.unit(htools, 'sshd.service')['active'] == 'active'
+
+    # Changes made as you: the home folder mode, npm's setting and KDE's screen lock.
+    harden('harden.home.readable', '--apply')
+    assert hhome.stat().st_mode & 0o777 == 0o750
+    harden('harden.home.readable', '--undo')
+    assert hhome.stat().st_mode & 0o777 == 0o755
+    harden('harden.npm.ignore_scripts', '--apply')
+    assert (htools / 'npm-ignore-scripts').read_text() == 'true'
+    harden('harden.screen_lock', '--apply')
+    assert 'Autolock=true' in (hhome / '.config' / 'kscreenlockerrc').read_text()
+    harden('harden.screen_lock', '--undo')
+    assert 'Autolock=false' in (hhome / '.config' / 'kscreenlockerrc').read_text()
+    assert len(hardening_fakes.pkexec_calls(htools)) == 3, 'changes made as you never ask for a password'
+
+    # Leave as it is: still listed, no longer counted; then suggested again.
+    harden('harden.screen_lock', '--keep')
+    left = json.loads(harden(codes=(1, 2)))
+    assert next(s for s in left['suggestions'] if s['id'] == 'harden.screen_lock')['kept']
+    assert all(f['rule'] != 'harden.screen_lock' for f in left['report']['findings'])
+    harden('harden.screen_lock', '--suggest-again')
+    assert not next(s for s in json.loads(harden(codes=(1, 2)))['suggestions'] if s['id'] == 'harden.screen_lock')['kept']
+
+    # Manual steps and unknown ids are refused, and nothing runs.
+    assert 'does not make this change itself' in refused('harden.firewall.off', '--apply')
+    assert 'no longer applies' in refused('harden.nothing', '--apply')
+    assert len(hardening_fakes.pkexec_calls(htools)) == 3
+    print('PASS: scan mapping, missing scanner, quarantine/restore, nonexecuting inspection, script policy, reviewed baseline drift protection, real canary alerts, native boundaries, service preview, private history, hardening preview, apply, refusal and undo')

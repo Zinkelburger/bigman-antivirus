@@ -1,0 +1,7 @@
+{
+  "user": "alice",
+  "groups": [
+    "alice",
+    "docker"
+  ]
+}

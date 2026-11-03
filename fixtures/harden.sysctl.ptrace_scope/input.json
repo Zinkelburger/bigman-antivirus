@@ -1,0 +1,14 @@
+{
+  "sysctl": {
+    "kernel.yama.ptrace_scope": {
+      "value": "0",
+      "set_by": [
+        {
+          "file": "/usr/lib/sysctl.d/10-default-yama-scope.conf",
+          "value": "0",
+          "package": "elfutils-default-yama-scope"
+        }
+      ]
+    }
+  }
+}

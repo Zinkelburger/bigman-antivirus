@@ -28,7 +28,7 @@
 | DP-20 | Stale systems: missing security updates or broken unattended upgrades | High | Gap | Pending-security-update report and auto-update health check |
 | DP-21 | Installed files altered after install (package DB mismatch) | High | Gap | Wrap `dpkg --verify`/`debsums`, `rpm -Va`, `pacman -Qkk` with noise filtering |
 | DP-22 | Third-party repo overriding distro packages (pinning, priority, epoch) | Medium | Gap | Flag high `Pin-Priority`, dnf `priority`, and installed packages whose origin is not the distro |
-| DP-23 | Boot chain and kernel modules: Secure Boot off, MOK enrollment, unsigned modules | Medium | Gap | Read-only Secure Boot/MOK/taint report |
+| DP-23 | Boot chain and kernel modules: Secure Boot off, MOK enrollment, unsigned modules | Medium | Partial (Secure Boot state) | Read-only Secure Boot/MOK/taint report |
 
 ## Attacks
 
@@ -482,7 +482,7 @@
   - Lockdown mode in `/sys/kernel/security/lockdown`.
   - DKMS MOK private key location (`/var/lib/dkms/mok.key`; check existence and mode only, never read it).
   - fwupd/LVFS DBX update state: `fwupdmgr get-devices`, `fwupdmgr get-updates` (read-only).
-- **Bigman today:** Gap.
+- **Bigman today:** Partial. `harden.secure_boot` (Info) reads the `SecureBoot` EFI variable without root and gives the firmware steps, including enrolling the key of out-of-tree modules first ([hardening research](../research/hardening.md)). MOK enrollment and module taint are not read yet.
 - **Proposed mitigation / detection:**
   - `bigman doctor` adds `boot.secureboot-off` (Info/Medium: informative, not alarming, since many users need it off), `kernel.unsigned-module-loaded` (Review, listing modules with `E` taint), `kernel.sig-enforce-off` (Info) and `boot.mok-key-readable` (High if the DKMS MOK private key is group- or world-readable).
   - Feed-driven DBX/shim advisories.

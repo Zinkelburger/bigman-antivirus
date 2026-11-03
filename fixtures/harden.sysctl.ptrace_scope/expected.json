@@ -1,0 +1,8 @@
+{
+  "driver": "hardening",
+  "fires": [
+    "harden.sysctl.ptrace_scope"
+  ],
+  "about": "ptrace_scope 0, set by the elfutils package's drop-in (Fedora's default).",
+  "input": "input.json"
+}

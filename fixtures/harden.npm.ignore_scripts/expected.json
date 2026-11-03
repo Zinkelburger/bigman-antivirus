@@ -1,0 +1,8 @@
+{
+  "driver": "hardening",
+  "fires": [
+    "harden.npm.ignore_scripts"
+  ],
+  "about": "npm 11 in use with ignore-scripts false.",
+  "input": "input.json"
+}

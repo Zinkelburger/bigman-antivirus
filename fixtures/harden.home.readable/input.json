@@ -1,0 +1,9 @@
+{
+  "home": {
+    "path": "/home/alice",
+    "mode": 493,
+    "other_accounts": [
+      "bob"
+    ]
+  }
+}

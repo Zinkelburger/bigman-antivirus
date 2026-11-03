@@ -49,7 +49,7 @@
   - 2025-11 (Shai-Hulud 2.0): moved to `preinstall` (`setup_bun.js`, which installs Bun, then runs `bun_environment.js`), so the payload fires even if the install later fails. https://securelist.com/shai-hulud-2-0/118214/, https://www.wiz.io/blog/shai-hulud-2-0-ongoing-supply-chain-attack
   - 2026-05-28: 14 "vpmdhaj" typosquats used install/preinstall/postinstall hooks. A second generation downloaded the Bun runtime and ran a stage-2 payload. https://www.microsoft.com/en-us/security/blog/2026/05/28/typosquatted-npm-packages-used-steal-cloud-ci-cd-secrets/
 - **Ecosystem defenses:**
-  - **npm 12 (2026-07-08):** dependency `preinstall`/`install`/`postinstall` and implicit node-gyp builds are skipped unless allowlisted (`allowScripts`; `npm approve-scripts`; opt-in `strict-allow-scripts` for CI). `--allow-git` and `--allow-remote` default to `none`. https://socket.dev/blog/npm-12, https://www.infoq.com/news/2026/08/npm-12-released/
+  - **npm 12 (2026-07-08):** dependency `preinstall`/`install`/`postinstall` and implicit node-gyp builds are skipped unless allowlisted (`allowScripts` in the root `package.json`, recorded with `npm install-scripts approve`, then `npm rebuild`; opt-in `strict-allow-scripts` for CI). https://github.com/npm/cli/releases/tag/v12.0.0, https://docs.npmjs.com/cli/v12/commands/npm-install-scripts. `--allow-git` and `--allow-remote` default to `none`. https://socket.dev/blog/npm-12, https://www.infoq.com/news/2026/08/npm-12-released/
   - **pnpm:** dependency build scripts run only when allowed (`allowBuilds`). `strictDepBuilds` and `blockExoticSubdeps` are on by default in current docs. https://pnpm.io/supply-chain-security
   - **bun:** runs dependency lifecycle scripts only for `trustedDependencies`.
   - **Approval tooling:** LavaMoat `allow-scripts` offers per-package approval. https://github.com/LavaMoat/LavaMoat/tree/main/packages/allow-scripts
@@ -63,6 +63,7 @@
   - Read-only commands: `npm query ':attr(scripts, [postinstall])'`, `npm query ':attr(scripts, [preinstall])'`, `npm ls --all`, `npm config get ignore-scripts`, `npm config get allow-scripts`, `pnpm ignored-builds` (pnpm 10+), `find node_modules -name binding.gyp -not -path '*/node_modules/*/node_modules/*/node_modules/*'`.
 - **Bigman today:** Partial.
   - Covered: `package.lifecycle`, `package.script` and the `shell.*` rules on script text and referenced files, `.tgz` inspection without extraction, and `bigman package-policy` (writes `ignore-scripts=true`).
+  - Covered: `harden.npm.ignore_scripts` (Info) suggests `ignore-scripts=true` in the user `.npmrc` on npm older than 12; npm 12 already blocks dependency scripts by default ([hardening research](../research/hardening.md)).
   - Gaps:
     - `preprepare`/`postprepare` and implicit `binding.gyp` builds are not flagged.
     - The rules are shell regexes, so JavaScript droppers (`child_process`, `https.get`, `Function`, `vm.runInNewContext`, large single-line obfuscated files) mostly go unflagged.

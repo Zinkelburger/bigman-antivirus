@@ -1,0 +1,8 @@
+{
+  "driver": "hardening",
+  "fires": [
+    "harden.sshd"
+  ],
+  "about": "An enabled SSH server on 0.0.0.0:22 that the Wi-Fi zone allows, with no network logins in 90 days of logs.",
+  "input": "input.json"
+}

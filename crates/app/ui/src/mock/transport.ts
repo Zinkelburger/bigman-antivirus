@@ -19,6 +19,7 @@ import {
 } from "@/ipc";
 import rules from "@/ipc/generated/rules.json";
 import { checkup, history, NOW, report, scanWithFinding, statusScenarios } from "./fixtures";
+import { MockHardening } from "./hardening";
 import { INTERFACES, networkSnapshot, RECEIPTS, reportEvent, sampleAt, samplesFor, seedEvents, sourceStatuses } from "./live";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -42,12 +43,14 @@ class MockDaemon {
   seenThrough: number;
   notifications: NotificationSettings = { findings: true, new_connections: false, new_listeners: false, packages: false, denials: false, paused_until: null };
   subscribers = new Set<(live: Live) => void>();
+  hardening: MockHardening;
 
   constructor(
     readonly scenario: string,
     /** Multiplies simulated check durations; tests pass 0. */
     readonly speed = 1,
   ) {
+    this.hardening = new MockHardening(scenario);
     this.monitor = (statusScenarios[scenario] ?? statusScenarios.findings)?.monitor != null && scenario !== "empty";
     this.reports = scenario === "empty" ? [] : history(scenario);
     this.events = seedEvents(scenario, this.reports);
@@ -124,6 +127,9 @@ class MockDaemon {
   plan(action: Action): ActionPlan {
     const plan = (title: string, verb: string, summary: string, details: string, undo: string | null = null, careful = false): ActionPlan => ({ title, verb, summary, details, undo, careful });
     switch (action.kind) {
+      case "harden":
+      case "undo_hardening":
+      case "keep_setting": return this.hardening.plan(action);
       case "journal_access": return action.remove
         ? plan("Stop reading the system journal", "Leave the group", "Remove your account from systemd-journal. Bigman stops collecting denials from your next login.", "pkexec gpasswd -d sam systemd-journal", "Join the group again from Setup.")
         : plan("Read SELinux and AppArmor denials", "Join the group", "Add your account to systemd-journal, the group that may read the system journal. Bigman then turns denials into plain sentences in Activity. Your account can also read other system logs; nothing gains write access. Administrator approval is asked for by polkit, and it takes effect at your next login.", "pkexec usermod -aG systemd-journal sam", "Undo removes you from the group again.");
@@ -155,6 +161,9 @@ class MockDaemon {
   apply(action: Action): ActionOutcome {
     const done = (message: string, report: Report | null = null, undo: Action | null = null): ActionOutcome => ({ message, report, undo });
     switch (action.kind) {
+      case "harden":
+      case "undo_hardening":
+      case "keep_setting": return this.hardening.apply(action);
       case "quarantine": {
         const item = this.items.get(action.report)?.[action.index];
         if (!item) throw new Error("That scan item does not exist");
@@ -198,6 +207,7 @@ class MockDaemon {
         return { type: "status", value: { ...value, monitor: this.monitor ? value.monitor : null } };
       }
       case "doctor": return r(await this.check(token, 1_200, checkup, "Security checkup", "Local Linux workstation"));
+      case "hardening": await sleep(400 * this.speed); return { type: "hardening", value: this.hardening.review() };
       case "history": return { type: "history", value: this.reports.slice(0, request.limit).map((x) => this.summarize(x)) };
       case "report": {
         const found = this.reports.find((x) => x.id === request.id);

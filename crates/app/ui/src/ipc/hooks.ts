@@ -66,6 +66,19 @@ export function useCanaries() {
   });
 }
 
+/**
+ * Settings that could harden this computer. The daemon reads them fresh each
+ * time (about two seconds), so they refresh on focus and after any change only.
+ */
+export function useHardening() {
+  return useQuery({
+    queryKey: ["hardening"],
+    queryFn: () => call({ type: "hardening" }, "hardening"),
+    staleTime: 60_000,
+    refetchInterval: (query) => poll(10 * 60_000)(query),
+  });
+}
+
 /** The rule registry; it only changes with Bigman itself. */
 export function useRules() {
   return useQuery({ queryKey: ["rules"], queryFn: () => call({ type: "rules" }, "rules"), staleTime: Infinity });

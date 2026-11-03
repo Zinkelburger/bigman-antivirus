@@ -23,23 +23,43 @@ interface ActionStore {
   current: OpenAction | null;
   /** Where focus returns when the dialog closes. */
   opener: HTMLElement | null;
+  /** The opener's neighbouring rows and its panel, for when the change removes the opener. */
+  fallbacks: Element[];
   set: (current: OpenAction | null) => void;
 }
 
-const useOpenAction = create<ActionStore>((set, get) => ({
+const FOCUSABLE = "button:not([disabled]), a[href], [tabindex]:not([tabindex='-1'])";
+
+const useOpenAction = create<ActionStore>((set) => ({
   current: null,
   opener: null,
+  fallbacks: [],
   set: (current) => {
     if (current) {
-      set({ current, opener: document.activeElement instanceof HTMLElement ? document.activeElement : null });
+      const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      const row = opener?.closest("li");
+      const fallbacks = [row?.nextElementSibling, row?.previousElementSibling, opener?.closest("aside, section")];
+      set({ current, opener, fallbacks: fallbacks.filter((e): e is Element => e != null) });
       return;
     }
-    const { opener } = get();
-    set({ current: null, opener: null });
-    // The opener may have gone with the change (a restored file's button); fall back to the page heading.
-    requestAnimationFrame(() => (opener?.isConnected ? opener : document.querySelector<HTMLElement>("main h1"))?.focus());
+    set({ current: null });
+    // Radix returns focus through onCloseAutoFocus; this catches a close that bypassed it.
+    requestAnimationFrame(() => {
+      if (!document.activeElement || document.activeElement === document.body) restoreFocus();
+    });
   },
 }));
+
+/**
+ * Focus after the dialog: the button that opened it, or, when the change removed
+ * that button (a fixed suggestion, a restored file), the next row, then the
+ * opener's panel, then the page heading.
+ */
+function restoreFocus(): void {
+  const { opener, fallbacks } = useOpenAction.getState();
+  const near = fallbacks.find((e) => e.isConnected)?.querySelector<HTMLElement>(FOCUSABLE);
+  (opener?.isConnected ? opener : (near ?? document.querySelector<HTMLElement>("main h1")))?.focus();
+}
 
 /** Closes the open action dialog, if any. */
 export function closeActionDialog(): void {
@@ -49,7 +69,12 @@ export function closeActionDialog(): void {
 function Plan({ plan }: { plan: ActionPlan }) {
   return (
     <>
-      <p className="m-0 max-w-[56ch] text-ink">{plan.summary}</p>
+      {/* The daemon separates paragraphs with a blank line: what it costs, then who runs it. */}
+      {plan.summary.split("\n\n").map((paragraph) => (
+        <p key={paragraph} className="m-0 max-w-[56ch] text-ink">
+          {paragraph}
+        </p>
+      ))}
       {plan.details && <EvidenceBlock text={plan.details} label="Exactly what changes" />}
       {plan.undo && (
         <p className="m-0 text-small text-ink-muted">
@@ -67,15 +92,17 @@ interface ActionDialogProps {
   label: string;
   variant?: "primary" | "secondary" | "quiet";
   disabled?: boolean;
+  /** The id of the element naming what this button acts on, when several buttons share a label. */
+  describedBy?: string | undefined;
   /** Called after the change succeeds, for views that react to it. The dialog itself shows the result. */
   onDone?: ((message: string) => void) | undefined;
 }
 
 /** A button that opens the previewed change in the shared dialog. */
-export function ActionDialog({ action, label, variant = "secondary", disabled = false, onDone }: ActionDialogProps) {
+export function ActionDialog({ action, label, variant = "secondary", disabled = false, describedBy, onDone }: ActionDialogProps) {
   const open = useOpenAction((s) => s.set);
   return (
-    <ActionButton variant={variant} disabled={disabled} onClick={() => open({ action, label, onDone })}>
+    <ActionButton variant={variant} disabled={disabled} aria-describedby={describedBy} onClick={() => open({ action, label, onDone })}>
       {label}
     </ActionButton>
   );
@@ -111,6 +138,10 @@ function Host({ current }: { current: OpenAction }) {
       open
       onOpenChange={(open) => {
         if (!open) close(null);
+      }}
+      onCloseAutoFocus={(event) => {
+        event.preventDefault();
+        restoreFocus();
       }}
       title={plan?.title ?? current.label.replace(/…$/, "")}
       plan={planView}

@@ -3,6 +3,7 @@ pub mod canary;
 pub mod changes;
 pub mod denials;
 pub mod doctor;
+pub mod hardening;
 pub mod heartbeat;
 pub mod inspect;
 pub mod integrations;

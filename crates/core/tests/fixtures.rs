@@ -10,8 +10,8 @@ use bigman_core::{
 };
 use bigman_core::{
     checks::{
-        canary, changes, denials, doctor, heartbeat, inspect, integrations, network, packages, pdf,
-        scan, shell, ssh,
+        canary, changes, denials, doctor, hardening, heartbeat, inspect, integrations, network,
+        packages, pdf, scan, shell, ssh,
     },
     model::Report,
     platform::{
@@ -142,6 +142,11 @@ fn run(dir: &Path, expected: &Expected) -> BTreeSet<String> {
             scan::record_matches(&mut r, &mut items, &[snapshot], &output);
         }
         "doctor" => doctor::assess(&mut r, &serde_json::from_value(json()).unwrap()),
+        "hardening" => {
+            let inputs: hardening::Inputs = serde_json::from_value(json()).unwrap();
+            let (suggestions, _, _) = hardening::assess(&inputs, &Default::default());
+            return suggestions.into_iter().map(|s| s.rule).collect();
+        }
         "changes" => {
             let value = json();
             let old: Option<changes::Baseline> =
@@ -342,9 +347,12 @@ fn rule_ids_in_source_and_registry_match() {
     for file in files {
         for cap in literal.captures_iter(&fs::read_to_string(&file).unwrap()) {
             let id = cap[1].to_string();
-            let file_name = [".json", ".lock", ".log", ".dat", ".sh", ".py"]
-                .iter()
-                .any(|s| id.ends_with(s));
+            // File names and systemd unit names share the shape of a rule ID.
+            let file_name = [
+                ".json", ".lock", ".log", ".dat", ".sh", ".py", ".service", ".socket",
+            ]
+            .iter()
+            .any(|s| id.ends_with(s));
             if !file_name && families.contains(id.split('.').next().unwrap()) {
                 used.insert(id);
             }

@@ -5,7 +5,10 @@ pub mod timeline;
 
 use bigman_core::{
     actions,
-    checks::{canary, changes, doctor, inspect, integrations, packages, pdf, route, scan, setup},
+    checks::{
+        canary, changes, doctor, hardening, inspect, integrations, packages, pdf, route, scan,
+        setup,
+    },
     ipc::{DaemonHealth, ErrorBody, ProtectionStatus, Request, Response},
     model::{now, Report, SampleSeries},
     platform::{linux::ProcSockets, ProcessSockets},
@@ -62,6 +65,9 @@ impl Daemon {
                 }),
                 Request::Status => Response::Status(Box::new(self.status()?)),
                 Request::Doctor => report(doctor::doctor(store, stop)),
+                Request::Hardening => {
+                    Response::Hardening(Box::new(hardening::review(store, stop)?))
+                }
                 Request::History { limit } => {
                     let mut reports = store.history()?;
                     reports.truncate(limit as usize);

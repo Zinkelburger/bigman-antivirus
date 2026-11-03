@@ -20,13 +20,14 @@
 | DS-12 | Malicious documents and PDFs (viewer bugs, macros, Ghostscript) | High | Partial | Office macro/event detection, comic-archive and PostScript flags, safe-open workflow |
 | DS-13 | Archive extraction: path traversal, symlinks, absolute paths | Medium | Partial | `bigman archive check`: list-only analysis, then optional sandboxed extract |
 | DS-14 | USB HID injection, auto-mount/auto-open, rogue devices | Medium | Gap | USBGuard status, automount settings, udev rule baseline |
-| DS-15 | Weak screen lock, autologin, lock-screen bypass bugs | Medium | Gap | Lock/idle/autologin report from gsettings, KDE config and display-manager config |
+| DS-15 | Weak screen lock, autologin, lock-screen bypass bugs | Medium | Partial | Lock/idle/autologin report from gsettings, KDE config and display-manager config |
 | DS-16 | Clipboard managers storing secrets; clipboard sync | Medium | Gap | Detect clipboard managers and history files (metadata only) |
 | DS-17 | GNOME Shell extensions, Plasma global themes and widgets running arbitrary code | Medium | Gap | Inventory and diff; reuse `shell.*` inspect rules on theme scripts |
 | DS-18 | MAC (AppArmor/SELinux) disabled, permissive, or user-namespace restriction off | Medium | Partial | `mac.*` findings from rootless status reads |
 | DS-19 | Overtrusting Firejail, Bubblewrap and systemd-run sandboxes | Medium | Partial | Explain limits; check Firejail version; `systemd-analyze security` summary for user units |
 | DS-20 | Spoofed polkit/sudo/keyring password prompts | High | Partial | New `shell.credential-prompt` inspect rule plus user guidance |
 | DS-21 | Desktop notification spoofing and secrets on the lock screen | Low | Gap | Notification lock-screen setting check; Bigman alerts never request actions via notification |
+| DS-22 | Unencrypted disk on a portable or shared computer | Medium (High for laptops) | Partial | Rootless `lsblk` walk from `/` and `/home` to a `crypt` device; swap and homed checks |
 
 ## Attacks
 
@@ -362,7 +363,7 @@
     - `/etc/sddm.conf` and `/etc/sddm.conf.d/*`: `[Autologin] User=`.
     - `/etc/lightdm/lightdm.conf`: `autologin-user`.
   - `loginctl show-session -p LockedHint -p IdleHint`.
-- **Bigman today:** Gap.
+- **Bigman today:** Partial. `harden.screen_lock` reads GNOME's `lock-enabled`, `idle-delay` and lock-on-suspend settings and KDE's `kscreenlockerrc`, offers a previewed per-user change with an undo, and says so instead when an administrator locked a key it would change (dconf). `harden.autologin` reads GDM, SDDM and LightDM configuration, rated Review when the disk is also unencrypted ([DS-22](#ds-22-unencrypted-disk-on-a-portable-or-shared-computer)). Lock-screen bypass advisories are not matched yet ([hardening research](../research/hardening.md)).
 - **Proposed mitigation / detection:**
   - `bigman desktop audit` (rootless) emits:
     - `session.lock-disabled` (High)
@@ -514,6 +515,18 @@
 - **Test case idea:** A fixture Chromium `Preferences` JSON with 12 notification-allowed origins asserts the finding and lists them. A unit test asserts that Bigman's notification payload contains no actions other than "Open Bigman".
 - **References:** https://attack.mitre.org/techniques/T1204/001/ , https://specifications.freedesktop.org/notification-spec/latest/
 
+### DS-22 Unencrypted disk on a portable or shared computer
+- **What it is:** Without full-disk encryption, anyone who holds the disk can read every file on it by booting another system or moving the disk to another computer: SSH and GPG keys, browser cookies and saved sessions, API tokens in dotfiles, mail. The account password does not protect data at rest. It also changes the weight of other settings: with autologin ([DS-15](#ds-15-weak-screen-lock-autologin-lock-screen-bypass-bugs)) and no encryption, switching the computer on is enough to get the session. Encryption with LUKS is chosen when installing, and adding it later means backing up and reinstalling (or a careful in-place `cryptsetup reencrypt`).
+- **Real-world examples:** Physical loss and theft of laptops is the category; no dated Linux-specific incident was verified for this entry. Fedora's, Debian's and Ubuntu's installers offer LUKS as a choice during installation; whether a given computer has it is what matters, and that is readable without root.
+- **What a defender inspects (indicators):**
+  - `lsblk -J -o NAME,TYPE,FSTYPE,MOUNTPOINTS` (rootless): the devices mounted at `/` and `/home` should have an ancestor of TYPE `crypt` (dm-crypt/LUKS; LVM-on-LUKS shows `lvm` under `crypt`). A partition with FSTYPE `crypto_LUKS` is the container. `MOUNTPOINTS` needs util-linux 2.37 or later; older versions have `MOUNTPOINT`.
+  - A swap partition outside an encrypted device leaks memory contents to disk; zram swap stays in RAM. An unencrypted `/boot` is normal.
+  - Home encryption that is not whole-disk: systemd-homed (`homectl inspect`, a LUKS loop file under `/home`), fscrypt, eCryptfs.
+- **Bigman today:** Partial. `harden.disk_encryption` (Info) walks `lsblk` from `/` and `/home` to a `crypt` ancestor without root and says so when the system or home folder is not encrypted; `harden.autologin` is rated Review when it is not ([hardening research](../research/hardening.md)). Encryption is set up when installing, so Bigman gives steps and never changes disks. Swap, systemd-homed and fscrypt are not checked yet.
+- **Proposed mitigation / detection:** Extend the check to swap partitions outside `crypt` (Review on a laptop, since hibernation writes memory to it) and to systemd-homed and fscrypt homes, so a homed user with an unencrypted root is not told their files are exposed.
+- **Test case idea:** Fixture `lsblk -J` output with `/` on `luks-<uuid>` under a `crypto_LUKS` partition (no finding) and one with `/` on a plain ext4 partition (finding); a third with LVM on LUKS (no finding).
+- **References:** https://man7.org/linux/man-pages/man8/lsblk.8.html , https://wiki.archlinux.org/title/Dm-crypt/Encrypting_an_entire_system , https://gitlab.com/cryptsetup/cryptsetup
+
 ## Proposed Bigman checks (consolidated)
 
 | Command / component | Reads (rootless) | Rule IDs | Notes |
@@ -525,6 +538,7 @@
 | `bigman browser extensions` | Chromium-family `Extensions/*/manifest.json`, `Preferences`, `Secure Preferences`; Firefox `extensions.json`; policy dirs | `browser.extension-added`, `browser.extension-permissions-expanded`, `browser.extension-known-bad`, `browser.extension-brand-mismatch`, `browser.extension-unpacked`, `browser.policy-forced-extension`, `browser.policy-weakened`, `browser.launcher-flags`, `browser.notification-sites` | Covers Flatpak/Snap browser profile paths too |
 | MAC status (`doctor`) | `/sys/fs/selinux`, `/sys/module/apparmor`, `/proc/sys/kernel/apparmor_*`, `/proc/cmdline` | `mac.none`, `mac.selinux-permissive`, `mac.disabled-cmdline`, `mac.userns-unrestricted` | Profile list needs root and is marked incomplete |
 | USB (`doctor`, monitor) | `systemctl`, sysfs, gsettings | `usb.no-policy`, `usb.automount-open`, `usb.composite-hid-storage` | `bigman setup usbguard` with an explicit device-list confirmation |
+| `bigman harden` (implemented) | gsettings, `kscreenlockerrc`, GDM/SDDM/LightDM configs, `lsblk`, the `SecureBoot` EFI variable | `harden.screen_lock`, `harden.autologin`, `harden.disk_encryption`, `harden.secure_boot` | DS-15, DS-22; each suggestion has a previewed change with an undo, or manual steps |
 | `bigman desktop audit` | gsettings, KDE rc files, DM configs, thumbnailer dirs, clipboard history metadata | `session.lock-disabled`, `session.autologin`, `session.timed-login`, `desktop.user-thumbnailer`, `clipboard.history-persistent`, `clipboard.history-world-readable`, `notify.lock-screen-content` | |
 | `bigman desktop extensions` | GNOME/Plasma extension dirs | `desktop.extension-added`, `desktop.extension-updated`, plus `shell.*` on theme scripts | |
 | `.desktop` analyzer (scan, Downloads timer, inspect, download hook) | the file | `desktop.launcher-in-downloads`, `desktop.masquerade`, `desktop.exec-download`, `desktop.hidden` | DS-09 |

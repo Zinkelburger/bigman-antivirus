@@ -1,0 +1,8 @@
+{
+  "driver": "hardening",
+  "fires": [
+    "harden.secure_boot"
+  ],
+  "about": "UEFI boot with the SecureBoot variable at 0.",
+  "input": "input.json"
+}

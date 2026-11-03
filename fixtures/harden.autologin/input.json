@@ -1,0 +1,9 @@
+{
+  "autologin": [
+    {
+      "file": "/etc/gdm/custom.conf",
+      "user": "alice",
+      "manager": "gdm"
+    }
+  ]
+}

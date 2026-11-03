@@ -1,0 +1,55 @@
+{
+  "now": 1793300000,
+  "user": "alice",
+  "units": {
+    "sshd.service": {
+      "load": "loaded",
+      "enabled": "enabled",
+      "active": "active"
+    }
+  },
+  "listeners": [
+    {
+      "protocol": "tcp",
+      "local": "0.0.0.0:22",
+      "remote": null,
+      "state": "listen",
+      "uid": 0,
+      "process": null
+    }
+  ],
+  "firewall": {
+    "state": "firewalld",
+    "zones": [
+      {
+        "name": "FedoraWorkstation",
+        "default": true,
+        "interfaces": [
+          "wlp1s0"
+        ],
+        "sources": [],
+        "target": "default",
+        "services": [
+          {
+            "name": "ssh",
+            "ports": [
+              {
+                "protocol": "tcp",
+                "from": 22,
+                "to": 22
+              }
+            ]
+          }
+        ],
+        "ports": []
+      }
+    ]
+  },
+  "logins": {
+    "since": 1785524000,
+    "logins": [],
+    "read": [
+      "the system journal"
+    ]
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "driver": "hardening",
+  "fires": [
+    "harden.disk_encryption"
+  ],
+  "about": "The root file system on a plain partition.",
+  "input": "input.json"
+}
