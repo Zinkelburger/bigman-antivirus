@@ -1,0 +1,8 @@
+{
+  "driver": "hardening",
+  "fires": [
+    "harden.home.readable"
+  ],
+  "about": "A 0755 home folder on a computer with a second account.",
+  "input": "input.json"
+}

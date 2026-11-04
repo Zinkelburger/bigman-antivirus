@@ -5,9 +5,12 @@ import {
   EventPanel,
   eventOccurrence,
   fold,
+  hardeningSummary,
+  type HardeningSummary,
   ago,
   IncompleteNotice,
   KeyValue,
+  maxSeverity,
   nowSeconds,
   PageHeader,
   plural,
@@ -30,6 +33,7 @@ import {
 import {
   DisconnectedError,
   useCheck,
+  useHardening,
   useEvents,
   useHistory,
   useStatus,
@@ -188,6 +192,21 @@ function updatesTile(r: Report | undefined, now: number) {
 /** Days are loaded from the start of an hour so the query stays put as time passes. */
 const hourFloor = (t: number) => Math.floor(t / 3_600) * 3_600;
 
+/** The Hardening tile's second line: the first suggestion and how many like it, the optional ones, and what could not be checked. */
+function hardeningDetail(h: HardeningSummary, skipped: number, when: string): string {
+  const parts: string[] = [];
+  const [first] = h.open;
+  if (first) {
+    const alike = first.severity === "info" ? h.optional.length : h.toReview.length;
+    parts.push(alike > 1 ? `${first.title}, and ${alike - 1} more` : first.title);
+    if (h.toReview.length && h.optional.length) parts.push(`${h.optional.length} optional`);
+  } else if (!skipped) {
+    parts.push("Nothing to change in the settings Bigman checked");
+  }
+  if (skipped) parts.push(`${plural(skipped, "setting")} not checked`);
+  return [...parts, when].join(" · ");
+}
+
 export function OverviewPage() {
   const status = useStatus();
   const unread = useUnread();
@@ -216,6 +235,16 @@ export function OverviewPage() {
   // The store's counts carry repeats from before the range, so folding needs only the range.
   const entries = fold(inRange.map(eventOccurrence));
   const look = sinceLastLook(unread.data);
+  const hardening = useHardening();
+  const harden = hardening.data ? hardeningSummary(hardening.data) : null;
+  const hardenSkipped = hardening.data?.report.coverage.skipped.length ?? 0;
+  const hardenIncomplete = hardening.data ? reportStatus(hardening.data.report) === "Incomplete" : false;
+  // A tile that switches tabs moves focus to the new page's heading, as the digit keys do.
+  const focusPage = () => requestAnimationFrame(() => document.querySelector<HTMLElement>("main h1")?.focus());
+  const openHardening = () => {
+    openProtect("hardening");
+    focusPage();
+  };
 
   const runCheckup = () =>
     doctor.mutate({ type: "doctor" }, {
@@ -263,13 +292,20 @@ export function OverviewPage() {
         {doctor.isError && <IncompleteNotice title="The checkup did not finish" errors={[doctor.error.message]} />}
         {data && events.data && <ResultLine events={inRange} status={data} rangeLabel={rangeLabel} now={now} />}
 
-        <section aria-label="Status" className="grid grid-cols-4 gap-3">
+        <section aria-label="Status" className="grid grid-cols-3 gap-3 xl:grid-cols-5">
           <StatusTile
             label="Since last look"
             state={!ready ? tileState : unread.isPending ? "loading" : unread.isError ? "incomplete" : look.value === "Nothing new" ? "empty" : "ready"}
             value={look.value}
             detail={look.detail}
-            onOpen={unread.data && look.value !== "Nothing new" ? openUnread : undefined}
+            onOpen={
+              unread.data && look.value !== "Nothing new"
+                ? () => {
+                    openUnread();
+                    focusPage();
+                  }
+                : undefined
+            }
           />
           <StatusTile
             label="Bigman's tools"
@@ -301,6 +337,32 @@ export function OverviewPage() {
             }
             severity={scanSeverity === "info" ? null : scanSeverity}
             onOpen={scan ? () => open({ title: "Last scan", content: <ReportById id={scan.id} /> }) : undefined}
+          />
+          <StatusTile
+            label="Hardening"
+            state={
+              !ready
+                ? tileState
+                : hardening.isPending
+                  ? "loading"
+                  : hardening.isError
+                    ? "incomplete"
+                    : harden?.open.length
+                      ? "ready"
+                      : hardenIncomplete
+                        ? "incomplete"
+                        : "empty"
+            }
+            value={
+              harden?.toReview.length
+                ? `${harden.toReview.length} to review`
+                : harden?.optional.length
+                  ? `${harden.optional.length} optional`
+                  : "No suggestions"
+            }
+            detail={hardening.data && harden ? hardeningDetail(harden, hardenSkipped, ago(hardening.data.report.created, now)) : undefined}
+            severity={harden ? (maxSeverity(harden.toReview.map((s) => s.severity)) ?? null) : null}
+            onOpen={hardening.data ? openHardening : undefined}
           />
           <StatusTile
             label="Updates"

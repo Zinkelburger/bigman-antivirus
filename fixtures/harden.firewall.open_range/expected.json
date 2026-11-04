@@ -1,0 +1,8 @@
+{
+  "driver": "hardening",
+  "fires": [
+    "harden.firewall.open_range"
+  ],
+  "about": "Fedora Workstation's stock zone opening 1025-65535 while an Erlang server listens on 0.0.0.0:4000.",
+  "input": "input.json"
+}

@@ -50,7 +50,7 @@
   - 2025-11 (Shai-Hulud 2.0): moved to `preinstall` (`setup_bun.js`, which installs Bun, then runs `bun_environment.js`), so the payload fires even if the install later fails. https://securelist.com/shai-hulud-2-0/118214/, https://www.wiz.io/blog/shai-hulud-2-0-ongoing-supply-chain-attack
   - 2026-05-28: 14 "vpmdhaj" typosquats used install/preinstall/postinstall hooks. A second generation downloaded the Bun runtime and ran a stage-2 payload. https://www.microsoft.com/en-us/security/blog/2026/05/28/typosquatted-npm-packages-used-steal-cloud-ci-cd-secrets/
 - **Ecosystem defenses:**
-  - **npm 12 (2026-07-08):** dependency `preinstall`/`install`/`postinstall` and implicit node-gyp builds are skipped unless allowlisted (`allowScripts`; `npm approve-scripts`; opt-in `strict-allow-scripts` for CI). `--allow-git` and `--allow-remote` default to `none`. https://socket.dev/blog/npm-12, https://www.infoq.com/news/2026/08/npm-12-released/
+  - **npm 12 (2026-07-08):** dependency `preinstall`/`install`/`postinstall` and implicit node-gyp builds are skipped unless allowlisted (`allowScripts` in the root `package.json`, recorded with `npm install-scripts approve`, then `npm rebuild`; opt-in `strict-allow-scripts` for CI). https://github.com/npm/cli/releases/tag/v12.0.0, https://docs.npmjs.com/cli/v12/commands/npm-install-scripts. `--allow-git` and `--allow-remote` default to `none`. https://socket.dev/blog/npm-12, https://www.infoq.com/news/2026/08/npm-12-released/
   - **pnpm:** dependency build scripts run only when allowed (`allowBuilds`). `strictDepBuilds` and `blockExoticSubdeps` are on by default in current docs. https://pnpm.io/supply-chain-security
   - **bun:** runs dependency lifecycle scripts only for `trustedDependencies`.
   - **Approval tooling:** LavaMoat `allow-scripts` offers per-package approval. https://github.com/LavaMoat/LavaMoat/tree/main/packages/allow-scripts
@@ -64,6 +64,7 @@
   - Read-only commands: `npm query ':attr(scripts, [postinstall])'`, `npm query ':attr(scripts, [preinstall])'`, `npm ls --all`, `npm config get ignore-scripts`, `npm config get allow-scripts`, `pnpm ignored-builds` (pnpm 10+), `find node_modules -name binding.gyp -not -path '*/node_modules/*/node_modules/*/node_modules/*'`.
 - **Bigman today:** Partial. Lockfiles add `lockfile.install-hook` and, in diff mode, `lockfile.new-install-hook`; npm packages with a `binding.gyp` and no install script get `package.gyp-build`, since npm builds them at install.
   - Covered: `package.lifecycle`, `package.script` and the `shell.*` rules on script text and referenced files, `.tgz` inspection without extraction, and `bigman package-policy` (writes `ignore-scripts=true`).
+  - Covered: `harden.npm.ignore_scripts` (Info) suggests `ignore-scripts=true` in the user `.npmrc` on npm older than 12; npm 12 already blocks dependency scripts by default ([hardening research](../research/hardening.md)).
   - Gaps:
     - `preprepare`/`postprepare` and implicit `binding.gyp` builds are not flagged.
     - The rules are shell regexes, so JavaScript droppers (`child_process`, `https.get`, `Function`, `vm.runInNewContext`, large single-line obfuscated files) mostly go unflagged.
@@ -529,6 +530,7 @@
   - Later GlassWorm waves (2026-01 account takeover; 2026-03 transitive spread via `extensionPack`/`extensionDependencies`, about 72 extensions; 2026-04 about 73 "sleeper" extensions) are reported mainly by secondary sources. The primary Koi blog URLs now redirect to a vendor page, so the exact counts are unverified here.
   - 2025-07-17: the Amazon Q Developer extension 1.84.0 shipped an injected wiper-style prompt from a malicious PR (inert due to a bug; CVE-2025-8217). https://aws.amazon.com/security/security-bulletins/AWS-2025-015/, https://research.jfrog.com/post/amazon-q-vs-code-extension-compromised-with-malicious-code/
   - 2025-12/2026-01: Koi showed Cursor/Windsurf/Antigravity/Trae recommending extension IDs absent from Open VSX. Vendors patched; Windsurf status unclear (secondary reporting).
+  - 2026-10-29: a tampered `anthropic.claude-code` 2.1.312/2.1.313 was served from the Cursor marketplace for about 11 hours. Its loader ran at module load, before the real extension code, using only Node.js and built-in tools. It recorded host details and the names (not values) of secret-looking environment variables, appended an Ed25519 key with comment `svc-telemetry` to `authorized_keys`, tried to enable sshd, held an outbound `ssh -N -R '*:0:localhost:22'` tunnel (autossh preferred, host-key checks off), and persisted through a user crontab `@reboot` entry and `~/.config/.smt`/`.smtk`. Microsoft found no sign it reached the VS Marketplace or npm. https://www.microsoft.com/en-us/security/blog/2026/10/30/inside-malicious-claude-code-branded-cursor-extension-persistent-ssh-backdoor/
 - **What a defender inspects (indicators):**
   - Installed extensions and versions (`~/.vscode/extensions/`, `~/.vscode-oss/extensions/`, `~/.cursor/extensions/`, `~/.windsurf/extensions/`, `extensions.json` in each).
   - Per extension `package.json`: `activationEvents` containing `*`/`onStartupFinished`, `extensionDependencies`/`extensionPack` pulling unrelated publishers, and a `main` bundle containing invisible Unicode (U+FE00-FE0F variation selectors, U+E0100-E01EF, zero-width characters) or `eval`/`Function`.
@@ -544,6 +546,7 @@
      - `vsix.native-binary` (Info).
      - `js.*` rules (SC-01) on the `main` bundle.
   2. `bigman extensions` inventory across VS Code, VSCodium, Cursor and Windsurf extension directories, applying the same rules plus `vsix.lookalike-publisher`. Output is "findings to review", never a verdict.
+  3. Extension versions installed or auto-updated less than 48 hours after publication get an Info note: the 2026-10 Cursor incident was live for about 11 hours, so a short install cooldown would have skipped it.
   3. Doctor reports `extensions.autoUpdate` and workspace trust (`security.workspace.trust.enabled`).
   4. Browser extension: the existing completed-download scan can route `.vsix` files to this inspector.
 - **Test case idea:** A synthetic `.vsix` zip with `package.json` (`"activationEvents":["*"]`, `"extensionPack":["other.pub-ext"]`) and `out/extension.js` containing a string of 50 U+FE0F characters. Expect three findings.

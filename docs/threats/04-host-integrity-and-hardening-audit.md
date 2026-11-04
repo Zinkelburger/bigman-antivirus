@@ -25,16 +25,16 @@
 | HI-13 | Empty or unlocked passwords, `nullok` in PAM | Medium | Gap | Rootless `nullok` scan; privileged read of shadow status only (never hashes) |
 | HI-14 | sudoers and sudoers.d grants (NOPASSWD, !authenticate, broad ALL) | High | Gap | Opt-in privileged `visudo -c` and a parsed summary; baseline hashes |
 | HI-15 | polkit rules and implicit authorizations | Medium | Gap | Baseline `/usr/share/polkit-1/rules.d` (rootless) and `/etc/polkit-1/rules.d` (privileged); `pkaction` defaults diff |
-| HI-16 | Root-equivalent group membership (docker, disk, libvirt, lxd, wheel/sudo, input) | High | Gap | Rootless group audit with plain-language explanation of each group |
+| HI-16 | Root-equivalent group membership (docker, disk, libvirt, lxd, wheel/sudo, input) | High | Partial (docker) | Rootless group audit with plain-language explanation of each group |
 | HI-17 | SUID/SGID files not owned by a package or with changed mode | Medium | Partial | Bounded `find -perm` inventory plus package ownership and mode verification |
 | HI-18 | File capabilities on unexpected binaries | Medium | Partial | `security.capability` xattr inventory compared with the package DB (`rpm -V` P flag) |
 | HI-19 | World-writable files and dirs, writable PATH entries, unowned files | Medium | Partial | `persistence.shadowed-command` watches `~/.local/bin` and `~/bin` for files that hide system commands; still to do: root `secure_path`, world-writable without sticky, nosuid mounts |
 | HI-20 | Loaded kernel modules not owned by a package, unsigned or tainting | High | Gap | `/proc/modules` to `modinfo` to package owner; decode taint bits; signer inventory |
-| HI-21 | Secure Boot, lockdown, signature enforcement and boot chain state | Medium | Gap | Read SB/lockdown/cmdline; MOK list diff; `/boot` package verify; fwupd HSI if present |
+| HI-21 | Secure Boot, lockdown, signature enforcement and boot chain state | Medium | Partial (Secure Boot state) | Read SB/lockdown/cmdline; MOK list diff; `/boot` package verify; fwupd HSI if present |
 | HI-22 | Package-file verification (modified or unowned system files) | High | Partial | Scheduled `rpm -Va` / `dpkg --verify` / `pacman -Qkk` with the diff noise explained |
 | HI-23 | Kernel and userspace patch status; well-known Linux LPE CVEs | High | Partial | Distro advisory query, running vs installed kernel, reboot-needed, KEV-driven checklist |
 | HI-24 | Audit, journal and integrity-tool health | Medium | Partial | Report auditd, journald persistence, AIDE DB age, and its own monitor heartbeat in `doctor` |
-| HI-25 | Kernel attack-surface sysctls and rarely used module blocklists | Medium | Gap | Read-only sysctl report with desktop trade-offs (user namespaces are needed by sandboxes) |
+| HI-25 | Kernel attack-surface sysctls and rarely used module blocklists | Medium | Partial (three sysctls) | Read-only sysctl report with desktop trade-offs (user namespaces are needed by sandboxes) |
 
 ## Bigman's startup baseline today (from `src/system.rs`)
 
@@ -133,6 +133,7 @@ Each entry adds two fields to the standard template. **Normal state** describes 
 - **Real-world examples:**
   - Kinsing uses crontab to re-download scripts every minute. Exaramel for Linux, GoldMax (`@reboot`) and NKAbuse also use cron ([ATT&CK T1053.003](https://attack.mitre.org/techniques/T1053/003/)).
   - Skidmap (2019) cron-based miner: https://www.trendmicro.com/en_us/research/19/i/skidmap-linux-malware-uses-rootkit-capabilities-to-hide-cryptocurrency-mining-payload.html
+  - 2026-10: a tampered Cursor extension persisted on Linux with a user crontab `@reboot` entry that relaunched scripts in `~/.config/.smt` and `~/.config/.smtk`. The user spool is unreadable without root, so only `crontab -l` shows it rootlessly. https://www.microsoft.com/en-us/security/blog/2026/10/30/inside-malicious-claude-code-branded-cursor-extension-persistent-ssh-backdoor/
 - **What a defender inspects (indicators):**
   - Own table: `crontab -l`. Other users: `sudo ls -la /var/spool/cron/ /var/spool/cron/crontabs/` (location varies by distro).
   - `ls -la /etc/cron.d /etc/cron.hourly /etc/cron.daily /etc/cron.weekly /etc/cron.monthly`, `cat /etc/crontab /etc/anacrontab`
@@ -320,6 +321,7 @@ Each entry adds two fields to the standard template. **Normal state** describes 
 - **Real-world examples:**
   - Salt Typhoon added authorized keys under root and other users on compromised infrastructure.
   - TeamTNT, Skidmap and Earth Lusca also plant keys ([ATT&CK T1098.004](https://attack.mitre.org/techniques/T1098/004/)).
+  - 2026-10: a tampered Cursor extension appended a `svc-telemetry` key to the user's `authorized_keys` and tried to enable sshd. https://www.microsoft.com/en-us/security/blog/2026/10/30/inside-malicious-claude-code-branded-cursor-extension-persistent-ssh-backdoor/
   - Cross-reference: [network exposure](./07-network-exposure-and-remote-access.md) for sshd exposure and CVE-2024-6387.
 - **What a defender inspects (indicators):**
   - `ssh-keygen -lf ~/.ssh/authorized_keys` gives one fingerprint per key. Compare against known keys.
@@ -493,7 +495,7 @@ Each entry adds two fields to the standard template. **Normal state** describes 
   - Lynis: AUTH-9234 (inventory only)
   - CIS Ubuntu 24.04: 7.2.4 (shadow group empty), 5.2.7 (su restricted)
   - osquery: `user_groups`, `groups`
-- **Bigman today:** Gap.
+- **Bigman today:** Partial. `harden.group.docker` (Review) reports membership of the docker group and offers a previewed `gpasswd -d` with an undo ([hardening research](../research/hardening.md)). The other root-equivalent groups are not reported yet.
 - **Proposed mitigation / detection:** Rootless `doctor` check `host.root-equivalent-group` (Review). Each group gets a one-line plain-language explanation and a link to the rootless alternative (rootless Docker, Podman). Baseline group membership and report `host.group-member-added`.
 - **Test case idea:** Parser test using a synthetic `/etc/group` with `docker:x:970:alice` and a current-user name of `alice`. Assert the finding and its explanation text.
 - **References:** https://docs.docker.com/engine/security/ · https://attack.mitre.org/techniques/T1611/ · https://attack.mitre.org/techniques/T1078/003/
@@ -640,7 +642,7 @@ Each entry adds two fields to the standard template. **Normal state** describes 
   - CIS Ubuntu 24.04: 1.4.1 (bootloader password), 1.4.2 (bootloader config access)
   - SSG: `grub2_password`
   - osquery: `secureboot`, `secureboot_certificates`
-- **Bigman today:** Gap. `doctor` runs `getenforce` only.
+- **Bigman today:** Partial. `harden.secure_boot` (Info) reads the `SecureBoot` EFI variable without root and explains how to turn it on ([hardening research](../research/hardening.md)). Lockdown, the kernel command line and `/boot` verification are not read yet. `doctor` runs `getenforce`.
 - **Proposed mitigation / detection:** Rootless `doctor` section "Boot and kernel protections", recording all of the read-only values above in the baseline. Rules:
   - `boot.secureboot-off` (Info on non-UEFI systems, Review on UEFI)
   - `boot.mok-added` (Review)
@@ -784,7 +786,7 @@ A note on the 2026 "page-cache write" bugs (Copy Fail, CVE-2026-46300, CVE-2026-
   - Lynis: ACCT-9628/9630/9632/9634 (auditd), LOGG-2136 (journald), FINT-4314/4315/4316 (AIDE), FINT-4350 (FIM present), TOOL-5126/5128 (OSSEC/Wazuh)
   - CIS Ubuntu 24.04: 6.1.1.1 (journald active), 6.1.2.4 (journald Storage), 6.2.1.3 (audit early-boot processes), 6.3.1/6.3.2 (AIDE installed and run regularly)
   - osquery: `osquery-monitoring` pack
-- **Bigman today:** Partial. `doctor` reports tool availability (including lynis and osqueryi), ClamAV freshness and the canary monitor heartbeat. It does not check auditd, journald persistence or AIDE.
+- **Bigman today:** Partial. `doctor` reports tool availability (including lynis and osqueryi), ClamAV freshness and the canary monitor heartbeat. bigmand also records gaps: `monitor.stopped` when the heartbeat has been missing for a minute while the computer was awake, and `monitor.gap` when the monitor or bigmand itself comes back after being off (suspend excluded; a crash or kill of bigmand is Review, a normal stop Info). It does not check auditd, journald persistence or AIDE.
 - **Proposed mitigation / detection:**
   - Extend `doctor` with rootless reads: auditd unit state, journald storage directory and boot list, and AIDE timer and file presence.
   - Rules: `logging.audit-inactive` (Info on distros without default auditd; Review where it was previously active), `logging.journal-volatile` (Info) and `logging.boot-gap` (Review).
@@ -795,9 +797,9 @@ A note on the 2026 "page-cache write" bugs (Copy Fail, CVE-2026-46300, CVE-2026-
 ### HI-25 Kernel attack-surface sysctls and rarely used module blocklists
 - **What it is:** Many kernel LPEs are reachable by unprivileged users only through features that a given host may not need: unprivileged user namespaces, unprivileged BPF, rarely used network protocols and AF_ALG crypto sockets. Some sysctls also reduce information leaks or block live kernel replacement. Reporting these settings helps users judge exposure. Desktop trade-offs are real, though: Flatpak, bubblewrap, Chromium's sandbox and Bigman's own `sandbox` and PDF parsers rely on unprivileged user namespaces.
 - **Normal state (typical modern desktop):**
-  - `kernel.yama.ptrace_scope` ≥ 1
-  - `kernel.kptr_restrict` ≥ 1
-  - `kernel.dmesg_restrict` = 1 (distro-dependent)
+  - `kernel.yama.ptrace_scope` ≥ 1 is the kernel's default and Ubuntu's and Arch's, but Fedora and Debian ship 0 (a sysctl file from `elfutils-default-yama-scope` on Fedora, a kernel patch on Debian)
+  - `kernel.kptr_restrict` ≥ 1 on Ubuntu; Fedora, Debian and Arch leave it at 0
+  - `kernel.dmesg_restrict` = 1 (built in with `CONFIG_SECURITY_DMESG_RESTRICT` on Fedora, Debian, Ubuntu and Arch)
   - `kernel.unprivileged_bpf_disabled` = 1 or 2
   - `fs.protected_symlinks`, `fs.protected_hardlinks` = 1; `fs.protected_fifos` and `fs.protected_regular` ≥ 1
   - `fs.suid_dumpable` = 0
@@ -816,7 +818,7 @@ A note on the 2026 "page-cache write" bugs (Copy Fail, CVE-2026-46300, CVE-2026-
   - CIS Ubuntu 24.04: 1.5.1 (ASLR), 1.5.2 (ptrace_scope), 1.5.3 (core dumps), 3.2.1–3.2.4 (rare protocols unavailable)
   - SSG: `sysctl_kernel_yama_ptrace_scope`, `sysctl_kernel_unprivileged_bpf_disabled`, `sysctl_kernel_kexec_load_disabled`, `sysctl_user_max_user_namespaces`, `coredump_disable_storage`
   - Neo23x0 auditd keys `af_alg`, `io_uring`, `userfaultfd`, `socket_bpf_filter_attached` record use of these surfaces.
-- **Bigman today:** Gap.
+- **Bigman today:** Partial. `bigman harden` reads `ptrace_scope`, `kptr_restrict` and `dmesg_restrict` without root, names the sysctl file and package that set each one, and offers a previewed drop-in under `/etc/sysctl.d` with an undo (`harden.sysctl.*`; reasoning in [hardening research](../research/hardening.md)). The other sysctls and module blocklists are not read yet.
 - **Proposed mitigation / detection:**
   - Rootless `doctor` section "Kernel exposure" that reads each value and explains it, with an explicit note where the hardened value would break sandboxes. Rules are Info only; no auto-change.
   - Feed-driven: when a KEV entry names a module-scoped mitigation (as with Copy Fail), the advisory text can say "this module is loaded on your system / not loaded" without changing anything.

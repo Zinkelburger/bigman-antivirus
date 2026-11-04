@@ -49,6 +49,8 @@ Package installation plans support Fedora, Debian and Ubuntu. Packages come from
 | PDF triage | Escaped/raw PDF names, PDFiD, pdf-parser statistics, pdfinfo links | External tools require Bubblewrap; compressed/encrypted or unsupported content may remain unexamined |
 | Startup changes | Compares startup, cron, shell, PAM, loader, kernel-module, udev, SSH, name-resolution and desktop-handler files, the programs in `~/.local/bin` and `~/bin` and in developer tool folders (npm's global prefix, nvm, fnm, Volta, pnpm, Bun, Yarn, Deno, `~/.cargo/bin`, `~/go/bin`), and the extensions installed in VS Code, VSCodium, Cursor and Windsurf (content, mode, owner, file capabilities), with a reviewed baseline, and attributes each change to its package: an update the package database explains is Info, a package's file that no longer matches is Review, or High for PAM, loader and SSH files. A new or changed program in your own bin folder that hides a system command (git, ssh, node) is High. An editor extension whose code changed while its version did not is High; a new one is Review and an update Info | Baseline records prior state, not trust or the writer; root-only files are compared by metadata; sudoers needs the optional helper. Tool programs and extension code over 256 KiB are compared by size, inode and change time, not content, and an extension by the file the editor loads first, not every file it ships. Tool folders are found from `~/.npmrc` and the usual locations; a prefix set only in a shell profile is not seen |
 | Local canaries | One-action local generation, monitor startup, verified kernel read receipt, test/disarm, durable alerts and health heartbeat | No account or network required; login startup uses systemd when available; no reader identity or access blocking |
+| SSH access watch | Live: new keys in `authorized_keys`, `ssh -R` tunnels back to this computer, network logins for any user, private keys left in temp and config folders, and gaps in Bigman's own monitoring | Your own processes and keys only; rootless; reports, never blocks or removes |
+| Hardening suggestions | Settings worth changing on this computer: unused network services (sshd, cups-browsed, rpcbind, Samba and others), no firewall or one that opens every high port, `ptrace_scope` and two other kernel settings, LLMNR, screen lock, autologin, disk encryption, Secure Boot, the docker group, a readable home folder and npm install scripts. Each shows the evidence, why it matters and what it costs; exposure takes the firewall zones into account | Reads everything as you; changes run only after a preview of the exact commands, through one polkit prompt when they need root, and each can be undone. Firmware and installer settings get steps instead. Refuses to turn off SSH while you are logged in over the network |
 | Hosted canary shortcuts | Saves an HTTPS token URL supplied by the user | Bigman does not provision a provider account or token; the provider triggers only when the URL is activated |
 | Optional integrations | Lynis report findings, OSV advisory matching, osquery process JSON, user-supplied YARA-X rules, OpenSnitch launch/setup | External tools must be installed; adapters preserve failures and raw evidence |
 | Browser checks | Text/destination mismatch, lookalikes, selected Unicode confusables, ClickFix text combinations, user-imported blocklists, warning pages and expiring exceptions. On a GitHub, GitLab, Codeberg or Bitbucket repository page the popup offers **Check before you clone**, which runs the desktop's read-before-clone check (`repo-check URL`) and lists what it found | Limited page/link heuristics; no remote reputation requests or complete navigation interception |
@@ -83,6 +85,11 @@ bigman package-policy ./project                 # preview
 bigman package-policy ./project --apply
 bigman changes
 bigman changes --accept-baseline REVIEWED_REPORT_ID
+bigman harden                                   # suggestions, with what each costs
+bigman harden harden.sshd                       # preview: the exact commands and the undo
+bigman harden harden.sshd --apply
+bigman harden harden.sshd --undo
+bigman harden harden.sshd --keep                # stop suggesting it; --suggest-again
 bigman history
 bigman history REPORT_ID
 bigman --json scan ~/Downloads
@@ -115,6 +122,14 @@ bigman quarantine REPORT_ID ITEM_INDEX
 bigman quarantined
 bigman restore QUARANTINE_ID
 ```
+
+## Hardening suggestions
+
+**Protect → Hardening** (and `bigman harden`) lists settings you could change to close a way in, split into **To review** and **Optional**. Severity follows exposure on this computer: a network service is Review when the firewall lets other computers reach it and Info when it does not, and the SSH server drops to Info when the logs show you log in over the network. Everything is read without root; anything that could not be read is listed as not checked, and the result says **incomplete**.
+
+A change Bigman can make opens a preview that leads with what stops working, then says whether polkit will ask for your password, then lists the exact commands. The daemon rebuilds the change from the suggestion's ID at that moment, so the app never sends commands. After the change, Bigman reads the setting again and says whether it took; **Changed by Bigman** keeps an undo for each. **Leave as it is…** stops a suggestion from counting without changing anything.
+
+Bigman gives steps rather than making the change for Secure Boot, disk encryption, autologin and installing a firewall. It refuses, with the reason, to turn off SSH while you are logged in over the network, to change a sysctl that a later file in `/etc/sysctl.d` would override at boot, and to change a GNOME setting an administrator locked. The reasoning, distribution defaults and sources for every rule are in [docs/research/hardening.md](docs/research/hardening.md).
 
 ## Canaries and monitoring
 

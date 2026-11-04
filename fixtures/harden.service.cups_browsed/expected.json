@@ -1,0 +1,8 @@
+{
+  "driver": "hardening",
+  "fires": [
+    "harden.service.cups_browsed"
+  ],
+  "about": "cups-browsed enabled and bound to UDP 631 on every interface, which the zone allows.",
+  "input": "input.json"
+}

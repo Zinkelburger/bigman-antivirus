@@ -272,7 +272,7 @@ A fixed two-column desktop shell: a 12rem (192 px) graphite rail and a fluid con
 
 - **Rail:** 12 px side padding, 16 px top, B mark and "Bigman" wordmark, then seven tabs (36 px tall, 2 px apart) in a fixed order, each with a 16 px icon, label, an optional accent count badge and its digit (1 to 7) right-aligned as the keyboard hint.
 - **Page:** PageHeader (min 56 px, 24 px gutters, hairline below) holds the h1 left, then page controls (the range Select), then the one primary action at the far right. Content below sits in a 24 px gutter with 20 px between sections.
-- **Overview:** one lead sentence, a four-column tile row (12 px gaps), then the life list (Timeline, 420 px max visible, virtualized).
+- **Overview:** one lead sentence, a row of five tiles (12 px gaps; three columns below 1280 px, five from there), then the life list (Timeline, 420 px max visible, virtualized).
 - **Drill-down:** an absolutely positioned right panel `min(560px, 62%)` over the content; the page behind becomes inert and clicking it closes the panel.
 - **Dialogs:** centered, `min(640px, 100vw - 48px)`, max 85vh, over the `scrim` token (35% near-black in light, 55% black in dark).
 - **Spacing rhythm:** Tailwind's 4 px unit. Working steps are 4, 8, 12, 16, 20, 24 px, with frequent 2 px and 6 px half-steps for badges, icon gaps and chip spacing, and a few 10 and 14 px steps (tile padding, timeline column gap).

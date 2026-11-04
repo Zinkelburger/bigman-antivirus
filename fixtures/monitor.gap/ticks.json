@@ -1,0 +1,970 @@
+[
+{
+"now": 1000,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1000,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1005,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1005,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1010,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1010,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1015,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1015,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1020,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1020,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1025,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1025,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1030,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1030,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1035,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1035,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1040,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1040,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1045,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1045,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1050,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1050,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1055,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1055,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1060,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1060,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1065,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1065,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1070,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1070,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1075,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1075,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1080,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1080,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1085,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1085,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1090,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1090,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1095,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1095,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1100,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1105,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1110,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1115,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1120,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1125,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1130,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1135,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1140,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1145,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1150,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1155,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1160,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1165,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1170,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1175,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1180,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1185,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1190,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1195,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1200,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1205,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1210,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1215,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1220,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1225,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1230,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1235,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1240,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1245,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1250,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1255,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1260,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1265,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1270,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1275,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1280,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1285,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1290,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1295,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1300,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1305,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1310,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1315,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1320,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1325,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1330,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1335,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1340,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1345,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1350,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1355,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1360,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1365,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1370,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1375,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1380,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1385,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1390,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1395,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1400,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1100,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1405,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1405,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1410,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1410,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1415,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1415,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1420,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1420,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1425,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1425,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1430,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1430,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1435,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1435,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1440,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1440,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1445,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1445,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1450,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1450,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1455,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1455,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1460,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1460,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1465,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1465,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1470,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1470,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1475,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1475,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1480,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1480,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1485,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1485,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1490,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1490,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1495,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1495,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 1500,
+"boot": "fixture-boot",
+"asleep": 0,
+"monitor_updated": 1500,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 5105,
+"boot": "fixture-boot",
+"asleep": 3600,
+"monitor_updated": 5105,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 5110,
+"boot": "fixture-boot",
+"asleep": 3600,
+"monitor_updated": 5110,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 5115,
+"boot": "fixture-boot",
+"asleep": 3600,
+"monitor_updated": 5115,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 5120,
+"boot": "fixture-boot",
+"asleep": 3600,
+"monitor_updated": 5120,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 5125,
+"boot": "fixture-boot",
+"asleep": 3600,
+"monitor_updated": 5125,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 5130,
+"boot": "fixture-boot",
+"asleep": 3600,
+"monitor_updated": 5130,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 5135,
+"boot": "fixture-boot",
+"asleep": 3600,
+"monitor_updated": 5135,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 5140,
+"boot": "fixture-boot",
+"asleep": 3600,
+"monitor_updated": 5140,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 5145,
+"boot": "fixture-boot",
+"asleep": 3600,
+"monitor_updated": 5145,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 5150,
+"boot": "fixture-boot",
+"asleep": 3600,
+"monitor_updated": 5150,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 5155,
+"boot": "fixture-boot",
+"asleep": 3600,
+"monitor_updated": 5155,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 5160,
+"boot": "fixture-boot",
+"asleep": 3600,
+"monitor_updated": 5160,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 5165,
+"boot": "fixture-boot",
+"asleep": 3600,
+"monitor_updated": 5165,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 5170,
+"boot": "fixture-boot",
+"asleep": 3600,
+"monitor_updated": 5170,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 5175,
+"boot": "fixture-boot",
+"asleep": 3600,
+"monitor_updated": 5175,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 5180,
+"boot": "fixture-boot",
+"asleep": 3600,
+"monitor_updated": 5180,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 5185,
+"boot": "fixture-boot",
+"asleep": 3600,
+"monitor_updated": 5185,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 5190,
+"boot": "fixture-boot",
+"asleep": 3600,
+"monitor_updated": 5190,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 5195,
+"boot": "fixture-boot",
+"asleep": 3600,
+"monitor_updated": 5195,
+"monitor_expected": true,
+"daemon_stopped": null
+},
+{
+"now": 5200,
+"boot": "fixture-boot",
+"asleep": 3600,
+"monitor_updated": 5200,
+"monitor_expected": true,
+"daemon_stopped": null
+}
+]

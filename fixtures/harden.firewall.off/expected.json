@@ -1,0 +1,8 @@
+{
+  "driver": "hardening",
+  "fires": [
+    "harden.firewall.off"
+  ],
+  "about": "No firewall running (firewalld installed but stopped) while a development server listens on 0.0.0.0:8080.",
+  "input": "input.json"
+}

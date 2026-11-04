@@ -2703,6 +2703,36 @@
    ],
    "file": "docs/references/pages/discourse.gnome.org/t-use-virustotal-to-check-gnome-extensions-for-malicious-code-29281-7ef7d4f6.md"
   },
+  "https://discourse.ubuntu.com/t/private-home-directories-for-ubuntu-21-04-onwards/19533": {
+   "file": "docs/references/pages/discourse.ubuntu.com/t-private-home-directories-for-ubuntu-21-04-onwards-19533-2464ed1b.md",
+   "cited_in": [
+    "docs/research/hardening.md"
+   ],
+   "wayback": "https://web.archive.org/web/20260518104847/https://discourse.ubuntu.com/t/private-home-directories-for-ubuntu-21-04-onwards/19533",
+   "title": "Private home directories for Ubuntu 21.04 onwards?",
+   "site": "Ubuntu Discourse",
+   "published": "2020-11-27T01:57:31+00:00",
+   "captured": "2026-11-03T02:57:13Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "834b3527d813fd2982a3b082e0bf5a542731d2cfe57673d1a02c3df7596183d2"
+  },
+  "https://discourse.ubuntu.com/t/sshd-now-uses-socket-based-activation-ubuntu-22-10-and-later/30189": {
+   "file": "docs/references/pages/discourse.ubuntu.com/t-sshd-now-uses-socket-based-activation-ubuntu-22-10-and-later-30189-8adb1851.md",
+   "cited_in": [
+    "docs/research/hardening.md"
+   ],
+   "wayback": "https://web.archive.org/web/20261024002931/https://discourse.ubuntu.com/t/sshd-now-uses-socket-based-activation-ubuntu-22-10-and-later/30189",
+   "title": "SSHd now uses socket-based activation (Ubuntu 22.10 and later)",
+   "site": "Ubuntu Discourse",
+   "published": "2022-08-24T02:55:24+00:00",
+   "captured": "2026-11-03T02:57:21Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "796568226f32c2907c1be8f3d3d1ec6b798f9aa5ef94396f9830b24f965cee8b"
+  },
   "https://discourse.ubuntu.com/t/understanding-apparmor-user-namespace-restriction/58007": {
    "title": "Understanding AppArmor User Namespace Restriction",
    "site": "Ubuntu Discourse",
@@ -2922,6 +2952,19 @@
    ],
    "file": "docs/references/pages/docs.clamav.net/manual-usage-scanning-html-168306f3.md"
   },
+  "https://docs.docker.com/engine/install/linux-postinstall/": {
+   "file": "docs/references/pages/docs.docker.com/engine-install-linux-postinstall-dde470f7.md",
+   "cited_in": [
+    "docs/research/hardening.md"
+   ],
+   "wayback": "https://web.archive.org/web/20261102193711/https://docs.docker.com/engine/install/linux-postinstall",
+   "title": "",
+   "captured": "2026-11-03T02:57:13Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/markdown",
+   "sha256": "639c72105dda80443d386d504302d35a582983bdcd5f98ff2578fc9cab0b49e4"
+  },
   "https://docs.docker.com/engine/network/firewall-iptables/": {
    "captured": "2026-11-02T18:27:41Z",
    "via": "live",
@@ -2971,6 +3014,19 @@
     "docs/threats/07-network-exposure-and-remote-access.md"
    ],
    "file": "docs/references/pages/docs.docker.com/engine-security-protect-access-fe15a815.md"
+  },
+  "https://docs.docker.com/engine/security/rootless/": {
+   "file": "docs/references/pages/docs.docker.com/engine-security-rootless-7e61efb4.md",
+   "cited_in": [
+    "docs/research/hardening.md"
+   ],
+   "wayback": "https://web.archive.org/web/20261025152350/https://docs.docker.com/engine/security/rootless/",
+   "title": "",
+   "captured": "2026-11-03T02:57:31Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/markdown",
+   "sha256": "f6df8a91fd4cb55e3b7b1825c33ca15e3b4460f2864bdc8463d304c07d99363a"
   },
   "https://docs.docker.com/reference/cli/docker/login/": {
    "captured": "2026-11-02T18:28:52Z",
@@ -3221,6 +3277,20 @@
    ],
    "file": "docs/references/pages/docs.npmjs.com/cli-v11-commands-npm-install-803a528e.md"
   },
+  "https://docs.npmjs.com/cli/v11/using-npm/config#ignore-scripts": {
+   "file": "docs/references/pages/docs.npmjs.com/cli-v11-using-npm-config-a5651fcf.md",
+   "cited_in": [
+    "docs/research/hardening.md"
+   ],
+   "wayback": "https://web.archive.org/web/20261022065815/https://docs.npmjs.com/cli/v11/using-npm/config/",
+   "title": "Config | npm Docs",
+   "captured": "2026-11-03T02:57:29Z",
+   "via": "live",
+   "source_url": "https://docs.npmjs.com/cli/v11/using-npm/config/",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "cc25ce0721ef7b7fa6c52b672f48e164c0583e3d36c3b8ff0823a76f06b47003"
+  },
   "https://docs.npmjs.com/cli/v11/using-npm/scripts": {
    "title": "Scripts | npm Docs",
    "captured": "2026-11-02T18:29:03Z",
@@ -3232,6 +3302,21 @@
     "docs/threats/02-supply-chain-packages.md"
    ],
    "file": "docs/references/pages/docs.npmjs.com/cli-v11-using-npm-scripts-d7ddeb58.md"
+  },
+  "https://docs.npmjs.com/cli/v12/commands/npm-install-scripts": {
+   "file": "docs/references/pages/docs.npmjs.com/cli-v12-commands-npm-install-scripts-e6a18f03.md",
+   "cited_in": [
+    "docs/research/hardening.md",
+    "docs/threats/02-supply-chain-packages.md"
+   ],
+   "wayback_error": "URLError: <urlopen error [Errno 111] Connection refused>",
+   "title": "npm-install-scripts | npm Docs",
+   "captured": "2026-11-03T02:58:26Z",
+   "via": "live",
+   "source_url": "https://docs.npmjs.com/cli/v12/commands/npm-install-scripts/",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "87de2064d76c8916d1509008f5cb84ccb5ab23535877aa094575cb6c035c54c4"
   },
   "https://docs.npmjs.com/generating-provenance-statements": {
    "title": "Generating provenance statements | npm Docs",
@@ -3535,6 +3620,19 @@
    ],
    "file": "docs/references/pages/falco.org/docs-reference-rules-default-rules-c74a7d4d.md"
   },
+  "https://fedoraproject.org/wiki/Changes/Migrate_to_lastlog2": {
+   "file": "docs/references/pages/fedoraproject.org/wiki-changes-migrate-to-lastlog2-8a12aac7.md",
+   "cited_in": [
+    "docs/research/hardening.md"
+   ],
+   "wayback": "https://web.archive.org/web/20260722102016/https://fedoraproject.org/wiki/Changes/Migrate_to_lastlog2",
+   "title": "Changes/Migrate to lastlog2 - Fedora Project Wiki",
+   "captured": "2026-11-03T02:57:15Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "d52aa262840a995309aa29a4de85e715b48f164222505bd698a5fcbd945a9a13"
+  },
   "https://fedoraproject.org/wiki/Third_Party_Repository_Policy": {
    "title": "Third Party Repository Policy - Fedora Project Wiki",
    "captured": "2026-11-02T18:30:10Z",
@@ -3722,6 +3820,68 @@
     "docs/research/vulnerability-intelligence-and-feeds.md"
    ],
    "file": "docs/references/pages/git.kernel.org/pub-scm-linux-security-vulns-git-5720e54d.md"
+  },
+  "https://git.launchpad.net/ubuntu/+source/procps/plain/debian/sysctl.d/10-kernel-hardening.conf?h=ubuntu/noble": {
+   "file": "docs/references/pages/git.launchpad.net/ubuntu-source-procps-plain-debian-sysctl-d-10-kernel-hardening-conf-h-ubuntu-nob-c9deb6ff.md",
+   "cited_in": [
+    "docs/research/hardening.md"
+   ],
+   "title": "",
+   "captured": "2026-11-03T02:57:17Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/plain",
+   "sha256": "2bbc2c5684414517eba9da8d2fbff0a678026d944eb8fcfd6287281e11282e2f"
+  },
+  "https://git.launchpad.net/ubuntu/+source/procps/plain/debian/sysctl.d/10-ptrace.conf?h=ubuntu/noble": {
+   "file": "docs/references/pages/git.launchpad.net/ubuntu-source-procps-plain-debian-sysctl-d-10-ptrace-conf-h-ubuntu-noble-4db7a296.md",
+   "cited_in": [
+    "docs/research/hardening.md"
+   ],
+   "title": "",
+   "captured": "2026-11-03T02:57:26Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/plain",
+   "sha256": "4add0d9ecbcc91e4018ed08e8dc66c69d4d9d142f9e31461178dcd7da0fd73c2"
+  },
+  "https://git.launchpad.net/ubuntu/+source/systemd/plain/debian/rules?h=ubuntu/noble": {
+   "file": "docs/references/pages/git.launchpad.net/ubuntu-source-systemd-plain-debian-rules-h-ubuntu-noble-def84df6.md",
+   "cited_in": [
+    "docs/research/hardening.md"
+   ],
+   "title": "",
+   "captured": "2026-11-03T02:57:29Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/plain",
+   "sha256": "c925eb5df2cda7c89334176a1a6e185d21a28d70b65f03db390e2d9f8f831a51"
+  },
+  "https://git.launchpad.net/ufw/tree/setup.py": {
+   "file": "docs/references/pages/git.launchpad.net/ufw-tree-setup-py-2fa84d7d.md",
+   "cited_in": [
+    "docs/research/hardening.md"
+   ],
+   "wayback": "https://web.archive.org/web/20260112175549/https://git.launchpad.net/ufw/tree/setup.py",
+   "title": "setup.py - ufw - [no description]",
+   "captured": "2026-11-03T02:57:32Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "361ba2a02cbf5b1f63299be9f70e3e52ac537a4eddd3555559221d0fefea5a5c"
+  },
+  "https://git.launchpad.net/~ubuntu-core-dev/ubuntu-seeds/+git/platform/plain/standard?h=noble": {
+   "file": "docs/references/pages/git.launchpad.net/ubuntu-core-dev-ubuntu-seeds-git-platform-plain-standard-h-noble-12b9baf2.md",
+   "cited_in": [
+    "docs/research/hardening.md"
+   ],
+   "wayback_error": "URLError: <urlopen error [Errno 111] Connection refused>",
+   "title": "",
+   "captured": "2026-11-03T02:58:34Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/plain",
+   "sha256": "2ce221679950c28d24983c9d47dea316a1107f77e2d90ae390c5dcd1e0c5630c"
   },
   "https://github.blog/2025-12-15-our-plan-for-a-more-secure-npm-supply-chain/": {
    "title": "Our plan for a more secure npm supply chain",
@@ -4107,6 +4267,34 @@
    ],
    "file": "docs/references/pages/github.com/neo23x0-signature-base-tree-master-yara-7b186c38.md"
   },
+  "https://github.com/OpenPrinting/cups-browsed": {
+   "file": "docs/references/pages/github.com/openprinting-cups-browsed-c21ae163.md",
+   "cited_in": [
+    "docs/research/hardening.md"
+   ],
+   "wayback": "https://web.archive.org/web/20260622081632/https://github.com/OpenPrinting/cups-browsed",
+   "title": "GitHub - OpenPrinting/cups-browsed",
+   "site": "GitHub",
+   "captured": "2026-11-03T02:57:27Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "eee60f10f2167357123e38946637898d541da728494927c3d543385e10cc0b06"
+  },
+  "https://github.com/OpenPrinting/cups-browsed/releases": {
+   "file": "docs/references/pages/github.com/openprinting-cups-browsed-releases-07bcd580.md",
+   "cited_in": [
+    "docs/research/hardening.md"
+   ],
+   "wayback": "https://web.archive.org/web/20260622121307/https://github.com/OpenPrinting/cups-browsed/releases",
+   "title": "Releases · OpenPrinting/cups-browsed",
+   "site": "GitHub",
+   "captured": "2026-11-03T02:57:32Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "0127720b09fe61faf3a04051afe89cf1f18f70739a0f94cf8d39699d35d3332c"
+  },
   "https://github.com/OpenPrinting/cups-browsed/security/advisories/GHSA-rj88-6mr5-rcw8": {
    "title": "Multiple bugs leading to info leak and remote code execution",
    "site": "GitHub",
@@ -4479,6 +4667,21 @@
     "docs/threats/08-desktop-and-sandboxing.md"
    ],
    "file": "docs/references/pages/github.com/containers-bubblewrap-b3c11b65.md"
+  },
+  "https://github.com/containers/podman/blob/main/docs/tutorials/rootless_tutorial.md": {
+   "file": "docs/references/pages/github.com/containers-podman-blob-main-docs-tutorials-rootless-tutorial-md-1ea5e751.md",
+   "cited_in": [
+    "docs/research/hardening.md"
+   ],
+   "wayback_error": "URLError: <urlopen error [Errno 111] Connection refused>",
+   "title": "podman/docs/tutorials/rootless_tutorial.md at main · podman-container-tools/podman",
+   "site": "GitHub",
+   "captured": "2026-11-03T02:58:32Z",
+   "via": "live",
+   "source_url": "https://github.com/podman-container-tools/podman/blob/main/docs/tutorials/rootless_tutorial.md",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "3b49039eb5c7f3c4caf559f8e4ba5d933ab284e98c2ca3c5f8db082e0e1ab9ad"
   },
   "https://github.com/crowdsecurity/crowdsec": {
    "title": "GitHub - crowdsecurity/crowdsec: Open-source IDS/IPS, WAF and bot detection for Linux, Windows, Docker and Kubernetes, with a crowdsourced blocklist of malicious IPs.",
@@ -5140,6 +5343,21 @@
    ],
    "file": "docs/references/pages/github.com/netblue30-firejail-87690bc2.md"
   },
+  "https://github.com/npm/cli/releases/tag/v12.0.0": {
+   "file": "docs/references/pages/github.com/npm-cli-releases-tag-v12-0-0-66eec7ff.md",
+   "cited_in": [
+    "docs/research/hardening.md",
+    "docs/threats/02-supply-chain-packages.md"
+   ],
+   "wayback": "https://web.archive.org/web/20261023175858/https://github.com/npm/cli/releases/tag/v12.0.0",
+   "title": "Release v12.0.0 · npm/cli",
+   "site": "GitHub",
+   "captured": "2026-11-03T02:58:35Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "cf3d127d5db0ebcc8083dc4c45e95eb8ca113d28e14d809020f175e211459344"
+  },
   "https://github.com/nrwl/nx/security/advisories/GHSA-cxm3-wv7p-598c": {
    "title": "Malicious versions of Nx and some supporting plugins were published",
    "site": "GitHub",
@@ -5262,6 +5480,20 @@
    ],
    "file": "docs/references/pages/github.com/ossf-package-analysis-d4055d79.md"
   },
+  "https://github.com/pnpm/pnpm/releases/tag/v10.0.0": {
+   "file": "docs/references/pages/github.com/pnpm-pnpm-releases-tag-v10-0-0-66f21ab6.md",
+   "cited_in": [
+    "docs/research/hardening.md"
+   ],
+   "wayback": "https://web.archive.org/web/20261023175858/https://github.com/pnpm/pnpm/releases/tag/v10.0.0",
+   "title": "Release pnpm 10 · pnpm/pnpm",
+   "site": "GitHub",
+   "captured": "2026-11-03T02:58:40Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "c99c5c7c96141665a63c3eee6bd6e153a724b22acaaeb7a090b8c7fed3fbacef"
+  },
   "https://github.com/praetorian-inc/noseyparker": {
    "title": "GitHub - praetorian-inc/noseyparker: Nosey Parker is a command-line tool that finds secrets and sensitive information in textual data and Git history.",
    "site": "GitHub",
@@ -5381,6 +5613,20 @@
    ],
    "file": "docs/references/pages/github.com/safing-portmaster-edb788a1.md"
   },
+  "https://github.com/sddm/sddm/blob/develop/data/man/sddm.conf.rst.in": {
+   "file": "docs/references/pages/github.com/sddm-sddm-blob-develop-data-man-sddm-conf-rst-in-6f960d97.md",
+   "cited_in": [
+    "docs/research/hardening.md"
+   ],
+   "wayback": "https://web.archive.org/web/20260208093013/https://github.com/sddm/sddm/blob/develop/data/man/sddm.conf.rst.in",
+   "title": "sddm/data/man/sddm.conf.rst.in at develop · sddm/sddm",
+   "site": "GitHub",
+   "captured": "2026-11-03T02:58:44Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "171d4d652e03e7c7fc6f16bc500f7bd2916119ae909e2c16c851feb4c97f9f13"
+  },
   "https://github.com/secretlint/secretlint": {
    "title": "GitHub - secretlint/secretlint: Pluggable linting tool to prevent committing credential.",
    "site": "GitHub",
@@ -5416,6 +5662,34 @@
     "REVIEW.md"
    ],
    "file": "docs/references/pages/github.com/strace-strace-9827b88c.md"
+  },
+  "https://github.com/systemd/systemd/blob/main/meson_options.txt": {
+   "file": "docs/references/pages/github.com/systemd-systemd-blob-main-meson-options-txt-a2f3b633.md",
+   "cited_in": [
+    "docs/research/hardening.md"
+   ],
+   "wayback": "https://web.archive.org/web/20261008232036/https://github.com/systemd/systemd/blob/main/meson_options.txt",
+   "title": "systemd/meson_options.txt at main · systemd/systemd",
+   "site": "GitHub",
+   "captured": "2026-11-03T02:58:45Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "4488c90d83a9c941e17760be2d3e7bd1e56627af0e6878a7086cf233b8555777"
+  },
+  "https://github.com/systemd/systemd/pull/28263": {
+   "file": "docs/references/pages/github.com/systemd-systemd-pull-28263-1c7d633c.md",
+   "cited_in": [
+    "docs/research/hardening.md"
+   ],
+   "wayback": "https://web.archive.org/web/20250830034207/https://github.com/systemd/systemd/pull/28263",
+   "title": "Disable LLMNR protocol in default builds by pemensik · Pull Request #28263 · systemd/systemd",
+   "site": "GitHub",
+   "captured": "2026-11-03T02:58:48Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "8eeb4fc78cd64c7d99a8600800855ca7ed51383768910d4734bed5856af32c5f"
   },
   "https://github.com/tchx84/Flatseal": {
    "title": "GitHub - tchx84/Flatseal: Manage Flatpak permissions",
@@ -5573,6 +5847,58 @@
    ],
    "file": "docs/references/pages/gitlab.archlinux.org/archlinux-arch-audit-5558828c.md"
   },
+  "https://gitlab.archlinux.org/archlinux/packaging/packages/linux/-/raw/main/config.x86_64": {
+   "file": "docs/references/pages/gitlab.archlinux.org/archlinux-packaging-packages-linux-raw-main-config-x86-64-89c3ce50.md",
+   "cited_in": [
+    "docs/research/hardening.md"
+   ],
+   "title": "Oh noes!",
+   "captured": "2026-11-03T02:57:19Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "62375048a3d419ae453939a04b1d2f3ef12a2407b91b080f6d5b13674e7a6615"
+  },
+  "https://gitlab.archlinux.org/archlinux/packaging/packages/openssh/-/blob/main/PKGBUILD": {
+   "file": "docs/references/pages/gitlab.archlinux.org/archlinux-packaging-packages-openssh-blob-main-pkgbuild-fa4cd270.md",
+   "cited_in": [
+    "docs/research/hardening.md"
+   ],
+   "wayback": "https://web.archive.org/web/20251209031132/https://gitlab.archlinux.org/archlinux/packaging/packages/openssh/-/blob/main/PKGBUILD",
+   "title": "Making sure you're not a bot!",
+   "captured": "2026-11-03T02:57:27Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "374824353d5b2982a9b9ed36cb4bd72389d440ade62749401665e040d58008e2"
+  },
+  "https://gitlab.archlinux.org/archlinux/packaging/packages/shadow": {
+   "file": "docs/references/pages/gitlab.archlinux.org/archlinux-packaging-packages-shadow-2c263d89.md",
+   "cited_in": [
+    "docs/research/hardening.md"
+   ],
+   "wayback": "https://web.archive.org/web/20260125120001/https://gitlab.archlinux.org/archlinux/packaging/packages/shadow",
+   "title": "Arch Linux / Packaging / Packages / shadow · GitLab",
+   "site": "GitLab",
+   "captured": "2026-11-03T02:57:30Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "9d9a96ed2223d6bb114e56e483153f129e009428ea587dafe0ffa908905db9d0"
+  },
+  "https://gitlab.archlinux.org/archlinux/packaging/packages/systemd/-/raw/main/PKGBUILD": {
+   "file": "docs/references/pages/gitlab.archlinux.org/archlinux-packaging-packages-systemd-raw-main-pkgbuild-bc7618f4.md",
+   "cited_in": [
+    "docs/research/hardening.md"
+   ],
+   "wayback_error": "URLError: <urlopen error [Errno 111] Connection refused>",
+   "title": "Making sure you're not a bot!",
+   "captured": "2026-11-03T02:58:29Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "69a35722e0f9722ebc354cde7bfe9b7a57b8f298a281cee0615eb2739c4f9dab"
+  },
   "https://gitlab.archlinux.org/pacman/namcap": {
    "title": "Pacman / Namcap · GitLab",
    "site": "GitLab",
@@ -5584,6 +5910,20 @@
     "docs/threats/03-distro-packaging-and-install-channels.md"
    ],
    "file": "docs/references/pages/gitlab.archlinux.org/pacman-namcap-7c353440.md"
+  },
+  "https://gitlab.com/cryptsetup/cryptsetup": {
+   "file": "docs/references/pages/gitlab.com/cryptsetup-cryptsetup-8aeed249.md",
+   "cited_in": [
+    "docs/threats/08-desktop-and-sandboxing.md"
+   ],
+   "wayback": "https://web.archive.org/web/20261019234205/https://gitlab.com/cryptsetup/cryptsetup",
+   "title": "",
+   "captured": "2026-11-03T02:57:33Z",
+   "via": "wayback",
+   "source_url": "https://web.archive.org/web/20261019234205id_/https://gitlab.com/cryptsetup/cryptsetup",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "266d9dd725c3a8cbf2236c68135d555c13454e258420d104a8e474326ffcc3db"
   },
   "https://gitlab.com/gitlab-org/security-products/package-hunter": {
    "file": "docs/references/pages/gitlab.com/gitlab-org-security-products-package-hunter-fe251272.md",
@@ -5745,6 +6085,19 @@
    ],
    "file": "docs/references/pages/in-toto.io/index-f03e6679.md"
   },
+  "https://invent.kde.org/plasma/kscreenlocker/-/blob/master/settings/kscreenlockersettings.kcfg": {
+   "file": "docs/references/pages/invent.kde.org/plasma-kscreenlocker-blob-master-settings-kscreenlockersettings-kcfg-1fc4442c.md",
+   "cited_in": [
+    "docs/research/hardening.md"
+   ],
+   "title": "settings/kscreenlockersettings.kcfg · master · Plasma / KScreenLocker · GitLab",
+   "site": "GitLab",
+   "captured": "2026-11-03T02:57:30Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "31d6b51dd3a8b2c5fea1dbd21dfee2b397d42d92c93208360038d6928c9c3b78"
+  },
   "https://iplists.firehol.org/": {
    "title": "FireHOL IP Lists | IP Blacklists | IP Reputation Feeds",
    "site": "FireHOL IP Lists",
@@ -5846,6 +6199,20 @@
    "wayback_error": "URLError: <urlopen error [Errno 111] Connection refused>",
    "data": "application/rss+xml feed",
    "attempted": "2026-11-02T20:51:49Z"
+  },
+  "https://kspp.github.io/Recommended_Settings": {
+   "file": "docs/references/pages/kspp.github.io/recommended-settings-7221e827.md",
+   "cited_in": [
+    "docs/research/hardening.md"
+   ],
+   "wayback": "https://web.archive.org/web/20260708015530/https://kspp.github.io/Recommended_Settings",
+   "title": "Recommended Settings",
+   "site": "Linux Kernel Self-Protection Project",
+   "captured": "2026-11-03T02:57:27Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "fb27a33f6e466aeadf1017d95b4c6ec69246a46a51a32a345264641d7a51dc8c"
   },
   "https://kubernetes.io/docs/reference/access-authn-authz/authentication/": {
    "title": "Authenticating",
@@ -6390,6 +6757,20 @@
    ],
    "file": "docs/references/pages/man7.org/linux-man-pages-man8-ld-so-8-html-646c1683.md"
   },
+  "https://man7.org/linux/man-pages/man8/lsblk.8.html": {
+   "file": "docs/references/pages/man7.org/linux-man-pages-man8-lsblk-8-html-d23c3d0f.md",
+   "cited_in": [
+    "docs/research/hardening.md",
+    "docs/threats/08-desktop-and-sandboxing.md"
+   ],
+   "wayback": "https://web.archive.org/web/20261008094044/https://www.man7.org/linux/man-pages/man8/lsblk.8.html",
+   "title": "lsblk(8) - Linux manual page",
+   "captured": "2026-11-03T02:57:29Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "2026def667b01c35650c37f00f72bc62de53fa9560817d72ab9455ef3fca1c0f"
+  },
   "https://man7.org/linux/man-pages/man8/pam_motd.8.html": {
    "title": "pam_motd(8) - Linux manual page",
    "captured": "2026-11-02T18:40:43Z",
@@ -6570,6 +6951,21 @@
     "docs/threats/03-distro-packaging-and-install-channels.md"
    ],
    "file": "docs/references/pages/michael-prokop.at/blog-p-5545-ab6a3dea.md"
+  },
+  "https://microos.opensuse.org/blog/2023-11-06-utmp-and-wtmp-are-gone": {
+   "file": "docs/references/pages/microos.opensuse.org/blog-2023-11-06-utmp-and-wtmp-are-gone-ece7f8c0.md",
+   "cited_in": [
+    "docs/research/hardening.md"
+   ],
+   "wayback": "https://web.archive.org/web/20260514163029/https://microos.opensuse.org/blog/2023-11-06-utmp-and-wtmp-are-gone/",
+   "title": "Y2038: /run/utmp, /var/log/wtmp and /var/log/lastlog are gone",
+   "site": "openSUSE MicroOS",
+   "captured": "2026-11-03T02:57:34Z",
+   "via": "live",
+   "source_url": "https://microos.opensuse.org/blog/2023-11-06-utmp-and-wtmp-are-gone/",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "f16da014cc4f1f707118769b134df6c41f02652fd3570ab8c1c7e1b0b91f6eb8"
   },
   "https://mozilla.github.io/policy-templates/": {
    "title": "policy-templates",
@@ -7003,6 +7399,19 @@
    ],
    "file": "docs/references/pages/osv.dev/vulnerability-ghsa-4x49-vf9v-38px-779204e5.md"
   },
+  "https://packages.ubuntu.com/noble/cups-daemon": {
+   "file": "docs/references/pages/packages.ubuntu.com/noble-cups-daemon-414d55d9.md",
+   "cited_in": [
+    "docs/research/hardening.md"
+   ],
+   "wayback_error": "URLError: <urlopen error [Errno 111] Connection refused>",
+   "title": "Ubuntu – Details of package cups-daemon in noble",
+   "captured": "2026-11-03T02:58:31Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "2fa7906791ff411d22d74663aea008eb783b223579471983eed9644d3d09fbf6"
+  },
   "https://pberba.github.io/security/2021/11/22/linux-threat-hunting-for-persistence-sysmon-auditd-webshell/": {
    "title": "Hunting for Persistence in Linux (Part 1): Auditd, Sysmon, Osquery (and Webshells)",
    "site": "pepe berba",
@@ -7109,6 +7518,20 @@
     "docs/threats/02-supply-chain-packages.md"
    ],
    "file": "docs/references/pages/pnpm.io/settings-44676292.md"
+  },
+  "https://pnpm.io/settings/build": {
+   "file": "docs/references/pages/pnpm.io/settings-build-39e04c36.md",
+   "cited_in": [
+    "docs/research/hardening.md"
+   ],
+   "wayback_error": "URLError: <urlopen error [Errno 111] Connection refused>",
+   "title": "Build Settings | pnpm",
+   "site": "pnpm",
+   "captured": "2026-11-03T02:58:31Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "71c707576f0e7cce2711c511e49def121eea753bd24f28daa934af84026ad1c2"
   },
   "https://pnpm.io/supply-chain-security": {
    "title": "Mitigating supply chain attacks | pnpm",
@@ -7348,6 +7771,61 @@
    "content_type": "text/html",
    "sha256": "d19b9ef1e716a61d30480e8e528a47d9975876c11febe9c4921a04110df10439"
   },
+  "https://salsa.debian.org/installer-team/pkgsel/-/blob/master/debian/pkgsel.templates": {
+   "file": "docs/references/pages/salsa.debian.org/installer-team-pkgsel-blob-master-debian-pkgsel-templates-01a6ae62.md",
+   "cited_in": [
+    "docs/research/hardening.md"
+   ],
+   "wayback_error": "URLError: <urlopen error [Errno 111] Connection refused>",
+   "title": "I Challenge Thee",
+   "captured": "2026-11-03T02:58:48Z",
+   "via": "live",
+   "source_url": "https://salsa.debian.org/.internal/challenge.html?original=%2finstaller-team%2fpkgsel%2f-%2fblob%2fmaster%2fdebian%2fpkgsel.templates&referer=",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "d19b9ef1e716a61d30480e8e528a47d9975876c11febe9c4921a04110df10439"
+  },
+  "https://salsa.debian.org/kernel-team/linux/-/merge_requests/1507": {
+   "file": "docs/references/pages/salsa.debian.org/kernel-team-linux-merge-requests-1507-f6b50da7.md",
+   "cited_in": [
+    "docs/research/hardening.md"
+   ],
+   "wayback": "https://web.archive.org/web/20260803220337/https://salsa.debian.org/kernel-team/linux/-/merge_requests/1507",
+   "title": "Drop \"yama: Disable by default\" and use upstream default to restrict ptrace (!1507) · Merge requests · Debian kernel team / linux · GitLab",
+   "site": "GitLab",
+   "captured": "2026-11-03T02:58:51Z",
+   "via": "wayback",
+   "source_url": "https://web.archive.org/web/20260803220337id_/https://salsa.debian.org/kernel-team/linux/-/merge_requests/1507",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "10801fbeb5a578b4b1ff00e346cb57fcbe9d77103be6b504637311469738c2fa"
+  },
+  "https://salsa.debian.org/kernel-team/linux/-/raw/debian/latest/debian/config/config": {
+   "file": "docs/references/pages/salsa.debian.org/kernel-team-linux-raw-debian-latest-debian-config-config-942d7c69.md",
+   "cited_in": [
+    "docs/research/hardening.md"
+   ],
+   "title": "I Challenge Thee",
+   "captured": "2026-11-03T02:58:54Z",
+   "via": "live",
+   "source_url": "https://salsa.debian.org/.internal/challenge.html?original=%2fkernel-team%2flinux%2f-%2fraw%2fdebian%2flatest%2fdebian%2fconfig%2fconfig&referer=",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "d19b9ef1e716a61d30480e8e528a47d9975876c11febe9c4921a04110df10439"
+  },
+  "https://salsa.debian.org/kernel-team/linux/-/raw/debian/latest/debian/patches/debian/yama-disable-by-default.patch": {
+   "file": "docs/references/pages/salsa.debian.org/kernel-team-linux-raw-debian-latest-debian-patches-debian-yama-disable-by-defaul-44b5da3e.md",
+   "cited_in": [
+    "docs/research/hardening.md"
+   ],
+   "title": "I Challenge Thee",
+   "captured": "2026-11-03T02:58:55Z",
+   "via": "live",
+   "source_url": "https://salsa.debian.org/.internal/challenge.html?original=%2fkernel-team%2flinux%2f-%2fraw%2fdebian%2flatest%2fdebian%2fpatches%2fdebian%2fyama-disable-by-default.patch&referer=",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "d19b9ef1e716a61d30480e8e528a47d9975876c11febe9c4921a04110df10439"
+  },
   "https://salsa.debian.org/lintian/lintian": {
    "captured": "2026-11-02T18:41:50Z",
    "via": "wayback",
@@ -7358,6 +7836,33 @@
     "docs/threats/03-distro-packaging-and-install-channels.md"
    ],
    "file": "docs/references/pages/salsa.debian.org/lintian-lintian-b66af640.md"
+  },
+  "https://salsa.debian.org/ssh-team/openssh/-/tree/master/debian/systemd": {
+   "file": "docs/references/pages/salsa.debian.org/ssh-team-openssh-tree-master-debian-systemd-ad8b0bd5.md",
+   "cited_in": [
+    "docs/research/hardening.md"
+   ],
+   "title": "I Challenge Thee",
+   "captured": "2026-11-03T02:58:56Z",
+   "via": "live",
+   "source_url": "https://salsa.debian.org/.internal/challenge.html?original=%2fssh-team%2fopenssh%2f-%2ftree%2fmaster%2fdebian%2fsystemd&referer=",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "d19b9ef1e716a61d30480e8e528a47d9975876c11febe9c4921a04110df10439"
+  },
+  "https://salsa.debian.org/systemd-team/systemd/-/raw/debian/master/debian/rules": {
+   "file": "docs/references/pages/salsa.debian.org/systemd-team-systemd-raw-debian-master-debian-rules-9a2085a1.md",
+   "cited_in": [
+    "docs/research/hardening.md"
+   ],
+   "wayback_error": "URLError: <urlopen error [Errno 111] Connection refused>",
+   "title": "I Challenge Thee",
+   "captured": "2026-11-03T02:59:47Z",
+   "via": "live",
+   "source_url": "https://salsa.debian.org/.internal/challenge.html?original=%2fsystemd-team%2fsystemd%2f-%2fraw%2fdebian%2fmaster%2fdebian%2frules&referer=",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "d19b9ef1e716a61d30480e8e528a47d9975876c11febe9c4921a04110df10439"
   },
   "https://sandflysecurity.com/blog/": {
    "title": "Blog | Sandfly Security",
@@ -7971,6 +8476,20 @@
    ],
    "file": "docs/references/pages/socket.dev/blog-nx-packages-compromised-94fee65b.md"
   },
+  "https://sources.debian.org/src/adduser/3.152/adduser.conf/": {
+   "file": "docs/references/pages/sources.debian.org/src-adduser-3-152-adduser-conf-f05b9576.md",
+   "cited_in": [
+    "docs/research/hardening.md"
+   ],
+   "wayback_error": "URLError: <urlopen error [Errno 111] Connection refused>",
+   "title": "I Challenge Thee",
+   "captured": "2026-11-03T02:58:36Z",
+   "via": "live",
+   "source_url": "https://sources.debian.org/.internal/challenge.html?original=%2fsrc%2fadduser%2f3.152%2fadduser.conf%2f&referer=",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "d19b9ef1e716a61d30480e8e528a47d9975876c11febe9c4921a04110df10439"
+  },
   "https://specifications.freedesktop.org/autostart-spec/latest/": {
    "title": "Desktop Application Autostart Specification",
    "captured": "2026-11-02T18:44:11Z",
@@ -8040,6 +8559,56 @@
     "docs/threats/08-desktop-and-sandboxing.md"
    ],
    "file": "docs/references/pages/specifications.freedesktop.org/thumbnail-spec-latest-fd42dc92.md"
+  },
+  "https://src.fedoraproject.org/rpms/elfutils": {
+   "file": "docs/references/pages/src.fedoraproject.org/rpms-elfutils-82e8be63.md",
+   "cited_in": [
+    "docs/research/hardening.md"
+   ],
+   "wayback": "https://web.archive.org/web/20260617045412/https://src.fedoraproject.org/rpms/elfutils",
+   "title": "Making sure you're not a bot!",
+   "captured": "2026-11-03T02:58:27Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "afc55ade8f65a3f0942bf47a31bce56a8acceabd6e18f1d7df9e30119c20c419"
+  },
+  "https://src.fedoraproject.org/rpms/fedora-release/blob/f44/f/80-server.preset": {
+   "file": "docs/references/pages/src.fedoraproject.org/rpms-fedora-release-blob-f44-f-80-server-preset-130615bd.md",
+   "cited_in": [
+    "docs/research/hardening.md"
+   ],
+   "wayback": "https://web.archive.org/web/20260826055727/https://src.fedoraproject.org/rpms/fedora-release/blob/f44/f/80-server.preset",
+   "title": "Making sure you're not a bot!",
+   "captured": "2026-11-03T02:58:58Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "612730d319c761d3baeee87b2805b9e76eccdc626a83aa6fe118c31fc328ba32"
+  },
+  "https://src.fedoraproject.org/rpms/fedora-release/blob/f44/f/81-desktop.preset": {
+   "file": "docs/references/pages/src.fedoraproject.org/rpms-fedora-release-blob-f44-f-81-desktop-preset-7bacdcf5.md",
+   "cited_in": [
+    "docs/research/hardening.md"
+   ],
+   "title": "Making sure you're not a bot!",
+   "captured": "2026-11-03T02:59:30Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "702ea39e6ff21b5e8ba332fabfe9eff793d104ba8ccfbca46f0ba81df7de3c48"
+  },
+  "https://src.fedoraproject.org/rpms/systemd/blob/f44/f/systemd.spec": {
+   "file": "docs/references/pages/src.fedoraproject.org/rpms-systemd-blob-f44-f-systemd-spec-be15bd08.md",
+   "cited_in": [
+    "docs/research/hardening.md"
+   ],
+   "title": "Making sure you're not a bot!",
+   "captured": "2026-11-03T02:59:46Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "24961dc3130cc37410f39e98493348ca82b79e7e84dab234759c6fd2226bce0e"
   },
   "https://support.mozilla.org/en-US/kb/use-primary-password-protect-stored-logins": {
    "title": "Client Challenge",
@@ -8509,6 +9078,20 @@
    ],
    "file": "docs/references/pages/ubuntu.com/security-notices-50e56ba3.md"
   },
+  "https://ubuntu.com/security/notices/USN-7041-1": {
+   "file": "docs/references/pages/ubuntu.com/security-notices-usn-7041-1-1ea8d420.md",
+   "cited_in": [
+    "docs/research/hardening.md"
+   ],
+   "wayback": "https://web.archive.org/web/20260606113647/https://ubuntu.com/security/notices/USN-7041-1",
+   "title": "USN-7041-1: CUPS vulnerability | Ubuntu security notices | Ubuntu",
+   "site": "Ubuntu",
+   "captured": "2026-11-03T02:58:32Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "5580412661f58b3f069a3aece35c283cb0257ba48cfb2187dc45c5ff2a221841"
+  },
   "https://ubuntu.com/server/docs/apparmor": {
    "file": "docs/references/pages/ubuntu.com/server-docs-apparmor-223a15e6.md",
    "cited_in": [
@@ -8534,6 +9117,20 @@
     "docs/threats/07-network-exposure-and-remote-access.md"
    ],
    "file": "docs/references/pages/ubuntu.com/server-docs-how-to-security-firewalls-54dae507.md"
+  },
+  "https://ubuntu.com/server/docs/how-to/software/automatic-updates/": {
+   "file": "docs/references/pages/ubuntu.com/server-docs-how-to-software-automatic-updates-a7b9d931.md",
+   "cited_in": [
+    "docs/research/hardening.md"
+   ],
+   "wayback": "https://web.archive.org/web/20261024202513/https://ubuntu.com/server/docs/how-to/software/automatic-updates/",
+   "title": "Automatic updates",
+   "site": "Ubuntu Server",
+   "captured": "2026-11-03T02:58:37Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "6d3c48d1cc49c3a6d09c38caa4d41be9d6a689db82f3fbb78a60b4d4608ae0aa"
   },
   "https://ubuntu.com/tutorials/how-to-verify-ubuntu": {
    "title": "How to verify your Ubuntu download | Ubuntu",
@@ -8717,6 +9314,19 @@
    ],
    "file": "docs/references/pages/wiki.archlinux.org/title-arch-user-repository-42819966.md"
   },
+  "https://wiki.archlinux.org/title/Dm-crypt/Encrypting_an_entire_system": {
+   "file": "docs/references/pages/wiki.archlinux.org/title-dm-crypt-encrypting-an-entire-system-8040c2d8.md",
+   "cited_in": [
+    "docs/threats/08-desktop-and-sandboxing.md"
+   ],
+   "wayback": "https://web.archive.org/web/20261030234322/https://wiki.archlinux.org/title/Dm-crypt/Encrypting_an_entire_system",
+   "title": "dm-crypt/Encrypting an entire system - ArchWiki",
+   "captured": "2026-11-03T02:58:34Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "9762abbcc598e0e4492c4a8071110a9f5d89858fc65240fbc55aff7534eabfd7"
+  },
   "https://wiki.archlinux.org/title/GNOME/Keyring": {
    "title": "GNOME/Keyring - ArchWiki",
    "captured": "2026-11-02T18:49:55Z",
@@ -8759,6 +9369,32 @@
     "docs/threats/03-distro-packaging-and-install-channels.md"
    ],
    "file": "docs/references/pages/wiki.archlinux.org/title-pacman-package-signing-baf52c61.md"
+  },
+  "https://wiki.archlinux.org/title/Security": {
+   "file": "docs/references/pages/wiki.archlinux.org/title-security-545ed0ca.md",
+   "cited_in": [
+    "docs/research/hardening.md"
+   ],
+   "wayback": "https://web.archive.org/web/20261026194955/https://wiki.archlinux.org/title/Security",
+   "title": "Security - ArchWiki",
+   "captured": "2026-11-03T02:58:37Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "9f1e7a3de80b83092548dbf32d7afb3b7becd14dd099d4ea4b776ca122ce4492"
+  },
+  "https://wiki.archlinux.org/title/Security#ptrace_scope": {
+   "file": "docs/references/pages/wiki.archlinux.org/title-security-14852413.md",
+   "cited_in": [
+    "docs/research/hardening.md"
+   ],
+   "wayback": "https://web.archive.org/web/20261026194955/https://wiki.archlinux.org/title/Security",
+   "title": "Security - ArchWiki",
+   "captured": "2026-11-03T02:58:43Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "9f1e7a3de80b83092548dbf32d7afb3b7becd14dd099d4ea4b776ca122ce4492"
   },
   "https://wiki.debian.org/DebianRepository/UseThirdParty": {
    "title": "DebianRepository/UseThirdParty - Debian Wiki",
@@ -9460,6 +10096,39 @@
    "data": "application/rss+xml feed",
    "attempted": "2026-11-02T20:54:35Z"
   },
+  "https://www.debian.org/releases/bookworm/amd64/release-notes/ch-information.en.html": {
+   "file": "docs/references/pages/debian.org/releases-bookworm-amd64-release-notes-ch-information-en-html-daefb3ae.md",
+   "cited_in": [
+    "docs/research/hardening.md"
+   ],
+   "wayback": "https://web.archive.org/web/20260908062031/https://www.debian.org/releases/bookworm/amd64/release-notes/ch-information.en.html",
+   "title": "Chapter 5. Issues to be aware of for bookworm",
+   "captured": "2026-11-03T03:06:57Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "05ae042676008accccdd39fdb6f91c49e621ebcd9ee95df4737bfe443638a50e"
+  },
+  "https://www.debian.org/releases/bookworm/release-notes/issues.en.html": {
+   "cited_in": [
+    "docs/research/hardening.md"
+   ],
+   "error": "live: HTTP 404",
+   "attempted": "2026-11-03T02:58:35Z"
+  },
+  "https://www.debian.org/releases/trixie/release-notes/issues.en.html": {
+   "file": "docs/references/pages/debian.org/releases-trixie-release-notes-issues-en-html-24259f2a.md",
+   "cited_in": [
+    "docs/research/hardening.md"
+   ],
+   "wayback": "https://web.archive.org/web/20261024103608/https://www.debian.org/releases/trixie/release-notes/issues.en.html",
+   "title": "5. Issues to be aware of for trixie — release-notes documentation",
+   "captured": "2026-11-03T02:58:38Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "5063b8f052d179bbe621cc042f91a6f80a4cac0ffca83b262a52f2ba8345ccaf"
+  },
   "https://www.debian.org/security/2022/dsa-5167": {
    "title": "Debian -- Security Information -- DSA-5167-1 firejail",
    "captured": "2026-11-02T18:54:50Z",
@@ -9669,6 +10338,19 @@
    ],
    "file": "docs/references/pages/freedesktop.org/software-systemd-man-latest-loginctl-html-0e67255c.md"
   },
+  "https://www.freedesktop.org/software/systemd/man/latest/pam_systemd.html": {
+   "file": "docs/references/pages/freedesktop.org/software-systemd-man-latest-pam-systemd-html-306683cc.md",
+   "cited_in": [
+    "docs/research/hardening.md"
+   ],
+   "wayback": "https://web.archive.org/web/20260809141232/https://www.freedesktop.org/software/systemd/man/latest/pam_systemd.html",
+   "title": "pam_systemd",
+   "captured": "2026-11-03T02:58:38Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "0dd0795be009c9ecaaf698cc276bd60adacb0271f6a8a3dea912149fd2dd00ac"
+  },
   "https://www.freedesktop.org/software/systemd/man/latest/systemd-analyze.html": {
    "title": "systemd-analyze",
    "captured": "2026-11-02T18:55:56Z",
@@ -9702,6 +10384,19 @@
     "docs/threats/04-host-integrity-and-hardening-audit.md"
    ],
    "file": "docs/references/pages/freedesktop.org/software-systemd-man-latest-systemd-generator-html-fad55940.md"
+  },
+  "https://www.freedesktop.org/software/systemd/man/latest/systemd.kill.html": {
+   "file": "docs/references/pages/freedesktop.org/software-systemd-man-latest-systemd-kill-html-da808f0e.md",
+   "cited_in": [
+    "docs/research/hardening.md"
+   ],
+   "wayback": "https://web.archive.org/web/20261026173940/https://www.freedesktop.org/software/systemd/man/latest/systemd.kill.html",
+   "title": "systemd.kill",
+   "captured": "2026-11-03T02:58:42Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "b0a421f46b066cee5733515ce2fa089c02168957146464ad8202050e2c355f84"
   },
   "https://www.gamingonlinux.com/2024/04/flathub-now-prominently-notes-unverified-flatpak-apps": {
    "title": "Flathub now prominently notes unverified Flatpak apps",
@@ -9892,6 +10587,19 @@
     "docs/threats/03-distro-packaging-and-install-channels.md"
    ],
    "file": "docs/references/pages/kernel.org/doc-html-latest-admin-guide-module-signing-html-9a8b0895.md"
+  },
+  "https://www.kernel.org/doc/html/latest/filesystems/efivarfs.html": {
+   "file": "docs/references/pages/kernel.org/doc-html-latest-filesystems-efivarfs-html-c40bb122.md",
+   "cited_in": [
+    "docs/research/hardening.md"
+   ],
+   "wayback": "https://web.archive.org/web/20260731061158/https://www.kernel.org/doc/html/latest/filesystems/efivarfs.html",
+   "title": "efivarfs - a (U)EFI variable filesystem — The Linux Kernel documentation",
+   "captured": "2026-11-03T02:58:41Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "01a2b66224987dbb71448cd8209bf9d0b340218da238cca83804873ca6d051f8"
   },
   "https://www.kernel.org/doc/html/latest/usb/authorization.html": {
    "title": "Authorizing (or not) your USB devices to connect to the system — The Linux Kernel documentation",
@@ -11457,6 +12165,7 @@
   "https://api.first.org/data/v1/epss?cve=CVE-1,CVE-2": "API or data endpoint",
   "https://epss.empiricalsecurity.com/epss_scores-current.csv.gz": "bulk data file",
   "https://github.com/cisagov/kev-data/commits/develop.atom": "bulk data file",
+  "https://github.com/firewalld/firewalld/blob/main/config/zones/FedoraWorkstation.xml": "bulk data file",
   "https://github.com/github/advisory-database/commits/main.atom": "bulk data file",
   "https://isc.sans.edu/rssfeed_full.xml": "bulk data file",
   "https://lore.kernel.org/linux-cve-announce/new.atom": "bulk data file",

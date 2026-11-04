@@ -31,6 +31,8 @@ export interface PreviewDialogProps {
   description?: string | undefined;
   /** For decisions nobody should lose to a stray click: the backdrop does not close it. */
   modalOnly?: boolean;
+  /** Where focus goes when the dialog closes; call preventDefault to choose it. */
+  onCloseAutoFocus?: ((event: Event) => void) | undefined;
 }
 
 type Phase = { step: "plan" } | { step: "running" } | { step: "result"; result: ReactNode } | { step: "error"; message: string };
@@ -52,6 +54,7 @@ export function PreviewDialog({
   footer,
   description = "Review what will change before confirming.",
   modalOnly = false,
+  onCloseAutoFocus,
 }: PreviewDialogProps) {
   const [phase, setPhase] = useState<Phase>({ step: "plan" });
   const [acknowledged, setAcknowledged] = useState(false);
@@ -82,6 +85,7 @@ export function PreviewDialog({
             e.preventDefault();
             (e.currentTarget as HTMLElement).querySelector<HTMLElement>("[data-dialog-title]")?.focus();
           }}
+          onCloseAutoFocus={onCloseAutoFocus}
           className="fixed top-1/2 left-1/2 z-50 flex max-h-[85vh] w-[min(640px,calc(100vw-48px))] -translate-x-1/2 -translate-y-1/2 flex-col rounded-panel border border-rule bg-surface shadow-panel"
         >
           <div className="flex items-center justify-between gap-4 border-b border-rule px-5 py-3">

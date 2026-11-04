@@ -1,0 +1,8 @@
+{
+  "driver": "hardening",
+  "fires": [
+    "harden.group.docker"
+  ],
+  "about": "alice is a member of docker.",
+  "input": "input.json"
+}

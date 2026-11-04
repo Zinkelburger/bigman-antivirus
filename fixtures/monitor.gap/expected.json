@@ -1,0 +1,9 @@
+{
+  "driver": "heartbeat",
+  "fires": [
+    "monitor.gap",
+    "monitor.stopped"
+  ],
+  "about": "Canary heartbeats every 5 seconds, then none for five minutes while awake (stopped after one minute), then back (the gap), then an hour of suspend that is not a gap.",
+  "input": "ticks.json"
+}

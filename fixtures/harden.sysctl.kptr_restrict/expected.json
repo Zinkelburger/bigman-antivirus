@@ -1,0 +1,8 @@
+{
+  "driver": "hardening",
+  "fires": [
+    "harden.sysctl.kptr_restrict"
+  ],
+  "about": "kptr_restrict 0 with no drop-in.",
+  "input": "input.json"
+}

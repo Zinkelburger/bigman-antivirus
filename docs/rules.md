@@ -28,6 +28,11 @@ Every finding Bigman shows comes from one of these rules. Each has a synthetic f
 | `clamav.stale` | Review | Malware signatures are out of date | DP-20 |
 | `tool.missing` | Info | An optional tool is not installed |  |
 | `monitor.stopped` | Review | Canary monitoring is not reporting | CR-22, HI-24 |
+| `monitor.gap` | Review | Monitoring was off while the computer was awake | HI-24, CR-22 |
+| `ssh.key.added` | High | A new SSH key can log in to your account | NE-05, HI-10, SC-19 |
+| `ssh.tunnel.reverse` | Review | SSH is forwarding connections back to this computer | NE-20, NE-14, SC-19 |
+| `ssh.login.remote` | Review | Someone logged in over the network | NE-03, NE-05, NE-20 |
+| `ssh.key.stray` | Review | An SSH private key is stored outside ~/.ssh | CR-03, NE-20 |
 | `git.plaintext-credentials` | Review | Git stores credentials in plain text | CR-01, CR-08 |
 | `persistence.change` | Review | A startup file changed | HI-01, HI-02, HI-03, HI-04, HI-05, HI-10 |
 | `persistence.owned_modified` | Review | A package's file was modified | HI-01, HI-22, DP-21, MW-08 |
@@ -123,6 +128,22 @@ Every finding Bigman shows comes from one of these rules. Each has a synthetic f
 | `net.listener.lan_service` | Review | A local AI or notebook server is reachable from the network | NE-09, NE-10 |
 | `denial.selinux` | Info | SELinux stopped or logged an access | DS-18 |
 | `denial.apparmor` | Info | AppArmor stopped or logged an access | DS-18 |
+| `harden.sshd` | Review | The SSH server is on | NE-01, NE-02, NE-03, NE-05, NE-20 |
+| `harden.service.cups_browsed` | Review | cups-browsed adds printers from the network | NE-17 |
+| `harden.service.network` | Review | A network service a desktop rarely needs is on | NE-01, NE-22 |
+| `harden.firewall.off` | Review | No firewall is running | NE-12, NE-01 |
+| `harden.firewall.open_range` | Review | The firewall opens every high port | NE-12, NE-01, NE-11 |
+| `harden.sysctl.ptrace_scope` | Review | Programs can read each other's memory | CR-07, HI-25 |
+| `harden.sysctl.kptr_restrict` | Info | Kernel addresses are visible to programs | HI-25 |
+| `harden.sysctl.dmesg_restrict` | Info | Every program can read the kernel log | HI-25 |
+| `harden.name.llmnr` | Info | This computer asks the local network for names | NE-16 |
+| `harden.screen_lock` | Review | The screen does not lock by itself | DS-15 |
+| `harden.autologin` | Review | Someone is logged in automatically at startup | DS-15 |
+| `harden.disk_encryption` | Info | The disk is not encrypted | DS-22 |
+| `harden.secure_boot` | Info | Secure Boot is off | HI-21, DP-23 |
+| `harden.group.docker` | Review | Your account is in the docker group | HI-16 |
+| `harden.home.readable` | Review | Other accounts can open your home folder | CR-10 |
+| `harden.npm.ignore_scripts` | Info | npm runs dependency install scripts | SC-01 |
 | `lynis.finding` | Review | Lynis recommendation | HI-24 |
 | `osv.advisory` | Review | A dependency has a published advisory | SC-05, SC-10 |
 | `yara.output` | Review | YARA-X rules matched | MW-01 |
@@ -299,9 +320,49 @@ What you can do: Install it from Setup if you want those checks.
 
 **Canary monitoring is not reporting** (Review)
 
-The canary monitor has not written a heartbeat in the last ten seconds, so reads of decoy files are not being noticed.
+The canary monitor has not written a heartbeat in the last ten seconds, so reads of decoy files are not being noticed. The background service also reports this live, once, when the heartbeat has been missing for a minute while the computer was awake.
 
 What you can do: Start monitoring from Protect > Canaries, or install the background services from Setup.
+
+## `monitor.gap`
+
+**Monitoring was off while the computer was awake** (Review)
+
+The canary monitor or Bigman's background service was not running for a while, so nothing was watching in that window. Suspended time does not count, and a reboot starts over. A background-service gap after a normal stop (logout, systemctl --user stop) is Info; one after a crash or kill is Review. Malware running as you can stop these processes, which is why the gap itself is shown.
+
+What you can do: If you did not stop monitoring, review Activity and the startup files for changes made in that window.
+
+## `ssh.key.added`
+
+**A new SSH key can log in to your account** (High)
+
+A key appeared in ~/.ssh/authorized_keys that was not there before. Whoever holds the matching private key can log in as you wherever sshd accepts it, without your password. The key's fingerprint and comment are shown, never the key itself; fingerprints published as indicators of compromise are named.
+
+What you can do: If you did not add it, remove its line, then check ~/.ssh, your crontab and startup files for anything added at the same time. Turn sshd off if you do not need remote logins.
+
+## `ssh.tunnel.reverse`
+
+**SSH is forwarding connections back to this computer** (Review)
+
+One of your ssh or autossh processes uses -R or RemoteForward, so connections to a port on another computer arrive here. Developers do this on purpose. It is High when it forwards to this computer's SSH server, turns off host-key checking, or was started from a code editor, as the October 2026 tampered Cursor extension did.
+
+What you can do: If you did not start it, stop the process, then look for what restarts it (crontab -l, ~/.config/systemd/user, autostart) and check ~/.ssh/authorized_keys.
+
+## `ssh.login.remote`
+
+**Someone logged in over the network** (Review)
+
+The login manager reports a session that came over the network, usually through sshd. It is High when it came from this computer's own address, which is how logins through a reverse tunnel arrive (or a deliberate ssh to localhost).
+
+What you can do: If this was not you, end the session with loginctl terminate-session, remove keys you do not recognise from ~/.ssh/authorized_keys, and change your password.
+
+## `ssh.key.stray`
+
+**An SSH private key is stored outside ~/.ssh** (Review)
+
+A file directly inside a temporary folder, ~/.config, ~/.cache or ~/.local/share starts like an SSH private key. Tools rarely keep keys there; droppers do, to authenticate a tunnel. Only the first line is read.
+
+What you can do: If no tool you use put it there, keep a copy for investigation, look for an ssh or autossh process using it, then delete it.
 
 ## `git.plaintext-credentials`
 
@@ -1062,6 +1123,134 @@ What you can do: If the program needed this to work, a local policy module can a
 AppArmor refused a confined program something its profile does not allow, or logged it in complain mode.
 
 What you can do: If the program needed this to work, its profile can be extended; Bigman shows the record and never changes profiles for you.
+
+## `harden.sshd`
+
+**The SSH server is on** (Review)
+
+sshd accepts logins from other computers. On a desktop it is often turned on once and forgotten, and it is the way in that the October 2026 tampered editor extension used through a reverse tunnel. Review when other computers can reach it or no firewall is running, Info when the firewall blocks it or you logged in over the network recently.
+
+What you can do: If you do not log in to this computer remotely, turn it off; the undo turns it back on. Bigman will not turn it off while you are logged in over the network.
+
+## `harden.service.cups_browsed`
+
+**cups-browsed adds printers from the network** (Review)
+
+cups-browsed listens for printer announcements from the whole network. Its 2024 vulnerabilities (CVE-2024-47176 and related) let a device on the network add a printer that runs commands when you print. Review when other computers can reach UDP 631.
+
+What you can do: Turn it off unless you rely on network printers appearing by themselves; printers already set up keep working.
+
+## `harden.service.network`
+
+**A network service a desktop rarely needs is on** (Review)
+
+rpcbind, Samba, an FTP or telnet server, xrdp or Cockpit is enabled. Each accepts connections from other computers. Review when the firewall lets other computers reach it, Info otherwise.
+
+What you can do: Turn off the ones you do not use; the undo turns each back on.
+
+## `harden.firewall.off`
+
+**No firewall is running** (Review)
+
+Neither firewalld nor ufw is active, so any program that listens on the network is reachable from every network this computer joins. Review when something is listening, Info when nothing is yet.
+
+What you can do: Turn on the firewall your distribution ships; Bigman can do it for firewalld or ufw.
+
+## `harden.firewall.open_range`
+
+**The firewall opens every high port** (Review)
+
+A firewalld zone on an active network allows a wide range of ports, like Fedora Workstation's 1025-65535, so development servers, debuggers and anything else listening on a high port are reachable. Review when a program is reachable only because of the range, Info otherwise.
+
+What you can do: Close the range and allow the few ports you need by name.
+
+## `harden.sysctl.ptrace_scope`
+
+**Programs can read each other's memory** (Review)
+
+kernel.yama.ptrace_scope is 0, so any program running as you can attach to your other programs and read secrets out of their memory.
+
+What you can do: Set it to 1: programs can still debug what they start, and sudo is needed to attach to anything else.
+
+## `harden.sysctl.kptr_restrict`
+
+**Kernel addresses are visible to programs** (Info)
+
+kernel.kptr_restrict is 0, so kernel memory addresses are shown to every program, which helps local kernel exploits.
+
+What you can do: Set it to 1; profilers then need sudo for kernel symbols.
+
+## `harden.sysctl.dmesg_restrict`
+
+**Every program can read the kernel log** (Info)
+
+kernel.dmesg_restrict is 0. The kernel log can reveal addresses and hardware details useful to an exploit.
+
+What you can do: Set it to 1; dmesg then needs sudo.
+
+## `harden.name.llmnr`
+
+**This computer asks the local network for names** (Info)
+
+systemd-resolved uses LLMNR, so names missing from DNS are asked of every device on the local network, and any of them can answer. On public Wi-Fi that is used to capture sign-ins and redirect connections.
+
+What you can do: Turn LLMNR off with a resolved drop-in; .local names and DNS keep working.
+
+## `harden.screen_lock`
+
+**The screen does not lock by itself** (Review)
+
+GNOME or KDE Plasma is set never to lock when you step away, or not to lock after sleep.
+
+What you can do: Turn automatic locking on; Bigman sets a five-minute delay that you can change in your desktop's settings.
+
+## `harden.autologin`
+
+**Someone is logged in automatically at startup** (Review)
+
+The display manager logs an account in without a password when the computer starts. Review when the disk is also unencrypted, Info otherwise.
+
+What you can do: Turn automatic login off in your desktop's user or login-screen settings.
+
+## `harden.disk_encryption`
+
+**The disk is not encrypted** (Info)
+
+The system or home folder is not on an encrypted device, so anyone holding the disk can read your files and keys.
+
+What you can do: Encryption is set up when installing; back up and reinstall with encryption on.
+
+## `harden.secure_boot`
+
+**Secure Boot is off** (Info)
+
+The firmware starts any boot loader and kernel, so boot-level malware can load before Linux.
+
+What you can do: Turn it on in the firmware setup, after enrolling the signing key of any out-of-tree kernel module you use.
+
+## `harden.group.docker`
+
+**Your account is in the docker group** (Review)
+
+Members of the docker group can start a container that mounts the whole disk, which is administrator access without a password, for you and for any program you run.
+
+What you can do: Leave the group and use sudo, rootless Docker or Podman; the undo adds you back.
+
+## `harden.home.readable`
+
+**Other accounts can open your home folder** (Review)
+
+Your home folder lets other accounts on this computer list or open it. Review when other people's accounts exist, Info otherwise.
+
+What you can do: Remove access for others (chmod o-rwx); the undo restores the previous mode.
+
+## `harden.npm.ignore_scripts`
+
+**npm runs dependency install scripts** (Info)
+
+npm runs preinstall, install and postinstall scripts from every dependency during npm install. Self-spreading npm worms in 2025 ran from those scripts.
+
+What you can do: Set ignore-scripts=true in your user .npmrc and rebuild only the packages that need it.
 
 ## `lynis.finding`
 

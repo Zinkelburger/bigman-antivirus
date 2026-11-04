@@ -1,0 +1,8 @@
+{
+  "driver": "ssh-login",
+  "fires": [
+    "ssh.login.remote"
+  ],
+  "about": "loginctl show-session output for a local desktop session and one sshd session from a documentation address; only the network login fires.",
+  "input": "show-session.txt"
+}

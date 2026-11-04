@@ -10,6 +10,7 @@ use crate::{
     checks::{
         canary::{CanaryState, Health as MonitorHealth},
         doctor::{SignatureState, ToolState},
+        hardening::HardeningReview,
         receipt::Receipt,
         scan::{Quarantined, ScanItem},
         setup::ToolGroup,
@@ -39,6 +40,8 @@ pub enum Request {
     Status,
     /// Run the read-only security checkup and save its report.
     Doctor,
+    /// Settings you could change to harden this computer. Read-only; not saved.
+    Hardening,
     /// Most recent reports first, as history summaries (full evidence via the report id).
     History {
         limit: u32,
@@ -178,6 +181,7 @@ pub enum Response {
     Health(DaemonHealth),
     Status(Box<ProtectionStatus>),
     Report(Box<Report>),
+    Hardening(Box<HardeningReview>),
     History(Vec<Report>),
     ScanItems(Vec<ScanItem>),
     Quarantined(Vec<Quarantined>),

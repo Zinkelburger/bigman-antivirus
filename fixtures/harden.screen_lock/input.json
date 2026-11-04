@@ -1,0 +1,12 @@
+{
+  "screen_lock": {
+    "desktop": "gnome",
+    "auto_lock": false,
+    "minutes": 5,
+    "on_resume": true,
+    "raw": {
+      "lock-enabled": "false",
+      "idle-delay": "uint32 300"
+    }
+  }
+}

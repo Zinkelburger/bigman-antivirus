@@ -4,22 +4,26 @@
 mod connections;
 mod denials;
 mod downloads;
+mod heartbeat;
 mod listeners;
 mod packages;
 mod projects;
 mod reports;
 mod snapshot;
+mod ssh;
 mod throughput;
 mod updates;
 
 pub use connections::Connections;
 pub use denials::Denials;
 pub use downloads::Downloads;
+pub use heartbeat::{Heartbeat, DAEMON_STOPPED};
 pub use listeners::Listeners;
 pub use packages::{transaction_summary, Packages};
 pub use projects::Projects;
 pub use reports::Reports;
 pub use snapshot::{network_snapshot, ConnectionRow, ListenerRow, NetworkSnapshot};
+pub use ssh::{AuthorizedKeys, RemoteLogins, StrayKeys, Tunnels};
 pub use throughput::Throughput;
 pub use updates::{Preferences, Updates};
 
@@ -84,6 +88,11 @@ pub fn label(name: &str) -> &'static str {
         "downloads" => "New files in Downloads",
         "projects" => "New project folders",
         "updates" => "Security updates, daily and after package changes",
+        "ssh_keys" => "SSH keys that can log in",
+        "ssh_tunnels" => "SSH tunnels back to this computer",
+        "ssh_logins" => "Network logins",
+        "ssh_stray_keys" => "SSH private keys outside ~/.ssh",
+        "heartbeat" => "Gaps in Bigman's monitoring",
         _ => "Other",
     }
 }
@@ -118,9 +127,17 @@ pub fn linux_sources(stop: crate::runner::Cancel) -> Vec<Box<dyn Source>> {
             crate::checks::setup::downloads(),
             stop.clone(),
         )),
-        Box::new(Projects::new(projects::roots(), stop)),
+        Box::new(Projects::new(projects::roots(), stop.clone())),
         Box::<Reports>::default(),
         Box::<Updates>::default(),
+        Box::new(AuthorizedKeys::for_home()),
+        Box::new(Tunnels::new(Box::new(linux::ProcList))),
+        Box::new(RemoteLogins::new(
+            Box::new(linux::Loginctl { stop: stop.clone() }),
+            Box::new(linux::KernelClock),
+        )),
+        Box::new(StrayKeys::default_dirs()),
+        Box::new(Heartbeat::new(Box::new(linux::KernelClock))),
     ];
     if let Some(history) = linux::package_history() {
         sources.push(Box::new(Packages::new(

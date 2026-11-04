@@ -1,0 +1,21 @@
+{
+  "now": 1793300000,
+  "firewall": {
+    "state": "off",
+    "installed": "firewalld"
+  },
+  "listeners": [
+    {
+      "protocol": "tcp",
+      "local": "0.0.0.0:8080",
+      "remote": null,
+      "state": "listen",
+      "uid": 1000,
+      "process": {
+        "pid": 4242,
+        "name": "node",
+        "exe": null
+      }
+    }
+  ]
+}

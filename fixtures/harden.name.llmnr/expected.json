@@ -1,0 +1,8 @@
+{
+  "driver": "hardening",
+  "fires": [
+    "harden.name.llmnr"
+  ],
+  "about": "systemd-resolved running with LLMNR=yes.",
+  "input": "input.json"
+}

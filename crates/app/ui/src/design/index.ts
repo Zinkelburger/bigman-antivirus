@@ -61,5 +61,6 @@ export { EventPanel, eventOccurrence, sourceLabel } from "./events";
 export { ReceiptById, ReceiptPanel, receiptResult } from "./receipt";
 export { TransactionPreviewHost, usePreviews, WaitingIndicator } from "./transaction-preview";
 export { heldIn } from "./report-actions";
+export { hardeningSummary, type HardeningSummary } from "./hardening";
 export { LastResult } from "./last-result";
 export { SourceGapLine, SourceRemedy } from "./source-gap";

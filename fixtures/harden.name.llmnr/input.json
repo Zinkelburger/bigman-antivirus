@@ -1,0 +1,10 @@
+{
+  "units": {
+    "systemd-resolved.service": {
+      "load": "loaded",
+      "enabled": "enabled",
+      "active": "active"
+    }
+  },
+  "llmnr": "yes"
+}

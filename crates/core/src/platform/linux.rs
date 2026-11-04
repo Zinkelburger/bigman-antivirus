@@ -514,6 +514,165 @@ impl Journal for Journalctl {
     }
 }
 
+/// Your own processes from /proc: parent, name, executable and command line.
+pub struct ProcList;
+
+/// The parent pid out of `/proc/PID/stat`. The name field may hold spaces and
+/// parentheses, so fields are counted after the last ')'.
+pub fn parse_stat_ppid(stat: &str) -> Option<u32> {
+    let rest = &stat[stat.rfind(')')? + 1..];
+    rest.split_whitespace().nth(1)?.parse().ok()
+}
+
+impl Processes for ProcList {
+    fn processes(&self) -> Result<Vec<ProcessEntry>> {
+        let uid = unsafe { libc::getuid() };
+        let mut out = vec![];
+        for entry in fs::read_dir("/proc").context("/proc")?.flatten() {
+            let Some(pid) = entry
+                .file_name()
+                .to_str()
+                .and_then(|n| n.parse::<u32>().ok())
+            else {
+                continue;
+            };
+            let dir = entry.path();
+            if !fs::metadata(&dir).is_ok_and(|m| m.uid() == uid) {
+                continue;
+            }
+            // A process can exit between these reads; skip it rather than guess.
+            let (Ok(stat), Ok(cmdline)) = (
+                fs::read_to_string(dir.join("stat")),
+                fs::read(dir.join("cmdline")),
+            ) else {
+                continue;
+            };
+            let Some(ppid) = parse_stat_ppid(&stat) else {
+                continue;
+            };
+            out.push(ProcessEntry {
+                pid,
+                ppid,
+                name: fs::read_to_string(dir.join("comm"))
+                    .map(|c| c.trim().to_string())
+                    .unwrap_or_default(),
+                exe: fs::read_link(dir.join("exe")).ok(),
+                args: cmdline
+                    .split(|b| *b == 0)
+                    .filter(|a| !a.is_empty())
+                    .map(|a| String::from_utf8_lossy(a).into_owned())
+                    .collect(),
+            });
+        }
+        Ok(out)
+    }
+}
+
+/// Login sessions through `loginctl`, logind's public interface. (logind's
+/// files under /run/systemd/sessions are marked private and are not read.)
+pub struct Loginctl {
+    pub stop: Cancel,
+}
+
+const SESSION_PROPERTIES: [&str; 8] = [
+    "Id",
+    "Name",
+    "Service",
+    "Remote",
+    "RemoteHost",
+    "RemoteUser",
+    "TTY",
+    "Class",
+];
+
+/// `loginctl show-session -p ...` output for several sessions: blocks of
+/// `Key=value` lines separated by blank lines.
+pub fn parse_show_session(text: &str) -> Vec<LoginSession> {
+    text.split("\n\n")
+        .filter_map(|block| {
+            let mut f: HashMap<&str, &str> = HashMap::new();
+            for line in block.lines() {
+                if let Some((k, v)) = line.split_once('=') {
+                    f.insert(k.trim(), v.trim());
+                }
+            }
+            let value = |k: &str| f.get(k).filter(|v| !v.is_empty()).map(|v| v.to_string());
+            Some(LoginSession {
+                id: value("Id")?,
+                user: value("Name").unwrap_or_default(),
+                service: value("Service").unwrap_or_default(),
+                remote: f.get("Remote") == Some(&"yes"),
+                remote_host: value("RemoteHost"),
+                remote_user: value("RemoteUser"),
+                tty: value("TTY"),
+                class: value("Class").unwrap_or_default(),
+            })
+        })
+        .collect()
+}
+
+impl Sessions for Loginctl {
+    fn sessions(&self) -> Result<Vec<LoginSession>> {
+        if !runner::available("loginctl") {
+            anyhow::bail!("loginctl is not installed");
+        }
+        let list = runner::run(
+            Command::new("loginctl").args(["list-sessions", "--no-legend", "--no-pager"]),
+            10,
+            &self.stop,
+        )?;
+        if list.code != Some(0) {
+            anyhow::bail!("loginctl list-sessions failed: {}", list.stderr.trim());
+        }
+        let ids: Vec<&str> = list
+            .stdout
+            .lines()
+            .filter_map(|l| l.split_whitespace().next())
+            .collect();
+        if ids.is_empty() {
+            return Ok(vec![]);
+        }
+        let mut cmd = Command::new("loginctl");
+        cmd.args(["show-session", "--no-pager"]).args(&ids);
+        for p in SESSION_PROPERTIES {
+            cmd.args(["-p", p]);
+        }
+        let out = runner::run(&mut cmd, 10, &self.stop)?;
+        // A session can end between the two calls; loginctl then fails for that
+        // id but still prints the others.
+        if out.code != Some(0) && out.stdout.trim().is_empty() {
+            anyhow::bail!("loginctl show-session failed: {}", out.stderr.trim());
+        }
+        Ok(parse_show_session(&out.stdout))
+    }
+}
+
+/// Boot id and suspended time from the kernel.
+pub struct KernelClock;
+
+fn clock_secs(clock: libc::clockid_t) -> u64 {
+    let mut t = libc::timespec {
+        tv_sec: 0,
+        tv_nsec: 0,
+    };
+    if unsafe { libc::clock_gettime(clock, &mut t) } != 0 {
+        return 0;
+    }
+    t.tv_sec.max(0) as u64
+}
+
+impl Clock for KernelClock {
+    fn boot_id(&self) -> Option<String> {
+        fs::read_to_string("/proc/sys/kernel/random/boot_id")
+            .ok()
+            .map(|s| s.trim().to_string())
+    }
+    fn asleep_secs(&self) -> u64 {
+        // CLOCK_BOOTTIME counts suspend; CLOCK_MONOTONIC does not.
+        clock_secs(libc::CLOCK_BOOTTIME).saturating_sub(clock_secs(libc::CLOCK_MONOTONIC))
+    }
+}
+
 /// Desktop notifications through notify-send, when it is installed.
 pub struct NotifySend;
 

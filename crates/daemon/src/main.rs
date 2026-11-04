@@ -44,10 +44,15 @@ fn run() -> Result<()> {
         &stop,
     );
     eprintln!("bigmand: listening on {}", socket.path.display());
-    let served = server::serve(&socket, daemon, &stop);
+    let served = server::serve(&socket, daemon.clone(), &stop);
     stop.store(true, std::sync::atomic::Ordering::Relaxed);
     for thread in collectors {
         let _ = thread.join();
     }
+    // Lets the next start tell a normal stop from a crash or kill (monitor.gap).
+    let _ = daemon
+        .timeline
+        .db
+        .set_setting(sources::DAEMON_STOPPED, &model::now().to_string());
     served
 }

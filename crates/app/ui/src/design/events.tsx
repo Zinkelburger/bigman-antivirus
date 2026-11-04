@@ -7,6 +7,7 @@ import {
   FolderDown,
   FolderGit2,
   Globe,
+  KeyRound,
   ListChecks,
   Package,
   Puzzle,
@@ -43,6 +44,7 @@ const SOURCE_LABEL: Partial<Record<SourceId, string>> = {
   advisory: "Advisories",
   extension: "Extensions",
   import: "Imported",
+  ssh: "SSH",
 };
 
 const SOURCE_ICON: Partial<Record<SourceId, LucideIcon>> = {
@@ -60,6 +62,7 @@ const SOURCE_ICON: Partial<Record<SourceId, LucideIcon>> = {
   advisory: ShieldAlert,
   extension: Puzzle,
   import: Download,
+  ssh: KeyRound,
 };
 
 export function sourceLabel(source: SourceId): string {

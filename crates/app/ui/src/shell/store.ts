@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { useDrilldown } from "@/design";
 
-export type ProtectView = "scans" | "updates" | "quarantine" | "startup" | "canaries" | "audits";
+export type ProtectView = "hardening" | "scans" | "updates" | "quarantine" | "startup" | "canaries" | "audits";
 
 export const TAB_IDS = ["overview", "network", "activity", "inspect", "sandboxes", "protect", "setup"] as const;
 export type TabId = (typeof TAB_IDS)[number];
@@ -29,7 +29,7 @@ export const useShell = create<ShellStore>((set) => ({
   tab: "overview",
   range: "24h",
   unreadOnly: false,
-  protectView: "scans",
+  protectView: "hardening",
   setProtectView: (protectView) => set({ protectView }),
   openProtect: (protectView) => {
     useDrilldown.getState().close();

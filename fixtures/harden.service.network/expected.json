@@ -1,0 +1,8 @@
+{
+  "driver": "hardening",
+  "fires": [
+    "harden.service.network"
+  ],
+  "about": "rpcbind enabled and running, not listening.",
+  "input": "input.json"
+}

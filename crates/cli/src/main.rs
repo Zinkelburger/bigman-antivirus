@@ -1,8 +1,8 @@
 use anyhow::{bail, Result};
 use bigman_core::{
     checks::{
-        self, canary, changes, disposable, doctor, inspect, integrations, packages, pdf, route,
-        scan, setup, shell,
+        self, canary, changes, disposable, doctor, hardening, inspect, integrations, packages, pdf,
+        route, scan, setup, shell,
     },
     ipc::{self, client::Client},
     model::{self, Report},
@@ -33,6 +33,24 @@ enum Commands {
     /// Open the desktop app.
     Gui,
     Doctor,
+    /// Settings you could change to harden this computer. With an id, shows
+    /// exactly what would change; nothing changes without --apply.
+    Harden {
+        /// A suggestion id from the list.
+        id: Option<String>,
+        /// Make the change (polkit asks for an administrator password when needed).
+        #[arg(long, requires = "id", conflicts_with_all = ["undo", "keep", "suggest_again"])]
+        apply: bool,
+        /// Put back a change Bigman made.
+        #[arg(long, requires = "id", conflicts_with_all = ["keep", "suggest_again"])]
+        undo: bool,
+        /// Stop suggesting this change; nothing on the computer changes.
+        #[arg(long, requires = "id", conflicts_with = "suggest_again")]
+        keep: bool,
+        /// Suggest a kept change again.
+        #[arg(long, requires = "id")]
+        suggest_again: bool,
+    },
     Inspect {
         target: String,
     },
@@ -297,6 +315,52 @@ fn run() -> Result<()> {
             Some(r)
         }
         Some(Commands::Doctor) => Some(doctor::doctor(&store, &stop)?),
+        Some(Commands::Harden {
+            id,
+            apply,
+            undo,
+            keep,
+            suggest_again,
+        }) => {
+            let action = id.map(|id| {
+                if undo {
+                    bigman_core::actions::Action::UndoHardening { id }
+                } else if keep || suggest_again {
+                    bigman_core::actions::Action::KeepSetting { id, keep }
+                } else {
+                    bigman_core::actions::Action::Harden { id }
+                }
+            });
+            match action {
+                None => {
+                    let review = hardening::review(&store, &stop)?;
+                    if cli.json {
+                        println!("{}", serde_json::to_string_pretty(&review)?);
+                    } else {
+                        print!("{}", harden_text(&review));
+                    }
+                    exit_for(&review.report);
+                    None
+                }
+                Some(action) if apply || undo || keep || suggest_again => {
+                    let done = bigman_core::actions::apply(&action, &store, &stop)?;
+                    println!("{}", done.message);
+                    None
+                }
+                Some(action) => {
+                    let p = bigman_core::actions::preview(&action, &store)?;
+                    println!(
+                        "{}\n\n{}\n\nExactly what changes:\n{}",
+                        p.title, p.summary, p.details
+                    );
+                    if let Some(u) = p.undo {
+                        println!("\nTo undo: {u}");
+                    }
+                    println!("\nNothing has changed. Run again with --apply to make this change.");
+                    None
+                }
+            }
+        }
         Some(Commands::Inspect { target }) => Some(inspect::inspect(&store, &target, &stop)?),
         Some(Commands::Check { target }) => Some(route::inspect_any(&store, &target, &stop)?),
         Some(Commands::Packages { path }) => Some(packages::packages(&store, &path)?),
@@ -520,20 +584,7 @@ fn run() -> Result<()> {
     };
     if let Some(r) = report {
         output(&r, cli.json)?;
-        let code = if r.is_incomplete() {
-            2
-        } else if r
-            .findings
-            .iter()
-            .any(|f| f.severity != model::Severity::Info)
-        {
-            1
-        } else {
-            0
-        };
-        if code != 0 {
-            std::process::exit(code);
-        }
+        exit_for(&r);
     }
     Ok(())
 }
@@ -573,6 +624,87 @@ fn try_container(
         plan.image
     );
     Ok(code)
+}
+/// Exit 2 when incomplete, 1 when something is worth reviewing, otherwise return.
+fn exit_for(r: &Report) {
+    let code = if r.is_incomplete() {
+        2
+    } else if r
+        .findings
+        .iter()
+        .any(|f| f.severity != model::Severity::Info)
+    {
+        1
+    } else {
+        0
+    };
+    if code != 0 {
+        std::process::exit(code);
+    }
+}
+/// The hardening review as text: suggestions first, then what is in place.
+fn harden_text(review: &hardening::HardeningReview) -> String {
+    let status = match review.report.status() {
+        "Findings to review" => "Suggestions to review",
+        "No findings from these checks" => "No suggestions from these checks",
+        other => other,
+    };
+    let mut out = format!("Hardening review\n{status}\n");
+    let indent = |text: &str| {
+        text.lines()
+            .map(|l| format!("  {}", model::clean(l)))
+            .collect::<Vec<_>>()
+            .join("\n")
+    };
+    for s in review.suggestions.iter().filter(|s| !s.kept) {
+        out.push_str(&format!(
+            "\n[{:?}] {} ({})\n{}\n",
+            s.severity, s.title, s.id, s.summary
+        ));
+        if !s.evidence.is_empty() {
+            out.push_str(&format!("{}\n", indent(&s.evidence)));
+        }
+        out.push_str(&format!("Why: {}\nCost: {}\n", s.why, s.tradeoff));
+        out.push_str(&match &s.fix {
+            hardening::Fix::Bigman { .. } => {
+                format!("Next: bigman harden {} (shows the change)\n", s.id)
+            }
+            hardening::Fix::Manual { steps } => format!("Next, by hand: {steps}\n"),
+            hardening::Fix::Blocked { reason } => format!("Not now: {reason}\n"),
+        });
+    }
+    let kept: Vec<_> = review.suggestions.iter().filter(|s| s.kept).collect();
+    if !kept.is_empty() {
+        out.push_str("\nLeft as they are (bigman harden ID --suggest-again):\n");
+        for s in kept {
+            out.push_str(&format!("  {} ({})\n", s.title, s.id));
+        }
+    }
+    if !review.applied.is_empty() {
+        out.push_str("\nChanged by Bigman (bigman harden ID --undo):\n");
+        for a in &review.applied {
+            out.push_str(&format!("  {} ({})\n", a.title, a.id));
+        }
+    }
+    if !review.in_place.is_empty() {
+        out.push_str("\nAlready set:\n");
+        for c in &review.in_place {
+            out.push_str(&format!("  {}: {}\n", c.check, c.detail));
+        }
+    }
+    for s in &review.report.coverage.skipped {
+        out.push_str(&format!(
+            "\nNot checked: {} ({:?}) {}",
+            s.what,
+            s.why,
+            model::clean(&s.detail)
+        ));
+    }
+    for n in &review.report.coverage.notes {
+        out.push_str(&format!("\nCoverage: {n}"));
+    }
+    out.push('\n');
+    out
 }
 /// The desktop app is a separate binary installed next to this one.
 fn open_app() -> Result<()> {

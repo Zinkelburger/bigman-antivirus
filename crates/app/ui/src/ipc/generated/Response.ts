@@ -6,6 +6,7 @@ import type { DaemonHealth } from "./DaemonHealth";
 import type { Decision } from "./Decision";
 import type { ErrorBody } from "./ErrorBody";
 import type { Event } from "./Event";
+import type { HardeningReview } from "./HardeningReview";
 import type { Live } from "./Live";
 import type { NetworkSnapshot } from "./NetworkSnapshot";
 import type { NotificationSettings } from "./NotificationSettings";
@@ -21,4 +22,4 @@ import type { SourceStatus } from "./SourceStatus";
 import type { ToolGroup } from "./ToolGroup";
 import type { Unread } from "./Unread";
 
-export type Response = { "type": "health", "value": DaemonHealth } | { "type": "status", "value": ProtectionStatus } | { "type": "report", "value": Report } | { "type": "history", "value": Array<Report> } | { "type": "scan_items", "value": Array<ScanItem> } | { "type": "quarantined", "value": Array<Quarantined> } | { "type": "canaries", "value": CanaryState } | { "type": "tool_groups", "value": Array<ToolGroup> } | { "type": "rules", "value": Array<RuleInfo> } | { "type": "events", "value": Array<Event> } | { "type": "unread", "value": Unread } | { "type": "receipt", "value": Receipt } | { "type": "decision", "value": Decision } | { "type": "samples", "value": SampleSeries } | { "type": "network", "value": NetworkSnapshot } | { "type": "sources", "value": Array<SourceStatus> } | { "type": "notifications", "value": NotificationSettings } | { "type": "preferences", "value": Preferences } | { "type": "live", "value": Live } | { "type": "plan", "value": ActionPlan } | { "type": "done", "value": ActionOutcome } | { "type": "error", "value": ErrorBody };
+export type Response = { "type": "health", "value": DaemonHealth } | { "type": "status", "value": ProtectionStatus } | { "type": "report", "value": Report } | { "type": "hardening", "value": HardeningReview } | { "type": "history", "value": Array<Report> } | { "type": "scan_items", "value": Array<ScanItem> } | { "type": "quarantined", "value": Array<Quarantined> } | { "type": "canaries", "value": CanaryState } | { "type": "tool_groups", "value": Array<ToolGroup> } | { "type": "rules", "value": Array<RuleInfo> } | { "type": "events", "value": Array<Event> } | { "type": "unread", "value": Unread } | { "type": "receipt", "value": Receipt } | { "type": "decision", "value": Decision } | { "type": "samples", "value": SampleSeries } | { "type": "network", "value": NetworkSnapshot } | { "type": "sources", "value": Array<SourceStatus> } | { "type": "notifications", "value": NotificationSettings } | { "type": "preferences", "value": Preferences } | { "type": "live", "value": Live } | { "type": "plan", "value": ActionPlan } | { "type": "done", "value": ActionOutcome } | { "type": "error", "value": ErrorBody };

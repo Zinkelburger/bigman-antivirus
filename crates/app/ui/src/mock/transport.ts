@@ -19,6 +19,7 @@ import {
 } from "@/ipc";
 import rules from "@/ipc/generated/rules.json";
 import { checkup, history, NOW, report, scanWithFinding, statusScenarios } from "./fixtures";
+import { MockHardening } from "./hardening";
 import { INTERFACES, networkSnapshot, RECEIPTS, securityUpdates, reportEvent, sampleAt, samplesFor, seedEvents, sourceStatuses } from "./live";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -46,12 +47,14 @@ class MockDaemon {
   subscribers = new Set<(live: Live) => void>();
   hook = false;
   preferences = { check_updates: true };
+  hardening: MockHardening;
 
   constructor(
     readonly scenario: string,
     /** Multiplies simulated check durations; tests pass 0. */
     readonly speed = 1,
   ) {
+    this.hardening = new MockHardening(scenario);
     this.monitor = (statusScenarios[scenario] ?? statusScenarios.findings)?.monitor != null && scenario !== "empty";
     this.reports = scenario === "empty" ? [] : history(scenario);
     // A calm machine has its daily security-updates check on record.
@@ -135,6 +138,9 @@ class MockDaemon {
       case "receipt_hook": return action.remove
         ? plan("Stop previewing package changes", "Remove the hook", "Delete /etc/dnf/libdnf5-plugins/actions.d/bigman-preview.actions. dnf stops asking Bigman before a transaction; receipts afterwards continue.", "pkexec /bin/sh -c \"rm -f '/etc/dnf/libdnf5-plugins/actions.d/bigman-preview.actions'\"", "Turn the preview on again from Setup.")
         : plan("Preview package changes before they happen", "Install the hook", "Add a hook so dnf shows each transaction's receipt in Bigman first, with Continue and Abort. It continues on its own after a minute, so unattended upgrades never wait, and it continues whenever Bigman is not running or cannot read a package. Administrator approval is asked for by polkit.", "/etc/dnf/libdnf5-plugins/actions.d/bigman-preview.actions\n\n# Bigman install-receipt preview (opt-in from Bigman's Setup). Delete this file to turn it off.\npre_transaction:*:in::/usr/bin/bigman receipt --stage ${pkg.full_nevra} ${pkg.repo_id} ${pkg.location} ${pkg.action}\npre_transaction:::raise_error=1:/usr/bin/bigman receipt --preview --manager dnf", "Undo removes the hook file again.");
+      case "harden":
+      case "undo_hardening":
+      case "keep_setting": return this.hardening.plan(action);
       case "journal_access": return action.remove
         ? plan("Stop reading the system journal", "Leave the group", "Remove your account from systemd-journal. Bigman stops collecting denials from your next login.", "pkexec gpasswd -d sam systemd-journal", "Join the group again from Setup.")
         : plan("Read SELinux and AppArmor denials", "Join the group", "Add your account to systemd-journal, the group that may read the system journal. Bigman then turns denials into plain sentences in Activity. Your account can also read other system logs; nothing gains write access. Administrator approval is asked for by polkit, and it takes effect at your next login.", "pkexec usermod -aG systemd-journal sam", "Undo removes you from the group again.");
@@ -190,6 +196,9 @@ class MockDaemon {
   apply(action: Action): ActionOutcome {
     const done = (message: string, report: Report | null = null, undo: Action | null = null): ActionOutcome => ({ message, report, undo });
     switch (action.kind) {
+      case "harden":
+      case "undo_hardening":
+      case "keep_setting": return this.hardening.apply(action);
       case "quarantine": {
         const item = this.items.get(action.report)?.[action.index];
         if (!item) throw new Error("That scan item does not exist");
@@ -235,6 +244,7 @@ class MockDaemon {
         return { type: "status", value: { ...value, monitor: this.monitor ? value.monitor : null, receipt_hook: this.hook ? "/etc/dnf/libdnf5-plugins/actions.d/bigman-preview.actions" : null } };
       }
       case "doctor": return r(await this.check(token, 1_200, checkup, "Security checkup", "Local Linux workstation"));
+      case "hardening": await sleep(400 * this.speed); return { type: "hardening", value: this.hardening.review() };
       case "history": return { type: "history", value: this.reports.slice(0, request.limit).map((x) => this.summarize(x)) };
       case "report": {
         const found = this.reports.find((x) => x.id === request.id);

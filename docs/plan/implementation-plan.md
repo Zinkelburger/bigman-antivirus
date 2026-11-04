@@ -5,7 +5,7 @@
 Companion material in this repository:
 
 - `README.md`: what exists today and the boundaries each workflow promises. Those boundaries stay true.
-- `docs/threats/`: 181 catalogued threats with IDs (PH-, SC-, DP-, HI-, MW-, CR-, NE-, DS-). Features below cite them.
+- `docs/threats/`: 183 catalogued threats with IDs (PH-, SC-, DP-, HI-, MW-, CR-, NE-, DS-). Features below cite them.
 - `docs/research/roadmap.md`, `linux-av-landscape-and-papers.md`, `vulnerability-intelligence-and-feeds.md`: the research this plan is built from. Section 4 of the feeds document is the advisories design.
 - `src/`: the current Rust code. It becomes the `core` crate almost unchanged.
 
@@ -49,7 +49,7 @@ The skill's craft-floor reference applies to every UI edit. The non-negotiables 
 ### B2. The brief
 
 - **Feel.** Calm, precise, trustworthy. The reference points are GlassWire's live graph and timeline, and the quiet density of a good system monitor. Not a SOC console, not a consumer antivirus with red shields and scare copy.
-- **Hero per tab.** Overview: four tiles and a short timeline. Network: the live graph. Activity: the timeline. Inspect: the receipt or report being read. Sandboxes: the confinement table. Protect: scan status. Setup: a checklist. Each tab has exactly one thing the eye lands on first.
+- **Hero per tab.** Overview: five tiles and a short timeline. Network: the live graph. Activity: the timeline. Inspect: the receipt or report being read. Sandboxes: the confinement table. Protect: the hardening status line (its first sub-view). Setup: a checklist. Each tab has exactly one thing the eye lands on first.
 - **Color.** A neutral base with one accent for interactive elements. Severity colors are reserved and used nowhere else: Info (muted blue), Review (amber), High (red), plus a "first seen" marker (the accent). A calm green appears only in the status line and the tray, never as a verdict badge.
 - **Type.** One sans for UI, one monospace for evidence, hashes, paths and code. At most three sizes on any screen. Tabular numerals for every count and byte figure.
 - **Spacing.** 4 px base grid, 8 px rhythm. Dense tables with breathing room around them.
@@ -308,11 +308,12 @@ Each feature lists threat IDs and an acceptance test. **have** = exists today an
 
 - **have** Bigman's tools tile (signatures age, canary tripwires, optional tools; Bigman's own readiness, so neutral, never a severity badge) and last-scan tile. Renamed from "Protection status" by the owner on 2026-10-30 after the first critique: a missing signature set showed a red High on first launch.
 - **new** "Since you last looked" tile: unread first-seen events, opens Activity filtered.
+- **have** Hardening tile: how many suggestions are open and the most important one, opens Protect > Hardening.
 - **new** Updates tile: pending updates with CVE count and KEV count, opens Protect > Advisories.
 - **new** 24-hour compact timeline below the tiles, same rows as Activity. Until activity collection exists (milestone 4) it lists the user's own checks from report history; "first seen" there means the first report of that check on that subject within the loaded history.
 - **new** Calm state per B4.
 
-Acceptance: on a clean VM with the daemon running, Overview renders four tiles, the status line, and an empty timeline with an `EmptyState` explaining what will appear.
+Acceptance: on a clean VM with the daemon running, Overview renders five tiles, the status line, and an empty timeline with an `EmptyState` explaining what will appear.
 
 ### D2. Network
 
@@ -388,9 +389,10 @@ Acceptance: a fixture container config with host PID and the Docker socket mount
 - **built (milestone 6)** Advisories for Fedora (dnf updateinfo), Debian (security tracker JSON, parsed for the running release only) and Arch (`issues/all.json`), with KEV raising severity, the reboot flag, untracked packages and unsupported releases (`checks/advisories/`). Version ordering is implemented per scheme and the rpm one is checked against 435 pairs judged by the real rpm library. Not yet: Ubuntu OVAL, SUSE, Alpine, EPSS context, `--cve`, `advisories sources`, and the data-anomaly check. Protect gained a sixth view, Updates, for it.
 - **new** Advisories per `docs/research/vulnerability-intelligence-and-feeds.md` section 4: dnf5 on Fedora, Debian tracker or debsecan, Ubuntu OVAL, Arch `all.json`, Alpine secdb. KEV raises severity, EPSS shown as context, reboot-required flag, honest coverage for AUR and third-party packages, stale data and end-of-life releases. Shows the update command, never runs it. DP-01, DP-04, DP-16, DP-20, HI-23, NE-04, NE-17, DS-04, DS-11, MW-20.
 - **have** Local canaries with verified read receipts; hosted canary URLs.
+- **have** Hardening suggestions (`bigman harden`, Protect > Hardening): 16 `harden.*` rules for network services, the firewall, three kernel sysctls, LLMNR, screen lock, autologin, disk encryption, Secure Boot, the docker group, the home folder mode and npm install scripts. Each gives the evidence, what it protects against and what it costs; exposure takes the firewall zones into account. Fixes are daemon-built from the suggestion ID, previewed, run as one polkit prompt when they need root, and undoable; "keep as it is" stops a suggestion from counting. Reasoning and sources in `docs/research/hardening.md`. NE-01, NE-12, NE-16, NE-17, NE-22, CR-07, CR-10, HI-16, HI-21, HI-25, DP-23, DS-15, DS-22, SC-01.
 - **new** More canary types: SSH key, kubeconfig, `.git-credentials`, `.npmrc` in a decoy project, cloud profile. CR-18, CR-22.
 - **new** Credential inventory, metadata only: presence, mode, owner and age of token-like entries in git, npm, PyPI, cargo, Docker, gh, cloud and kube configs; passphrase-less SSH and GPG keys detected from headers only. Never values. CR-01 to CR-04, CR-08, CR-10, CR-16, CR-20.
-- **new** Posture: `fwupdmgr security` rating, Secure Boot and lockdown, kernel taint, module signing, session type, USBGuard, screen lock and autologin, attack-surface sysctls. HI-20, HI-21, HI-25, DP-23, DS-01, DS-14, DS-15, DS-18, MW-16, MW-17.
+- **new** Posture (Secure Boot state, screen lock, autologin and three sysctls are done in Hardening): `fwupdmgr security` rating, Secure Boot and lockdown, kernel taint, module signing, session type, USBGuard, screen lock and autologin, attack-surface sysctls. HI-20, HI-21, HI-25, DP-23, DS-01, DS-14, DS-15, DS-18, MW-16, MW-17.
 - **new** Installed-file verification wrapping `rpm -Va`, `dpkg --verify`, `pacman -Qkk`, config-file noise explained, higher severity for sshd, sudo, PAM and the dynamic linker.
 - **new** SUID, SGID and file-capability inventory against the package database. HI-17 to HI-19.
 - **new** Account audit: extra UID 0, new accounts, root-equivalent groups. HI-12, HI-16.
@@ -547,6 +549,8 @@ Made on 2026-10-29 by the owner, answering the open questions:
 6. **Inspect (2026-11-02):** one field for a file, folder or HTTPS URL; the daemon picks the inspector (`core/src/checks/route.rs`, `bigman check`). YARA-X rules and dependency advisories sit under "More inspections". The Downloads watch in milestone 7 reuses the same routing.
 7. **Protect (2026-11-02):** keeps five sub-views (Scans, Quarantine, Startup files, Canaries, Audits); Scans opens with the last scan's status and signature age.
 8. **Previewed actions (2026-11-02):** every state change is a `core::actions::Action` with a daemon-written preview and a verb for its confirm button; reversible changes return their undo action, offered as Undo in the result; the extra acknowledgment is reserved for running unreviewed code (the installer rehearsal).
+
+9. **Hardening (2026-11-02):** suggestions live in Protect > Hardening, the first Protect sub-view, with a fifth Overview tile. Bigman offers a change only when it can preview it exactly and undo it. Firmware, installer-time and display-manager settings (Secure Boot, disk encryption, autologin) and installing a missing firewall get manual steps. A change is refused, with the reason, when it would cut you off (turning off SSH while you are logged in over the network) or would not last (a sysctl file read after Bigman's sets another value).
 
 Open, ask the owner when reached:
 

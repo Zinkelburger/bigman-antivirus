@@ -1,0 +1,8 @@
+{
+  "encryption": [
+    {
+      "mount": "/",
+      "encrypted": false
+    }
+  ]
+}

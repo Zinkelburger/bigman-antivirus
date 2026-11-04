@@ -13,6 +13,8 @@ import sys
 import tempfile
 import time
 
+import hardening_fakes
+
 bin_dir = Path(sys.argv[1]).resolve()
 runtime = Path(os.environ.get('XDG_RUNTIME_DIR', tempfile.gettempdir()))
 with tempfile.TemporaryDirectory(prefix='bigman-daemon-', dir=runtime) as work:
@@ -269,6 +271,63 @@ sys.exit(1 if detected else 0)
             assert 'take-home' in posted[0]['summary'], posted
             assert not any('take-home' in e['summary'] for e in scan_events()), 'the project also entered as a report'
         print('PASS: scan, previewed quarantine and restore, nonexecuting inspection, package policy, disposable container launch, reviewed baseline, verified canary, history, timeline, live push, unread, receipt preview, Downloads and project watches and CLI over the daemon socket')
+    finally:
+        daemon.terminate()
+        daemon.wait(timeout=10)
+
+    # Hardening over the socket, as the app does it, against a second daemon whose
+    # PATH holds stand-in systemctl, pkexec and npm (hardening_fakes.py), so the
+    # administrator change runs without root and touches nothing on this computer.
+    hhome = root / 'harden-home'
+    htools = root / 'harden-tools'
+    hhome.mkdir()
+    sock = root / 'run-harden' / 'bigmand.sock'
+    henv = dict(env, HOME=str(hhome), XDG_CONFIG_HOME=str(hhome / '.config'), BIGMAN_SOCKET=str(sock), **hardening_fakes.install(htools))
+    hardening_fakes.prepare_home(hhome)
+    daemon = subprocess.Popen([str(bin_dir / 'bigmand'), '--state', str(root / 'harden-state')], env=henv, stderr=subprocess.PIPE)
+    try:
+        deadline = time.monotonic() + 10
+        while not sock.exists():
+            assert daemon.poll() is None, daemon.stderr.read().decode()
+            assert time.monotonic() < deadline, 'bigmand did not create its socket'
+            time.sleep(0.05)
+
+        review = value({'type': 'hardening'}, 'hardening')
+        ssh = next(s for s in review['suggestions'] if s['id'] == 'harden.sshd')
+        assert ssh['fix'] == {'kind': 'bigman', 'admin': True, 'verb': 'Turn off'}, ssh
+
+        # The app sends only the suggestion's id; the daemon works out the command.
+        action = {'kind': 'harden', 'id': 'harden.sshd'}
+        plan = value({'type': 'preview', 'action': action}, 'plan')
+        assert plan['verb'] == 'Turn off' and plan['details'] == 'systemctl disable --now sshd.service', plan
+        assert 'Polkit asks for your password' in plan['summary'] and hardening_fakes.pkexec_calls(htools) == []
+        done = value({'type': 'apply', 'action': action}, 'done')
+        assert 'new setting is in place' in done['message'], done
+        assert hardening_fakes.pkexec_calls(htools) == [['systemctl', 'disable', '--now', 'sshd.service']]
+        assert done['undo'] == {'kind': 'undo_hardening', 'id': 'harden.sshd'}
+        after = value({'type': 'hardening'}, 'hardening')
+        assert [a['id'] for a in after['applied']] == ['harden.sshd']
+        assert 'harden.sshd' not in {s['id'] for s in after['suggestions']}
+        undo_plan = value({'type': 'preview', 'action': done['undo']}, 'plan')
+        assert undo_plan['details'] == 'systemctl enable --now sshd.service', undo_plan
+        value({'type': 'apply', 'action': done['undo']}, 'done')
+        assert hardening_fakes.unit(htools, 'sshd.service')['active'] == 'active'
+        assert value({'type': 'hardening'}, 'hardening')['applied'] == []
+
+        # Leave as it is changes nothing on the computer, and its own outcome offers the reverse.
+        keep = {'kind': 'keep_setting', 'id': 'harden.screen_lock', 'keep': True}
+        assert value({'type': 'preview', 'action': keep}, 'plan')['title'] == 'Stop suggesting: Lock the screen when you step away'
+        left = value({'type': 'apply', 'action': keep}, 'done')
+        assert left['undo'] == {'kind': 'keep_setting', 'id': 'harden.screen_lock', 'keep': False}
+        assert next(s for s in value({'type': 'hardening'}, 'hardening')['suggestions'] if s['id'] == 'harden.screen_lock')['kept']
+        assert 'Autolock=false' in (hhome / '.config' / 'kscreenlockerrc').read_text()
+
+        # An id the review no longer has is refused, before and at apply; nothing runs.
+        stale = {'kind': 'harden', 'id': 'harden.nothing'}
+        assert ask({'type': 'preview', 'action': stale})['type'] == 'error'
+        assert ask({'type': 'apply', 'action': stale})['type'] == 'error'
+        assert len(hardening_fakes.pkexec_calls(htools)) == 2
+        print('PASS: hardening review, previewed admin change through pkexec, check after, undo, leave as it is and refusal over the daemon socket')
     finally:
         daemon.terminate()
         daemon.wait(timeout=10)

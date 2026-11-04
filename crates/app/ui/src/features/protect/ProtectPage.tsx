@@ -1,6 +1,7 @@
 import { DaemonGate, PageHeader, SegmentedTabs } from "@/design";
 import { AuditsView } from "./AuditsView";
 import { CanariesView } from "./CanariesView";
+import { HardeningView } from "./HardeningView";
 import { QuarantineView } from "./QuarantineView";
 import { ScansView } from "./ScansView";
 import { StartupView } from "./StartupView";
@@ -8,6 +9,7 @@ import { UpdatesView } from "./UpdatesView";
 import { useProtectView, type ProtectView } from "./store";
 
 const VIEWS: readonly { id: ProtectView; label: string }[] = [
+  { id: "hardening", label: "Hardening" },
   { id: "scans", label: "Scans" },
   { id: "updates", label: "Updates" },
   { id: "quarantine", label: "Quarantine" },
@@ -17,6 +19,7 @@ const VIEWS: readonly { id: ProtectView; label: string }[] = [
 ];
 
 const BODY: Record<ProtectView, () => React.JSX.Element> = {
+  hardening: HardeningView,
   scans: ScansView,
   updates: UpdatesView,
   quarantine: QuarantineView,
