@@ -70,6 +70,28 @@ pub fn run_with_input(
     seconds: u64,
     cancel: &Cancel,
 ) -> Result<Output> {
+    run_inner(cmd, input, None, seconds, cancel)
+}
+
+/// Like `run_with_input`, with standard output written to `out` in full instead of
+/// returned (and capped), for binary or large output.
+pub fn run_to_file(
+    cmd: &mut Command,
+    input: &[u8],
+    out: std::fs::File,
+    seconds: u64,
+    cancel: &Cancel,
+) -> Result<Output> {
+    run_inner(cmd, input, Some(out), seconds, cancel)
+}
+
+fn run_inner(
+    cmd: &mut Command,
+    input: &[u8],
+    out: Option<std::fs::File>,
+    seconds: u64,
+    cancel: &Cancel,
+) -> Result<Output> {
     if cancel.load(Ordering::Relaxed) {
         return Ok(Output {
             code: None,
@@ -84,7 +106,7 @@ pub fn run_with_input(
     } else {
         Stdio::piped()
     })
-    .stdout(Stdio::piped())
+    .stdout(out.map_or_else(Stdio::piped, Stdio::from))
     .stderr(Stdio::piped())
     .env("LC_ALL", "C")
     .process_group(0);
@@ -103,12 +125,12 @@ pub fn run_with_input(
             let _ = stdin.write_all(&input);
         });
     }
-    let stdout = child.stdout.take().unwrap();
+    let stdout = child.stdout.take();
     let stderr = child.stderr.take().unwrap();
     let finished = crate::runner::cancel();
     let fa = finished.clone();
     let fb = finished.clone();
-    let a = std::thread::spawn(move || drain(stdout, fa));
+    let a = std::thread::spawn(move || stdout.map(|s| drain(s, fa)).unwrap_or_default());
     let b = std::thread::spawn(move || drain(stderr, fb));
     let start = Instant::now();
     let mut interrupted = false;

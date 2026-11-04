@@ -1,0 +1,19 @@
+---
+url: "https://rpm-software-management.github.io/rpm/manual/dependencies.html"
+captured: "2026-11-02T18:41:50Z"
+via: "wayback"
+source_url: "https://web.archive.org/web/20260528140932id_/https://rpm-software-management.github.io/rpm/manual/dependencies.html"
+sha256: "36e333bc4d08ea791694a311c8f0df42cbd664b7fe85c83ba872f1d539f220d7"
+wayback: "https://web.archive.org/web/20260528140932/https://rpm-software-management.github.io/rpm/manual/dependencies.html"
+cited_in:
+  - "docs/research/vulnerability-intelligence-and-feeds.md"
+---
+
+# https://rpm-software-management.github.io/rpm/manual/dependencies.html
+
+> Archived copy of a third-party page, kept so Bigman's findings survive if the original goes away. Copyright stays with the original publisher; cite the original URL.
+>
+> Original: <https://rpm-software-management.github.io/rpm/manual/dependencies.html>
+> Snapshot: <https://web.archive.org/web/20260528140932/https://rpm-software-management.github.io/rpm/manual/dependencies.html>
+
+�[[�[�n 7���[�G� K@�XR<3�%](� ��$6l'��`.�U�n���j�l�z��{� �)�,�(y���C���r��x�DjU����|���<��ݟ^�PK�����~��: O�?�=�N��{������Z�L ������N_|{��޷���f��l�&M���{3�%�N� �N�LJ_ ^�;���x|��qvQ��V}����}�ޙU[ioܽ��� � �|z�e� �1��Δj�t�CԺ.M��z��� H6�US;��c���ۦV����k[�ڙ{���+�¿s��鼙u�k�����-g��'�o�q�T�U=Rs{k��Ɩ~�ʰ���g�]+ G�X����;[Qǅe�/�ON �n�����N��Ɛ?'](��X�cߌ9e��6�Ι7����~M�����e�۶���](��� oW](f[��7T�Z4T�����!#X�l̍�s��F�� �N��gS�&���x쮏'L���D �S6�^��ފ�F�5R�z����|�q���׫�4��\)���D] **��T��&����nn�Z�Ų��0�q׬閂����&�����Ŕ$�DݟLm|:9�|9~��AnU�a��Ῑ����ã�J {��O�X:)�dڐ�]' ���@����f�) �O�������S!�}J���� w.��G�h�EÂ��\�hE����+���l�� zL�l��:�jnd �[�Œl�B����3�w� �3g�����](kyc���)[��o�Č� M3��F�м�-^� ��|]( $q9������X�J� Q c����X6���,B�g��T��s�y� ���#g��P��/''�C��X0���yDF �o���S�G�~w�� r]#aw�m��vn ���,�c�St�G�  �MW�� � ��sA�Z9��л�k6D��@�q&�7�T<�jC ���M�%g�f���.� ���@�Q�|M:�R��v4�Ȱ0!ȥ�=�v�H�u�F^�O�IRxk���Pv H��b���!I)�$�F� �Pp*�u%ن�6�^�+}�[�E{��e��Q}RB {�O-)�~L�Si�xQ�$����m�8qc�Ѐ���Q6�O?�7M�3A�=�ݞ��{I��V�b[� ]/�� )S�Z�b�U.rA� U�>� d��D� �P�!k ���mW�ڈ�GU3G�UV���_�1�x��`���&d��&8?�V &:�d%~ ���2��%D����AYE�M���Ȓ ��h�!$ K����r��|��'k�%{�> ��2�{9 �ܶ�l�v��ίuuǒ3K%D��](��@`��q�]�tkH r��l=uL<�"]�DI�Jh1e*�_�XU�7�@$m{ ��<�Ǎ|D���;5�U6�1��'Ĥ�p J6�C�J�;#��:, �L�l��!y����t �"���Y�s��ft얄O���!�-̹�b��� ��P��!F� Xe��j���w��8> �X�`���.��)�cu NQ.� ˣYR�� @����� � �f9�ֻ���8w�ܖ��|D���>gXd��|��H�}O�E����$GB� �8e�%� v�1U5Q/�}��&&M�P H��S�����z,�gǮ���Q����t��ˏm�& �� �)LF��l} _Wt �0oD^ 3{���b{(A%�Gt�c���ۖѽ��(56r���h�� ��ʲ�a��0�O��H7B���:)���Æ�i$]��� $�2�� IѺ 6���$��g�e �[�����|��� ��13r(i &Fe�|���٫,�CɱR����N˥��?L�� f$ ������ِ�BK��pRV�uI�^D�ѡ�����%��W�;z @��ڋ����u]7Ԓ 9�+4VXeΘDa��*p�p�;F ��e��<�K��3��L�T<��Y�y��� &�)⤤LR5������x�Кٵ�X 'O����Qmr ����(l���BS��v�7�6���RA0���,��o{� �y����L��+�������On���G��������͡(p9���8 hr� 7=�b6�}@�u�#�!�:�#����7u~���뎀� ��)� ��/����:z���˗�����KЬ��N�?������|_� ���,�@' ��[��u8�k�Mq�l�˩$�/J=T�gC'iC�)Ȝ�C�`cnއ���q�ɗu�Ȧ ����<ѮS�؟}�p�h�:��.��Y��?��� �5+�|��:=;�r�����C8i�����4����o I3�W\,��ޱnW�*�'��|�����*��Hd�M�ס(�Q�ܞ ��D�D �N�=%34%SJיX�� ���a��O� Rz�f����971r�j��� �����Zݝ�j\x7T�MN��N�8���2Se�R'TpJT~��ev��>���y�b q&G�*��F���~��w�v�,� BWA����X^a^�� z6F_�w���G;�)M�>j��J�ٗf�C�{�RH|���6��" �� ݟ�������\�� 1 ���撲!'n� ��HN���H��l�n��#�b�X��>tn-+H,7��6��+9,K�z� H��� �#�~ �s�t۷�$'�g ^S��=/eK��vMң��r�.G�,�)� �h�� ��H�N��u�� ����q�㻫x����/���=�*�n�������[�����;�w�)�+ad�?{cx� ��U��Wo�*�,<���C��w���8w�5 ���P�� |����ϡ6~�](k� `�Ino(E�:'F� ��~�����i)��G���0OG��AD����λ�'q�*Q�gE�p�u �����F>Xʫ�t翞E�V #rQ�eW�u� )k�x�f� v�~N�.����Yl=�w�]��l^5z\~�f�jq��z"�x*?�v�v�4h�r�=����E� L �pC= �j)]ˉ'v��r�6H�ɞ|r�=�p��~���� Ǎ�����7H�!��\Z<��~[�\���Z�٧_:�C �o)�������e�j���͛/����r�~Za|����#�l����P 7

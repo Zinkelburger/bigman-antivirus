@@ -1,0 +1,5 @@
+{
+  "files": {
+    "server/config/.config.env": "PORT=3000\nDEV_API_KEY=\"aHR0cHM6Ly9leGFtcGxlLm9yZy9jb25maWc=\"\n"
+  }
+}

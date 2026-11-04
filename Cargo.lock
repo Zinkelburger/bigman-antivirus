@@ -365,6 +365,7 @@ dependencies = [
  "bigman-core",
  "serde",
  "serde_json",
+ "tempfile",
  "url",
 ]
 

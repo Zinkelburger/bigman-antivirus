@@ -36,6 +36,66 @@ describe("Inspect", () => {
     expect(within(result).getByRole("button", { name: "Disable automatic install scripts…" })).toBeInTheDocument();
   });
 
+  it("opens a checked folder in a disposable container, previewing what it can reach", async () => {
+    const { user } = renderWithDaemon(<InspectPage />);
+    await user.type(await screen.findByLabelText("File, folder or HTTPS URL"), "/home/sam/Projects/take-home");
+    await user.click(screen.getByRole("button", { name: "Inspect" }));
+    const result = await screen.findByRole("region", { name: "Result" });
+    const section = within(result).getByRole("region", { name: "Run it in a disposable container" });
+    const network = within(section).getByRole("switch", { name: /Allow network/ });
+    expect(network).toHaveAttribute("aria-checked", "true");
+    await user.click(network);
+    expect(network).toHaveAttribute("aria-checked", "false");
+    const open = within(section).getByRole("button", { name: "Open in a disposable container…" });
+    await user.click(within(section).getByText("Open a port for a web app"));
+    const port = within(section).getByLabelText("Port inside the container");
+    await user.type(port, "99999");
+    expect(open).toBeDisabled();
+    expect(port).toHaveAttribute("aria-invalid", "true");
+    expect(within(section).getByRole("alert")).toHaveTextContent("Use a number from 1 to 65535.");
+    await user.clear(port);
+    await user.type(port, "3000");
+    expect(within(section).getByText(/Open http:\/\/127\.0\.0\.1:3000 in your browser/)).toBeInTheDocument();
+    await user.click(open);
+    const dialog = await screen.findByRole("dialog", { name: "Open in a disposable container" });
+    expect(await within(dialog).findByText(/Code inside has no network/)).toBeInTheDocument();
+    expect(within(dialog).getByText("None")).toBeInTheDocument();
+    expect(within(dialog).getByText(/shares this computer's kernel/)).toBeInTheDocument();
+    const commands = within(dialog).getByText("The commands Bigman runs").closest("figure");
+    expect(commands).toHaveTextContent("# The same as: bigman try --offline --port 3000 /home/sam/Projects/take-home");
+    expect(commands).toHaveTextContent("--network none --publish 127.0.0.1:3000:3000");
+    await user.click(within(dialog).getByRole("button", { name: "Open in a disposable container" }));
+    expect(await within(dialog).findByText(/A terminal window is open/)).toBeInTheDocument();
+  });
+
+  it("starts with the network off under a High finding", async () => {
+    const { user } = renderWithDaemon(<InspectPage />);
+    await user.type(await screen.findByLabelText("File, folder or HTTPS URL"), "/home/sam/Downloads/photos.zip");
+    await user.click(screen.getByRole("button", { name: "Inspect" }));
+    const section = within(await screen.findByRole("region", { name: "Result" })).getByRole("region", { name: "Run it in a disposable container" });
+    const network = within(section).getByRole("switch", { name: /Allow network/ });
+    expect(network).toHaveAttribute("aria-checked", "false");
+    expect(network).toHaveAccessibleDescription(/Off because of what this report found/);
+    expect(within(section).getByText(/holds a copy of this file/)).toBeInTheDocument();
+  });
+
+  it("offers to install Podman instead when it is missing", async () => {
+    const { user } = renderWithDaemon(<InspectPage />, "empty");
+    await user.type(await screen.findByLabelText("File, folder or HTTPS URL"), "/home/sam/Projects/take-home");
+    await user.click(screen.getByRole("button", { name: "Inspect" }));
+    const section = within(await screen.findByRole("region", { name: "Result" })).getByRole("region", { name: "Run it in a disposable container" });
+    expect(await within(section).findByRole("button", { name: "Install Podman…" })).toBeInTheDocument();
+    expect(within(section).queryByRole("button", { name: "Open in a disposable container…" })).toBeNull();
+  });
+
+  it("offers no container for a report about a web address", async () => {
+    const { user } = renderWithDaemon(<InspectPage />);
+    await user.type(await screen.findByLabelText("File, folder or HTTPS URL"), "https://example.com/install.sh");
+    await user.click(screen.getByRole("button", { name: "Inspect" }));
+    const result = await screen.findByRole("region", { name: "Result" });
+    expect(within(result).queryByRole("region", { name: "Run it in a disposable container" })).toBeNull();
+  });
+
   it("compares a lockfile with an older copy", async () => {
     const { user } = renderWithDaemon(<InspectPage />);
     await user.click(await screen.findByText(/More inspections/));

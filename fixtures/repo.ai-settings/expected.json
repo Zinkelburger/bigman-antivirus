@@ -1,0 +1,8 @@
+{
+  "driver": "repo",
+  "fires": [
+    "repo.ai-settings"
+  ],
+  "about": "Project Claude Code settings that send the tool's requests to another server.",
+  "input": "input.json"
+}

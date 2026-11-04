@@ -45,7 +45,7 @@ pub struct ToolGroup {
     pub installed: bool,
 }
 
-const TOOL_GROUPS: [(&str, &str, &str, &[&str]); 6] = [
+const TOOL_GROUPS: [(&str, &str, &str, &[&str]); 7] = [
     (
         "clamav",
         "ClamAV",
@@ -69,6 +69,12 @@ const TOOL_GROUPS: [(&str, &str, &str, &[&str]); 6] = [
         "Poppler utilities",
         "PDF metadata and link extraction",
         &["pdfinfo"],
+    ),
+    (
+        "container",
+        "Podman",
+        "Disposable containers for untrusted projects",
+        &["podman"],
     ),
     ("lynis", "Lynis", "System hardening audit", &["lynis"]),
     (
@@ -95,7 +101,7 @@ pub fn tool_plan(tool: &str) -> Result<Vec<String>> {
     let os = fs::read_to_string("/etc/os-release").unwrap_or_default();
     let fedora = os.lines().any(|l| l == "ID=fedora");
     let debian = os.lines().any(|l| l == "ID=ubuntu" || l == "ID=debian");
-    let packages:Vec<&str>=match tool{"clamav"=>vec!["clamav"],"shellcheck"=>vec!["ShellCheck"],"sandbox"=>vec!["bubblewrap","strace"],"lynis"=>vec!["lynis"],"pdf"=>vec!["poppler-utils"],"firewall"=>vec!["opensnitch"],_=>bail!("Install this optional tool using its upstream instructions; no verified package mapping is configured.")};
+    let packages:Vec<&str>=match tool{"clamav"=>vec!["clamav"],"shellcheck"=>vec!["ShellCheck"],"sandbox"=>vec!["bubblewrap","strace"],"lynis"=>vec!["lynis"],"pdf"=>vec!["poppler-utils"],"container"=>vec!["podman"],"firewall"=>vec!["opensnitch"],_=>bail!("Install this optional tool using its upstream instructions; no verified package mapping is configured.")};
     if !fedora && !debian {
         bail!("Automatic package setup supports Fedora, Debian and Ubuntu. Use your distribution's package manager on this system.");
     }

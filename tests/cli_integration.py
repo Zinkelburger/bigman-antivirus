@@ -138,8 +138,40 @@ sys.exit(1 if detected else 0)
     out = run('native-host', input=frame, raw=True).stdout
     assert json.loads(out[4:])['status'] == 'INCOMPLETE'
 
+    # A disposable container, against a recording Podman: nothing starts without
+    # --yes or a terminal, a container left by a killed session is removed first,
+    # the folder is copied in rather than mounted, and the container is removed
+    # after the command, whose exit code comes back.
+    calls = root / 'podman-calls'
+    podman = tools / 'podman'
+    podman.write_text(f'''#!{sys.executable}
+import sys
+open({str(calls)!r}, 'a').write(' '.join(sys.argv[1:]) + '\\n')
+if sys.argv[1] == 'ps': print('bigman-try-orphan 2147483646')
+if sys.argv[1] == 'start': sys.exit(7)
+''')
+    podman.chmod(0o700)
+    take_home = root / 'take-home'
+    take_home.mkdir()
+    (take_home / 'requirements.txt').write_text('requests\n')
+    asked = run('try', take_home, codes=(2,), raw=True)
+    assert b'python:3, because the project has requirements.txt' in asked.stdout and b'Add --yes' in asked.stderr, asked
+    assert b'Open a shell from a terminal' in run('try', '--yes', take_home, codes=(2,), raw=True).stderr
+    assert not calls.exists()
+    done = run('try', '--yes', take_home, '--', 'pytest', '-q', codes=(7,), raw=True)
+    assert b'are deleted, with anything downloaded into it' in done.stdout, done
+    lines = calls.read_text().splitlines()
+    assert lines[0].startswith('ps --all --filter label=io.bigman.try') and lines[1] == 'rm --force --volumes --time 0 bigman-try-orphan', lines
+    name = lines[2].split('--name ')[1].split()[0]
+    assert lines[2].startswith('create --rm --name bigman-try-') and '--user 1000:1000 --cap-drop all' in lines[2] and '--tty' not in lines[2], lines
+    assert lines[2].endswith('docker.io/library/python:3 pytest -q') and '--volume' not in lines[2], lines
+    assert lines[3] == f'cp {take_home.resolve()} {name}:/work', lines
+    assert lines[4].startswith('cp ') and lines[4].endswith(f'{name}:/home/user'), lines
+    assert lines[5] == f'start --attach {name}' and lines[6].startswith('rm --force --ignore --volumes') and lines[6].endswith(name), lines
+    podman.unlink()
+
     preview = run('services', raw=True).stdout.decode()
     assert 'bigman-monitor.service' in preview
     assert not (home / '.config/systemd/user/bigman-monitor.service').exists()
     assert all((p.stat().st_mode & 0o077) == 0 for p in (state / 'reports').iterdir())
-    print('PASS: scan mapping, missing scanner, quarantine/restore, nonexecuting inspection, script policy, reviewed baseline drift protection, real canary alerts, native boundaries, service preview, private history')
+    print('PASS: scan mapping, missing scanner, quarantine/restore, nonexecuting inspection, script policy, disposable container, reviewed baseline drift protection, real canary alerts, native boundaries, service preview, private history')

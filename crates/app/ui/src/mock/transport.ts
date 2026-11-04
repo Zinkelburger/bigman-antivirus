@@ -130,7 +130,7 @@ class MockDaemon {
   }
 
   plan(action: Action): ActionPlan {
-    const plan = (title: string, verb: string, summary: string, details: string, undo: string | null = null, careful = false): ActionPlan => ({ title, verb, summary, details, undo, careful });
+    const plan = (title: string, verb: string, summary: string, details: string, undo: string | null = null, careful = false): ActionPlan => ({ title, verb, summary, details, undo, careful, facts: [], note: null, details_label: null });
     switch (action.kind) {
       case "receipt_hook": return action.remove
         ? plan("Stop previewing package changes", "Remove the hook", "Delete /etc/dnf/libdnf5-plugins/actions.d/bigman-preview.actions. dnf stops asking Bigman before a transaction; receipts afterwards continue.", "pkexec /bin/sh -c \"rm -f '/etc/dnf/libdnf5-plugins/actions.d/bigman-preview.actions'\"", "Turn the preview on again from Setup.")
@@ -154,6 +154,30 @@ class MockDaemon {
         return plan("Restore a quarantined file", "Restore", "Write the recovery copy back to its original path with permissions 0600. Bigman refuses to overwrite an existing file. This file was flagged by a scan.", `${q?.original ?? ""}\nSHA-256 ${q?.hash ?? ""}`);
       }
       case "rehearse": return plan("Rehearse the installer", "Run in the sandbox", "Run the saved installer in a disposable offline sandbox with no home directory, credentials or network. This runs the code; it does not install anything on your system.", `SHA-256 ${action.sha256}`, null, true);
+      case "open_container": {
+        const network = action.offline ? "none" : "pasta:--no-map-gw";
+        const publish = action.port === null ? "" : ` --publish 127.0.0.1:${action.port}:${action.port}`;
+        const facts = [
+          { label: "Copied in", value: action.path },
+          { label: "Image", value: "docker.io/library/node:lts, because the project has package.json. The first time, Podman downloads it from docker.io (often several hundred MB), even with no network inside, and keeps it." },
+          { label: "Network", value: action.offline ? "None" : "On. Code inside can reach the internet, your local network, and services on this computer that listen on its network address, but not ones that listen only on 127.0.0.1." },
+          ...(action.port === null ? [] : [{ label: "Port", value: `127.0.0.1:${action.port} on this computer goes to ${action.port} inside` }]),
+          { label: "User inside", value: "1000, without added privileges. Outside the container it is an unused ID, not your account." },
+          { label: "Limits", value: "4 GiB of memory, 4096 processes" },
+        ];
+        const cli = `bigman try${action.offline ? " --offline" : ""}${action.port === null ? "" : ` --port ${action.port}`} ${action.path}`;
+        return {
+          ...plan(
+            "Open in a disposable container",
+            "Open in a disposable container",
+            `Copy ${action.path.split("/").pop() ?? action.path} into a new Podman container and open a shell there in a terminal window. The container gets that copy and none of your home folder, keys, browser data or environment variables. ${action.offline ? "Code inside has no network." : "Code inside can use the network."} The container, the copy and anything downloaded into it are deleted when the shell exits.`,
+            `# The same as: ${cli}\nNAME=bigman-try-<8 random characters>\nPID=<the process ID of bigman try>\npodman create --rm --name $NAME --hostname bigman-try --label io.bigman.try=$PID --interactive --tty --log-driver none --user 1000:1000 --cap-drop all --env HOME=/home/user --security-opt no-new-privileges --workdir /work --memory 4g --pids-limit 4096 --network ${network}${publish} docker.io/library/node:lts sh -c 'if command -v bash >/dev/null; then exec bash -l; else exec sh -l; fi'\npodman cp ${action.path} $NAME:/work\npodman cp <an empty folder> $NAME:/home/user\npodman start --attach --interactive $NAME\npodman rm --force --volumes --time 0 $NAME`,
+          ),
+          facts,
+          note: "A container shares this computer's kernel, so a kernel flaw could let code out. For something you believe is malware, use a separate computer or a virtual machine.",
+          details_label: "The commands Bigman runs",
+        };
+      }
       case "arm_canary": return plan("Set up a canary file", "Create and test", "Create a decoy file (or reuse a registered one), start monitoring now and at each login, and read it once to prove detection works.", `${action.path}\nThe file contains a synthetic token, not a working credential.`, "Undo stops watching the decoy; the file stays where it is.");
       case "start_monitor": return plan("Start canary monitoring", "Start", "Start the monitor for the registered decoys and enable it at login. No files are created.", this.canaries.map((c) => c.path).join("\n"));
       case "stop_monitor": return plan("Stop canary monitoring", "Stop", "Stop the monitor and remove its login service. Decoy files and history stay. Reads while stopped are not noticed.", "", "Start monitoring again from Protect > Canaries.");
@@ -195,6 +219,7 @@ class MockDaemon {
       case "services": return done(action.remove ? "User services removed" : "The collector daemon, monitoring, daily scan and definition updates are enabled.", null, action.remove ? null : { kind: "services", remove: true });
       case "receipt_hook": this.hook = !action.remove; return done(action.remove ? "Removed the hook. dnf no longer asks Bigman before a transaction." : "Installed the hook. Before each transaction dnf now shows the receipt in Bigman and waits up to a minute for Continue or Abort.", null, action.remove ? null : { kind: "receipt_hook", remove: true });
       case "journal_access": return done(action.remove ? "You are no longer in systemd-journal." : "You are now in systemd-journal. Log out and back in; denials are collected from then on.", null, action.remove ? null : { kind: "journal_access", remove: true });
+      case "open_container": return done("A terminal window is open (konsole). The container starts there; Podman may first download the image. Leaving the shell deletes the container and the copy.");
       case "package_policy": return done(`Updated ${action.path}/.npmrc. npm and pnpm no longer run lifecycle scripts during install there.`);
       default: return done("Done.");
     }
@@ -289,6 +314,7 @@ class MockDaemon {
         { id: "shellcheck", label: "ShellCheck", purpose: "Shell correctness checks during installer inspection", installed: this.scenario === "calm" },
         { id: "sandbox", label: "Bubblewrap and strace", purpose: "Offline installer rehearsal and isolated PDF parsing", installed: this.scenario !== "empty" },
         { id: "pdf", label: "Poppler utilities", purpose: "PDF metadata and link extraction", installed: true },
+        { id: "container", label: "Podman", purpose: "Disposable containers for untrusted projects", installed: this.scenario !== "empty" },
         { id: "lynis", label: "Lynis", purpose: "System hardening audit", installed: false },
         { id: "firewall", label: "OpenSnitch", purpose: "Application firewall", installed: false },
       ] };

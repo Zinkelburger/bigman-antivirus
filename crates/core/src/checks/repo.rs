@@ -1,9 +1,12 @@
 //! `repo-check DIR`: what a cloned project could run on your machine before you
 //! run anything yourself. IDE tasks that start when a folder opens, direnv,
 //! devcontainer commands, git hooks and filters, AI coding-tool configuration,
-//! instruction files with hidden characters, and risky CI workflows. Reads files
-//! as data; never runs, sources or trusts anything in the tree.
+//! instruction files with hidden characters, and risky CI workflows. The project's
+//! own source is read too, for the take-home lure that runs fetched or decoded
+//! text when the app starts (`checks::source`). Reads files as data; never runs,
+//! sources or trusts anything in the tree.
 use crate::{
+    checks::source,
     model::{Report, Severity},
     store::{read_file, MAX_INPUT},
 };
@@ -16,13 +19,18 @@ use std::{
 };
 
 /// Directories that hold dependencies or build output, not the project's own files.
-const SKIP: [&str; 6] = ["node_modules", ".git", "target", "vendor", "dist", ".venv"];
+pub(crate) const SKIP: [&str; 6] = ["node_modules", ".git", "target", "vendor", "dist", ".venv"];
 /// Files the search for nested instruction files, `.envrc` and `.gitattributes`
 /// looks at. The configuration at the project root is read before it starts,
 /// so padding a project with files cannot hide it.
 const MAX_FILES: usize = 20_000;
 /// Files read from each configuration folder at the root (`.vscode`, `.github`…).
 const MAX_CONFIG_FILES: usize = 2_000;
+/// Source files read for the rules in `checks::source`, and their total size.
+pub(crate) const MAX_SOURCE_FILES: usize = 5_000;
+const MAX_SOURCE_BYTES: usize = 64 * 1024 * 1024;
+/// Larger source files are bundles or data, not a loader someone hid in the app.
+pub(crate) const MAX_SOURCE_FILE: u64 = 2 * 1024 * 1024;
 /// Configuration folders at the project root that tools read on their own.
 const CONFIG_DIRS: [&str; 5] = [".vscode", ".claude", ".cursor", ".github", ".devcontainer"];
 /// Instruction files for AI coding tools, compared in lower case.
@@ -43,6 +51,33 @@ static USES: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r##"^\s*-?\s*uses:\s*['"]?([^\s'"#]+)"##).expect("valid regex"));
 static PINNED: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"@[0-9a-f]{40}$").expect("valid regex"));
+/// A download piped into a shell, or a shell given a download to run.
+static RUN_DOWNLOAD: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"\b(?:curl|wget)\b[^\n|]*\|\s*(?:sudo\s+)?(?:ba|z|da)?sh\b|\b(?:ba|z|da)?sh\s+(?:-c\s+)?['\x22]?(?:<\(|\$\()\s*(?:curl|wget)\b")
+        .expect("valid regex")
+});
+/// Claude Code settings that run a program (code.claude.com/docs/en/settings-reference).
+const AI_COMMAND_KEYS: [&str; 8] = [
+    "hooks",
+    "statusLine",
+    "fileSuggestion",
+    "apiKeyHelper",
+    "awsAuthRefresh",
+    "awsCredentialExport",
+    "gcpAuthRefresh",
+    "otelHeadersHelper",
+];
+/// Environment variables that send an AI tool's requests, and its key, elsewhere.
+const AI_REDIRECT_ENV: [&str; 8] = [
+    "ANTHROPIC_BASE_URL",
+    "ANTHROPIC_BEDROCK_BASE_URL",
+    "ANTHROPIC_VERTEX_BASE_URL",
+    "ANTHROPIC_FOUNDRY_BASE_URL",
+    "HTTPS_PROXY",
+    "HTTP_PROXY",
+    "https_proxy",
+    "http_proxy",
+];
 
 /// Removes `//` and `/* */` comments outside strings, for VS Code's JSONC files.
 pub fn strip_jsonc(text: &str) -> String {
@@ -142,13 +177,35 @@ pub fn assess(r: &mut Report, files: &[File], git_config: Option<&str>) {
                     t.pointer("/runOptions/runOn").and_then(|v| v.as_str()) == Some("folderOpen")
                 }) {
                     let label = t.get("label").and_then(|v| v.as_str()).unwrap_or("a task");
-                    let command = t.get("command").and_then(|v| v.as_str()).unwrap_or("");
+                    let (command, linux) = task_command(t);
+                    let command = format!("{command} {linux}");
+                    // Lures hide the terminal, or pad the command so it scrolls out of view.
+                    let hidden = t.pointer("/presentation/reveal").and_then(|v| v.as_str())
+                        == Some("never")
+                        || t.pointer("/presentation/echo") == Some(&serde_json::Value::Bool(false))
+                        || command.contains(&" ".repeat(20));
+                    let downloads = RUN_DOWNLOAD.is_match(&command);
+                    let tidy = |c: &str| {
+                        crate::model::clean(&c.split_whitespace().collect::<Vec<_>>().join(" "))
+                    };
+                    let (base, _) = task_command(t);
+                    let mut extra = format!("\ncommand: {}", tidy(&base));
+                    if !linux.trim().is_empty() {
+                        extra.push_str(&format!("\non Linux: {}", tidy(&linux)));
+                    }
+                    if hidden {
+                        extra.push_str("\nThe task hides its output.");
+                    }
                     r.add(
                         "repo.autorun-task",
-                        Severity::Review,
-                        &format!("Opening this folder in VS Code runs \"{label}\""),
-                        evidence(f, line_of(&f.text, "folderOpen"), &format!("\ncommand: {}", crate::model::clean(command))),
-                        "Read the task before opening the folder in a trusted window; VS Code asks only once per folder.",
+                        if hidden || downloads { Severity::High } else { Severity::Review },
+                        &if downloads {
+                            format!("Opening this folder in VS Code downloads and runs code (\"{label}\")")
+                        } else {
+                            format!("Opening this folder in VS Code runs \"{label}\"")
+                        },
+                        evidence(f, line_of(&f.text, "folderOpen"), &extra),
+                        "Read the task before opening the folder in a trusted window; VS Code asks only once per folder. Fake job interviews use exactly this: opening the project is the attack.",
                     );
                 }
             }
@@ -209,14 +266,23 @@ pub fn assess(r: &mut Report, files: &[File], git_config: Option<&str>) {
             }
         }
         if p.starts_with(".claude/") && name.starts_with("settings") && name.ends_with(".json") {
-            if let Some(hooks) = json(&f.text).and_then(|v| v.get("hooks").cloned()) {
-                r.add(
-                    "repo.ai-hooks",
-                    Severity::Review,
-                    "Claude Code settings in the project define hooks that run commands",
-                    evidence(f, line_of(&f.text, "\"hooks\""), &format!("\n{}", crate::model::clean(&hooks.to_string()))),
-                    "Project hooks run shell commands while the AI tool works in this folder. Read them before trusting the project.",
-                );
+            if let Some(v) = json(&f.text) {
+                claude_settings(r, f, &v);
+            }
+        }
+        if p == ".vscode/settings.json" {
+            if let Some(v) = json(&f.text) {
+                for key in ["chat.tools.autoApprove", "chat.tools.global.autoApprove"] {
+                    if v.get(key) == Some(&serde_json::Value::Bool(true)) {
+                        r.add(
+                            "repo.ai-settings",
+                            Severity::High,
+                            "The project turns off Copilot's confirmation before it runs commands",
+                            evidence(f, line_of(&f.text, key), ""),
+                            "With this setting, text the AI reads in the project can make it run commands without asking (CVE-2025-53773). Delete the line before using an AI assistant here.",
+                        );
+                    }
+                }
             }
         }
         if name == ".mcp.json" || p == ".cursor/mcp.json" || p == ".vscode/mcp.json" {
@@ -241,6 +307,15 @@ pub fn assess(r: &mut Report, files: &[File], git_config: Option<&str>) {
             }
         }
         if INSTRUCTIONS.contains(&name.as_str()) || p.starts_with(".cursor/rules/") {
+            if let Some(i) = f.text.lines().position(|l| RUN_DOWNLOAD.is_match(l)) {
+                r.add(
+                    "repo.instructions-run-download",
+                    Severity::Review,
+                    "An AI instruction file tells the assistant to download and run code",
+                    evidence(f, i + 1, ""),
+                    "An assistant that can run commands may follow this without asking. Check the address belongs to the tool's real publisher, or remove the line before an AI tool reads the project.",
+                );
+            }
             // A byte-order mark at the very start is how some editors save UTF-8, not hidden text.
             let text = f.text.strip_prefix('\u{FEFF}').unwrap_or(&f.text);
             if let Some((i, line)) = text.lines().enumerate().find(|(_, l)| HIDDEN.is_match(l)) {
@@ -267,10 +342,128 @@ pub fn assess(r: &mut Report, files: &[File], git_config: Option<&str>) {
         {
             workflow(r, f);
         }
+        source::assess(r, f);
     }
     if let Some(config) = git_config {
         git_config_findings(r, config);
     }
+}
+
+/// A task's command line with its arguments, and its Linux override if it has one.
+fn task_command(t: &serde_json::Value) -> (String, String) {
+    let part = |t: &serde_json::Value| {
+        let mut out = t
+            .get("command")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+        for a in t
+            .get("args")
+            .and_then(|a| a.as_array())
+            .into_iter()
+            .flatten()
+        {
+            out.push(' ');
+            out.push_str(a.as_str().unwrap_or(""));
+        }
+        out
+    };
+    (part(t), t.get("linux").map(part).unwrap_or_default())
+}
+
+/// Claude Code project settings that run programs, or loosen what the tool asks
+/// before acting. Project `env` applies once the folder is trusted, and headless
+/// runs (`claude -p`) show no trust dialog at all.
+fn claude_settings(r: &mut Report, f: &File, v: &serde_json::Value) {
+    let commands: Vec<String> = AI_COMMAND_KEYS
+        .iter()
+        .filter_map(|k| {
+            v.get(*k)
+                .map(|c| format!("{k}: {}", crate::model::clean(&c.to_string())))
+        })
+        .collect();
+    if let Some(first) = AI_COMMAND_KEYS.iter().find(|k| v.get(**k).is_some()) {
+        r.add(
+            "repo.ai-hooks",
+            Severity::Review,
+            "Claude Code settings in the project run commands",
+            evidence(f, line_of(&f.text, &format!("\"{first}\"")), &format!("\n{}", commands.join("\n"))),
+            "Project hooks and helper commands run with your permissions while the AI tool works in this folder. Read them before trusting the project.",
+        );
+    }
+    let mut loosened: Vec<(String, bool)> = vec![];
+    if let Some(env) = v.get("env").and_then(|e| e.as_object()) {
+        for key in AI_REDIRECT_ENV.iter().filter(|k| env.contains_key(**k)) {
+            loosened.push((
+                format!(
+                    "env.{key} = {}",
+                    crate::model::clean(&env[*key].to_string())
+                ),
+                true,
+            ));
+        }
+    }
+    if v.get("enableAllProjectMcpServers") == Some(&serde_json::Value::Bool(true)) {
+        loosened.push(("enableAllProjectMcpServers: true".into(), false));
+    }
+    if let Some(servers) = v
+        .get("enabledMcpjsonServers")
+        .and_then(|s| s.as_array())
+        .filter(|s| !s.is_empty())
+    {
+        loosened.push((
+            format!(
+                "enabledMcpjsonServers: {}",
+                crate::model::clean(&serde_json::Value::from(servers.clone()).to_string())
+            ),
+            false,
+        ));
+    }
+    if let Some(mode) = v
+        .pointer("/permissions/defaultMode")
+        .and_then(|m| m.as_str())
+    {
+        if matches!(
+            mode,
+            "bypassPermissions" | "acceptEdits" | "auto" | "dontAsk"
+        ) {
+            loosened.push((format!("permissions.defaultMode: {mode}"), false));
+        }
+    }
+    for rule in v
+        .pointer("/permissions/allow")
+        .and_then(|a| a.as_array())
+        .into_iter()
+        .flatten()
+        .filter_map(|a| a.as_str())
+        .filter(|a| matches!(a.replace(' ', "").as_str(), "Bash" | "Bash(*)" | "Bash(:*)"))
+    {
+        loosened.push((format!("permissions.allow: {rule}"), false));
+    }
+    if loosened.is_empty() {
+        return;
+    }
+    let redirect = loosened.iter().any(|(_, r)| *r);
+    let anchor = if redirect {
+        "\"env\""
+    } else {
+        loosened[0].0.split([':', '.', ' ']).next().unwrap_or("")
+    };
+    r.add(
+        "repo.ai-settings",
+        if redirect { Severity::High } else { Severity::Review },
+        if redirect {
+            "The project sends the AI tool's requests, and your API key, to another server"
+        } else {
+            "The project's AI tool settings approve commands or servers for you"
+        },
+        evidence(
+            f,
+            line_of(&f.text, anchor),
+            &format!("\n{}", loosened.iter().map(|(l, _)| l.as_str()).collect::<Vec<_>>().join("\n")),
+        ),
+        "A project has no reason to choose your AI tool's server or approve commands on your behalf. Remove these settings, or run the tool with `--setting-sources user` in this folder.",
+    );
 }
 
 /// `section.key` (subsection dropped, lower case), value and line for each
@@ -427,7 +620,7 @@ fn workflow(r: &mut Report, f: &File) {
 }
 
 /// Whether a path, relative to the project root, is one the rules read.
-fn interesting(rel: &Path) -> bool {
+pub(crate) fn interesting(rel: &Path) -> bool {
     let p = rel.to_string_lossy();
     let n = rel
         .file_name()
@@ -447,10 +640,51 @@ struct Collector {
     root: PathBuf,
     files: Vec<File>,
     taken: BTreeSet<PathBuf>,
+    /// Source files read for `checks::source`, and their bytes.
+    sources: usize,
+    source_bytes: usize,
+    /// Source files left out by the limits above.
+    sources_skipped: usize,
 }
 
 impl Collector {
+    /// A file the source rules want, within the source budget.
+    fn add_source(&mut self, r: &mut Report, rel: PathBuf, want: source::Want) {
+        if self.taken.contains(&rel) {
+            return;
+        }
+        let size = self
+            .root
+            .join(&rel)
+            .symlink_metadata()
+            .map_or(0, |m| m.len());
+        let head = want == source::Want::Head;
+        let cost = if head {
+            size.min(source::ASSET_HEAD)
+        } else {
+            size
+        } as usize;
+        if self.sources >= MAX_SOURCE_FILES
+            || self.source_bytes + cost > MAX_SOURCE_BYTES
+            || (!head && size > MAX_SOURCE_FILE)
+        {
+            self.sources_skipped += 1;
+            return;
+        }
+        let before = self.files.len();
+        self.add_limited(r, rel, if head { Some(source::ASSET_HEAD) } else { None });
+        if self.files.len() > before {
+            self.sources += 1;
+            self.source_bytes += cost;
+        }
+    }
+
     fn add(&mut self, r: &mut Report, rel: PathBuf) {
+        self.add_limited(r, rel, None);
+    }
+
+    /// Reads a file, or only its first `head` bytes.
+    fn add_limited(&mut self, r: &mut Report, rel: PathBuf, head: Option<u64>) {
         if self.taken.contains(&rel) {
             return;
         }
@@ -473,7 +707,11 @@ impl Collector {
             return;
         }
         self.taken.insert(rel.clone());
-        if let Ok(bytes) = read_file(&target, MAX_INPUT) {
+        let read = match head {
+            Some(n) => read_head(&target, n),
+            None => read_file(&target, MAX_INPUT),
+        };
+        if let Ok(bytes) = read {
             self.files.push(File {
                 path: rel,
                 text: String::from_utf8_lossy(&bytes).into_owned(),
@@ -534,9 +772,26 @@ impl Collector {
             let rel = Path::new(name).join(e.path().strip_prefix(&dir).unwrap_or(e.path()));
             if interesting(&rel) {
                 self.add(r, rel);
+            } else if let Some(want) = source::wanted(&rel) {
+                self.add_source(r, rel, want);
             }
         }
     }
+}
+
+/// The first `n` bytes of a regular file, without following a final link.
+fn read_head(path: &Path, n: u64) -> Result<Vec<u8>> {
+    use std::{io::Read, os::unix::fs::OpenOptionsExt};
+    let file = std::fs::OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK)
+        .open(path)?;
+    if !file.metadata()?.is_file() {
+        bail!("{} is not a regular file", path.display());
+    }
+    let mut out = vec![];
+    file.take(n).read_to_end(&mut out)?;
+    Ok(out)
 }
 
 /// Collects the project's configuration files (bounded) and assesses them.
@@ -545,11 +800,14 @@ pub fn repo_check(dir: &Path) -> Result<Report> {
         bail!("{} is not a folder", dir.display());
     }
     let mut r = Report::new("Repository check", dir.display());
-    r.coverage.push("Reads the project's files as data: IDE tasks, direnv, devcontainers, git attributes, hooks and settings, AI-tool settings, MCP servers, instruction files and CI workflows. Nothing in the project is run.".into());
+    r.coverage.push("Reads the project's files as data: IDE tasks, direnv, devcontainers, git attributes, hooks and settings, AI-tool settings, MCP servers, instruction files and CI workflows, plus its own source for code that runs fetched or decoded text on start. Nothing in the project is run.".into());
     let mut c = Collector {
         root: dir.canonicalize()?,
         files: vec![],
         taken: BTreeSet::new(),
+        sources: 0,
+        source_bytes: 0,
+        sources_skipped: 0,
     };
     // First what tools read at the root, which no number of other files can push out.
     let mut root: Vec<String> = std::fs::read_dir(&c.root)?
@@ -562,6 +820,8 @@ pub fn repo_check(dir: &Path) -> Result<Report> {
             c.config_dir(&mut r, name);
         } else if interesting(Path::new(name)) {
             c.add(&mut r, PathBuf::from(name));
+        } else if let Some(want) = source::wanted(Path::new(name)) {
+            c.add_source(&mut r, PathBuf::from(name), want);
         }
     }
     // Then nested instruction files, .envrc and .gitattributes, within a budget.
@@ -578,6 +838,9 @@ pub fn repo_check(dir: &Path) -> Result<Report> {
             let name = e.file_name().to_string_lossy();
             !(e.file_type().is_dir()
                 && (SKIP.contains(&name.as_ref())
+                    || name == "site-packages"
+                    // A Python virtual environment, whatever it is called.
+                    || e.path().join("pyvenv.cfg").is_file()
                     || (e.depth() == 1 && CONFIG_DIRS.contains(&name.as_ref()))))
         });
     let mut seen = 0;
@@ -604,12 +867,26 @@ pub fn repo_check(dir: &Path) -> Result<Report> {
             .to_path_buf();
         if interesting(&rel) {
             c.add(&mut r, rel);
+        } else if let Some(want) = source::wanted(&rel) {
+            c.add_source(&mut r, rel, want);
         }
     }
+    if c.sources_skipped > 0 {
+        r.coverage.skip(
+            format!("{} source files", c.sources_skipped),
+            crate::model::SkipReason::LimitReached,
+            format!("Files over 2 MiB, or past the first {MAX_SOURCE_FILES} source files or 64 MiB, were not read for loaders"),
+        );
+    }
     let git_config = c.git_config(&mut r);
+    let configs = c.files.len() - c.sources;
     r.coverage
         .checked
-        .push(format!("{} configuration files", c.files.len()));
+        .push(format!("{configs} configuration files"));
+    r.coverage.checked.push(format!(
+        "{} source files and assets for code that runs on start",
+        c.sources
+    ));
     assess(&mut r, &c.files, git_config.as_deref());
     r.findings.sort_by_key(|f| std::cmp::Reverse(f.severity));
     Ok(r)

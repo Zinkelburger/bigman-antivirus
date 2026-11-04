@@ -1,0 +1,8 @@
+{
+  "driver": "repo",
+  "fires": [
+    "repo.payload-host"
+  ],
+  "about": "Source that loads its configuration from a JSON storage service.",
+  "input": "input.json"
+}

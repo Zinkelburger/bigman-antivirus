@@ -1,0 +1,5 @@
+{
+  "files": {
+    "src/settings.js": "export const SETTINGS_URL = 'https://api.npoint.io/0000fixture';\nexport const load = () => fetch(SETTINGS_URL).then((r) => r.json());\n"
+  }
+}

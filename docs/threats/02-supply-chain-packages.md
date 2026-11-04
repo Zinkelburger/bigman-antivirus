@@ -33,11 +33,12 @@
 | SC-16 | `pull_request_target`, script injection and cache poisoning ("pwn requests") | High (maintainers) | Partial | Workflow scan for dangerous trigger, expression and cache patterns |
 | SC-17 | Malicious workflow commits pushed with stolen accounts (GhostAction) | High (maintainers) | Gap | Diff `.github/workflows` against a baseline; flag new secret-referencing workflows |
 | SC-18 | Poisoned or stale container images | Medium | Gap | Image reference audit: tag vs digest; signature verification guidance |
-| SC-19 | Malicious or hijacked VS Code / Open VSX extensions | High | Partial | `.vsix` inspector and installed-extension inventory |
+| SC-19 | Malicious or hijacked VS Code / Open VSX extensions | High | Partial | `.vsix` inspector; installed extensions in the startup baseline (`persistence.extension-new`, `-updated`, `-modified`) |
 | SC-20 | Repo-open triggers (IDE tasks, git hooks, `.envrc`, devcontainers) | High | Covered | `bigman repo-check DIR` before trusting a workspace |
-| SC-21 | Poisoned AI coding-tool configuration (agent hooks, project MCP, rules files) | High | Partial | Repo-check rules for `.claude/`, `.mcp.json`, `.cursor/`, instruction files, hidden Unicode |
+| SC-21 | Poisoned AI coding-tool configuration (agent hooks, project MCP, rules files) | High | Partial | Repo-check rules for `.claude/` hooks, helpers and loosened settings, Copilot auto-approve, `.mcp.json`, `.cursor/`, instruction files, hidden Unicode |
 | SC-22 | Malicious MCP servers and AI-tool packages | Medium | Partial | MCP config inventory; flag unpinned `npx`/`uvx` servers and unknown publishers |
 | SC-23 | Credential harvesting and exfiltration channels (cross-cutting) | High | Partial (`shell.credentials`, canary) | Extend credential regex set; exfil-channel rules; more decoy canaries |
+| SC-24 | Take-home repositories whose own code runs a hidden payload on start | High | Partial | `repo.code-loader`, `repo.encoded-url`, `repo.payload-host`, `repo.disguised-asset`; `repo-check URL` before cloning; `persistence.shadowed-command` for swapped tools; `bigman try` to run it in a disposable container |
 
 ## Attacks
 
@@ -534,7 +535,7 @@
   - Bundled native binaries.
   - Publisher IDs one character off from well-known publishers.
   - Read-only: `code --list-extensions --show-versions`, `codium --list-extensions --show-versions`, `ls ~/.vscode/extensions`, `jq '.activationEvents, .extensionDependencies, .extensionPack' ~/.vscode/extensions/*/package.json`, `grep -rlP '[\x{FE00}-\x{FE0F}\x{200B}-\x{200D}\x{E0100}-\x{E01EF}]' ~/.vscode/extensions/*/out ~/.vscode/extensions/*/dist`.
-- **Bigman today:** Partial. `.vsix` files given to Inspect get `vsix.startup-activation`, `vsix.dependency-chain`, `vsix.invisible-code` (High) and `vsix.native-binary`. Installed extensions across VS Code, VSCodium and Cursor are not inventoried yet.
+- **Bigman today:** Partial. `.vsix` files given to Inspect get `vsix.startup-activation`, `vsix.dependency-chain`, `vsix.invisible-code` (High) and `vsix.native-binary`. Installed extensions in VS Code (including Insiders and the Flatpak), VSCodium, Cursor and Windsurf are in the startup baseline, one entry per extension ID with its version and the code the editor loads: a new one is `persistence.extension-new` (Review), an update `persistence.extension-updated` (Info), and code that changed without an update `persistence.extension-modified` (High). Files other than the main one are not compared.
 - **Proposed mitigation / detection:**
   1. `bigman packages FILE.vsix` (zip): parse `extension/package.json` and `extension.vsixmanifest`, then raise:
      - `vsix.startup-activation` (Review).
@@ -575,7 +576,7 @@
   - `Makefile`/`justfile` targets invoked by IDE tasks.
   - In the user's git config: `core.hooksPath` and `core.fsmonitor`.
   - Read-only: `git config --show-origin --get-regexp '^(core\.hookspath|core\.fsmonitor|filter\.|diff\..*\.textconv)'`, `find . -path ./node_modules -prune -o \( -name tasks.json -o -name .envrc -o -name devcontainer.json \) -print`, `jq '.tasks[] | select(.runOptions.runOn=="folderOpen")' .vscode/tasks.json`.
-- **Bigman today:** Covered for the files these tools read on open. `bigman repo-check` and project inspection report `repo.autorun-task`, `repo.envrc`, `repo.devcontainer-command` (High for initializeCommand), `repo.git-filter`, `repo.git-hooks` and `repo.git-config-command`. Nothing in the project is run, so what those commands then call is not followed.
+- **Bigman today:** Covered for the files these tools read on open. The daemon's project watch runs these checks on every project cloned or unpacked into the usual code folders (`~/Projects`, `~/src`, `~/code` and similar, and Downloads) as soon as git finishes. `repo.autorun-task` is High when the task hides its output or downloads and runs code. `bigman repo-check` (on a folder, or on a GitHub, GitLab, Codeberg or Bitbucket URL before cloning) and project inspection report `repo.autorun-task`, `repo.envrc`, `repo.devcontainer-command` (High for initializeCommand), `repo.git-filter`, `repo.git-hooks` and `repo.git-config-command`. Nothing in the project is run, so what those commands then call is not followed.
 - **Proposed mitigation / detection:** New `bigman repo-check DIR`, read-only and intended to run *before* opening a repo in an IDE. It can also be offered by the browser extension after a `git clone` URL is copied.
   - Rules:
     - `repo.ide-autorun` (High): `folderOpen` tasks.
@@ -612,7 +613,11 @@
   - `.cursor/rules/`, `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, `.github/copilot-instructions.md`, `.windsurfrules`: invisible or bidi Unicode (U+200B-U+200F, U+202A-U+202E, U+2066-U+2069, U+FE00-U+FE0F, U+E0000-U+E007F tag characters) and instructions mentioning `curl`, credentials, "do not tell the user", or disabling checks.
   - User-level files: `~/.claude/settings.json`, `~/.claude.json` (MCP servers and project approvals), `~/.cursor/mcp.json`, `~/.codeium/windsurf/mcp_config.json`.
   - Read-only: `grep -rnP '[\x{200B}-\x{200F}\x{202A}-\x{202E}\x{2066}-\x{2069}\x{E0000}-\x{E007F}]' CLAUDE.md AGENTS.md .cursor .github`, `jq '.hooks, .permissions, .enableAllProjectMcpServers' .claude/settings.json`, `jq '.mcpServers' .mcp.json`.
-- **Bigman today:** Partial. `repo.ai-hooks` (Claude Code hooks), `repo.mcp-server` and `repo.hidden-instructions` (invisible characters in CLAUDE.md, AGENTS.md, .cursorrules and similar). Plain-language instructions that misdirect an agent cannot be judged by rules.
+- **Bigman today:** Partial.
+  - `repo.ai-hooks`: Claude Code hooks and helper commands (`statusLine`, `apiKeyHelper`, `fileSuggestion`, `awsAuthRefresh` and similar), which the settings reference lists as honoured from project files: https://code.claude.com/docs/en/settings-reference
+  - `repo.ai-settings`: `env.ANTHROPIC_BASE_URL` or proxy variables (High), `enableAllProjectMcpServers`, `enabledMcpjsonServers`, a loosened `permissions.defaultMode`, unscoped `Bash` allows, and Copilot's `chat.tools.autoApprove` in `.vscode/settings.json` (High; CVE-2025-53773, https://embracethered.com/blog/posts/2025/github-copilot-remote-code-execution-via-prompt-injection).
+  - `repo.mcp-server`; `repo.hidden-instructions` (invisible characters in CLAUDE.md, AGENTS.md, .cursorrules and similar); `repo.instructions-run-download` (an instruction file that pipes a download into a shell).
+  - Plain-language instructions that misdirect an agent cannot be judged by rules.
 - **Proposed mitigation / detection:** Repo-check rules:
   - `ai.agent-hook` (High): any hook command in a project agent config, with the command passed through `shell.*`.
   - `ai.project-mcp` (Review): a project MCP definition; High if it uses `npx -y`/`uvx` without a pinned version, or a repo-local script.
@@ -628,6 +633,32 @@
   - https://www.pillar.security/blog/new-vulnerability-in-github-copilot-and-cursor-how-hackers-can-weaponize-code-agents
   - https://www.elastic.co/security-labs/shai-hulud-chaindrop-npm-supply-chain
   - T1204.002, T1546
+
+### SC-24 Take-home repositories whose own code runs a hidden payload on start
+- **What it is:** The Contagious Interview pattern without an install hook. The repository is a working app, and one file of its own code (an error handler, a controller, a config module) fetches text or decodes it from a file in the repository, then runs it with the whole Node runtime. `npm run dev`, or importing the module, is enough. The address is often hidden as a base64 "API key" in a committed `.env`, and the payload sometimes ships inside the repository as a font or image that is really text. A setup step can also swap in a poisoned copy of a familiar tool, so the compromise outlives the project.
+- **Real-world examples:**
+  - Binance, 2026-10-29: a "coding assignment" repository run on a wallet engineer's work computer was the second stage of a $6.3 billion theft (Reuters via NBC News). https://www.nbcnews.com/business/markets/binance-hack-fake-job-interview-heist-rcna607238
+  - A year of these repositories, written up by a recipient: `axios.get` of a jsonkeeper paste then `new (Function.constructor)("require", errCode)` (2026-01-27); the same from `atob(process.env.DEV_API_KEY)` (2026-01-29); a `.woff2` of hex text decoded by `server/config/conf.js` and run with `new Function('require', …)` (2026-10-15). https://www.reddit.com/r/ClaudeCode/comments/1xmznwt/the_binance_theft_started_as_a_coding_assignment/ , https://github.com/Ubuntu-Buddha/security-advisories
+  - GitLab Threat Intelligence, 2026-02-19: the same loader with `RUNTIME_CONFIG_API_KEY`, staging on JSON Keeper, npoint.io and mocki.io, and a December 2025 cluster decoding malware from a fake font file. https://about.gitlab.com/blog/gitlab-threat-intelligence-reveals-north-korean-tradecraft/
+  - NVISO, 2025-11-13: JSON Keeper, JSONsilo and npoint.io, with the base64 address in `server/config/.config.env`. https://blog.nviso.eu/2025/11/13/contagious-interview-actors-now-utilize-json-storage-services-for-malware-delivery/
+  - OpenSourceMalware, 2026-01-28: a folder-open task that runs `node public/fonts/fa-brands-regular.woff2`, a JavaScript file named as a font. https://opensourcemalware.com/blog/dprk-contagious-interview-campaign-fake-font-uses-malicious-vs-code-fonts
+- **What a defender inspects (indicators):**
+  - `Function.constructor`, or `Function`/`new Function` given `'require'`, anywhere in the project's own source; `eval` next to `axios`, `fetch`, `atob` or `Buffer.from(…, 'base64'|'hex')`.
+  - Committed `.env` files whose values decode to URLs.
+  - Font, image or media files that `file` reports as text.
+  - New files in `~/.local/bin` or `~/bin` named like system commands, after running a project's setup.
+- **Bigman today:** Partial.
+  - `repo.code-loader` (High), `repo.encoded-url`, `repo.payload-host` and `repo.disguised-asset` (High) run in `repo-check`, in project inspection, and on a repository URL before cloning.
+  - `persistence.shadowed-command`: `bigman changes` and the live monitor watch `~/.local/bin` and `~/bin` and raise High when a new or changed file there hides a system command.
+  - `bigman try DIR` (and Inspect's **Run it in a disposable container**) runs the project in a rootless Podman container that holds a copy of it and nothing else from the computer, and deletes it on exit. A loader that runs there finds no keys, wallets or browser data. The container shares the kernel and, with network on, reaches the local network.
+  - Swapped tools elsewhere: developer tool folders (npm's global prefix, nvm, fnm, Volta, pnpm, Bun, Yarn, Deno, `~/.cargo/bin`, `~/go/bin`) are in the startup baseline, so a new or changed program there is `persistence.change`. Editor extensions are recorded per ID with their version and the code the editor loads: `persistence.extension-modified` (High) when that code changes without an update. Project inspection checks `node_modules/.bin`: `package.bin-swapped` (High) for a plain file where npm links, or a link or pnpm shim leading outside the project's `node_modules`.
+  - The browser extension offers the read-before-clone check on repository pages.
+  - Not covered: loaders spread across many files or built from generated strings; an extension changed in a file other than the one the editor loads first; a tool folder whose location is set only in a shell profile.
+- **Proposed mitigation / detection:** Follow the decoded address into the project's other files; hash every file an extension ships, not only the one the editor loads first.
+- **Test case idea:** The fixtures `repo.code-loader`, `repo.encoded-url`, `repo.payload-host`, `repo.disguised-asset`, `persistence.shadowed-command`, `persistence.extension-modified` and `package.bin-swapped`.
+- **References:**
+  - The URLs above. How each issue in the post maps to Bigman: [interview-repo lures](../research/interview-repo-lures.md).
+  - T1204.002, T1027.013 (Encrypted/Encoded File), T1036.008 (Masquerade File Type), T1574.007 (Path Interception by PATH Environment Variable)
 
 ### SC-22 Malicious MCP servers and AI-tool packages
 - **What it is:** MCP servers are ordinary npm or PyPI packages, or binaries, that an AI client launches with the user's privileges and hands sensitive data to: email, files, tokens. A lookalike or later-trojanised MCP package can quietly copy that data. Because clients often start servers with `npx -y package` (latest version, no lockfile), a single malicious publish reaches every user on their next session. AI tooling credentials (`~/.claude.json`, provider API keys, MCP configs holding tokens) are now standard targets of npm and PyPI stealers.

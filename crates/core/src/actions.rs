@@ -2,7 +2,7 @@
 //! change without changing anything, `apply` does it. The CLI, the daemon and the
 //! desktop app all go through these, so a preview can never drift from the change.
 use crate::{
-    checks::{canary, changes, hooks, inspect, packages, scan, setup},
+    checks::{canary, changes, disposable, hooks, inspect, packages, scan, setup},
     model::Report,
     runner::Cancel,
     store::Store,
@@ -56,6 +56,13 @@ pub enum Action {
         report: String,
         sha256: String,
     },
+    /// Open a terminal with a shell in a disposable container holding a copy of
+    /// a folder or file.
+    OpenContainer {
+        path: PathBuf,
+        offline: bool,
+        port: Option<u16>,
+    },
     /// Create (or reuse) a local decoy, start monitoring and verify a real read.
     ArmCanary {
         path: PathBuf,
@@ -98,6 +105,19 @@ pub struct ActionPlan {
     /// True when the change runs code the user has not reviewed (the installer
     /// rehearsal); the UI asks for an explicit acknowledgment.
     pub careful: bool,
+    /// Plain facts the decision rests on, shown above `details`.
+    pub facts: Vec<PlanFact>,
+    /// One plain sentence after the summary: a limit the reader should know.
+    pub note: Option<String>,
+    /// The label over `details`, when "Exactly what changes" does not fit.
+    pub details_label: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
+#[ts(export)]
+pub struct PlanFact {
+    pub label: String,
+    pub value: String,
 }
 
 /// What an action did.
@@ -123,6 +143,9 @@ fn plan(
         details: details.into(),
         undo: None,
         careful: false,
+        facts: vec![],
+        note: None,
+        details_label: None,
     }
 }
 
@@ -159,6 +182,10 @@ fn baseline_entries(report: &Report) -> String {
         "persistence.metadata" => "Permissions changed",
         "persistence.removed" => "Removed",
         "persistence.initial" => "Recorded",
+        "persistence.extension-new" => "New extension",
+        "persistence.extension-updated" => "Extension updated",
+        "persistence.extension-modified" => "Extension code changed",
+        "persistence.shadowed-command" => "Hides a system command",
         _ => "Entry",
     };
     // A first inventory lists every entry once; the attribution notes repeat paths.
@@ -192,6 +219,21 @@ fn quarantined(store: &Store, id: &str) -> Result<scan::Quarantined> {
         .into_iter()
         .find(|q| q.id == id)
         .context("Unknown quarantine ID")
+}
+
+fn container_plan(
+    path: &std::path::Path,
+    offline: bool,
+    port: Option<u16>,
+) -> Result<disposable::Plan> {
+    disposable::plan(
+        path,
+        disposable::Options {
+            offline,
+            ports: port.into_iter().collect(),
+            ..Default::default()
+        },
+    )
 }
 
 fn paths(list: &[PathBuf]) -> String {
@@ -361,6 +403,31 @@ pub fn preview(action: &Action, store: &Store) -> Result<ActionPlan> {
                 )
             }
         }
+        Action::OpenContainer {
+            path,
+            offline,
+            port,
+        } => {
+            let p = container_plan(path, *offline, *port)?;
+            if !crate::runner::available("podman") {
+                bail!("Podman is not installed. Install it from Setup, under Podman.");
+            }
+            ActionPlan {
+                facts: p
+                    .facts()
+                    .into_iter()
+                    .map(|(label, value)| PlanFact { label, value })
+                    .collect(),
+                note: Some(disposable::KERNEL.into()),
+                details_label: Some("The commands Bigman runs".into()),
+                ..plan(
+                    "Open in a disposable container",
+                    "Open in a disposable container",
+                    p.summary(),
+                    p.commands(true),
+                )
+            }
+        }
         Action::ArmCanary { path, session_only } => ActionPlan {
             undo: Some("Undo stops watching the decoy; the file stays where it is.".into()),
             ..plan(
@@ -491,6 +558,14 @@ pub fn apply(action: &Action, store: &Store, stop: &Cancel) -> Result<ActionOutc
             "Rehearsal finished.",
             inspect::sandbox(store, report, sha256, stop)?,
         ),
+        Action::OpenContainer {
+            path,
+            offline,
+            port,
+        } => message(disposable::open_in_terminal(
+            store,
+            &container_plan(path, *offline, *port)?,
+        )?),
         Action::ArmCanary { path, session_only } => {
             let report = canary::setup::arm(store, path, *session_only, stop)?;
             let armed = canary::list(store)?

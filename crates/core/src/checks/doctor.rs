@@ -9,12 +9,13 @@ use std::{fs, path::PathBuf, process::Command};
 use ts_rs::TS;
 
 /// Optional tools Bigman can drive, with what each one adds.
-pub const TOOLS: [(&str, &str); 13] = [
+pub const TOOLS: [(&str, &str); 14] = [
     ("clamscan", "Known-malware file scanning"),
     ("freshclam", "Signature updates"),
     ("shellcheck", "Shell correctness checks"),
     ("bwrap", "Restricted execution"),
     ("strace", "Execution traces"),
+    ("podman", "Disposable containers"),
     ("lynis", "System hardening audit"),
     ("osv-scanner", "Dependency vulnerability checks"),
     ("osqueryi", "System inventory"),

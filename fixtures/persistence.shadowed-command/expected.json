@@ -1,0 +1,8 @@
+{
+  "driver": "changes",
+  "fires": [
+    "persistence.shadowed-command"
+  ],
+  "about": "A new ~/.local/bin/git that hides /usr/bin/git, against a baseline that already watched the folder.",
+  "input": "input.json"
+}

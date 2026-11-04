@@ -2,5 +2,9 @@
 <h1>Bigman</h1><p>Deterministic link and download checks</p>
 <button id="scan">Check this page</button><button id="options">Settings & blocklists</button>
 <p id="status" role="status">Page coverage is limited to links and selected page-text rules.</p><pre id="details"></pre>
+<section id="repo" hidden><h2>This repository</h2><p id="repo-name" class="mono"></p>
+<p>Bigman reads its latest commit without cloning it, so nothing in it runs. The desktop app does the reading.</p>
+<button id="repo-check">Check before you clone</button>
+<p id="repo-status" role="status"></p><ul id="repo-findings"></ul><p id="repo-read" class="note"></p><p id="repo-next"></p></section>
 <h2>Installer preview</h2><label>HTTPS installer URL<input id="installer" type="url" placeholder="https://example.org/install.sh"></label><button id="inspect">Inspect without executing</button><button id="health">Check desktop connection</button><pre id="native"></pre>
-<script src="popup.js"></script></body></html>
+<script src="repo-page.js"></script><script src="popup.js"></script></body></html>

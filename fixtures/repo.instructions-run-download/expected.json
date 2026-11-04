@@ -1,0 +1,8 @@
+{
+  "driver": "repo",
+  "fires": [
+    "repo.instructions-run-download"
+  ],
+  "about": "An AGENTS.md that tells the assistant to pipe a download into bash.",
+  "input": "input.json"
+}

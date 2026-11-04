@@ -60,7 +60,7 @@ chrome.runtime.onMessage.addListener((request, sender, respond) => {
     }
     // Native operations are exposed only to extension-owned pages, not page content scripts.
     if (request.action === 'native' && !sender.tab && sender.url?.startsWith(chrome.runtime.getURL(''))) {
-        if (!['health', 'inspect-url'].includes(request.request?.op)) return false;
+        if (!['health', 'inspect-url', 'repo-check'].includes(request.request?.op)) return false;
         native(request.request).then(async r => { await chrome.storage.local.set({ nativeHealth: { ...r, checkedAt: Date.now() } }); respond(r); }); return true;
     }
     return false;

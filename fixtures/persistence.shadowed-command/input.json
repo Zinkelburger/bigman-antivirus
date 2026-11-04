@@ -1,0 +1,53 @@
+{
+  "old": {
+    "format": 3,
+    "created": 1,
+    "entries": {
+      "/home/user/.local/bin/fixture-tool": {
+        "hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "bytes": 736,
+        "mode": 33261,
+        "uid": 1000,
+        "gid": 1000,
+        "caps": null,
+        "category": "commands"
+      }
+    },
+    "errors": []
+  },
+  "current": {
+    "format": 3,
+    "created": 2,
+    "entries": {
+      "/home/user/.local/bin/fixture-tool": {
+        "hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "bytes": 736,
+        "mode": 33261,
+        "uid": 1000,
+        "gid": 1000,
+        "caps": null,
+        "category": "commands"
+      },
+      "/home/user/.local/bin/git": {
+        "hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "bytes": 736,
+        "mode": 33261,
+        "uid": 1000,
+        "gid": 1000,
+        "caps": null,
+        "category": "commands",
+        "shadows": "/usr/bin/git"
+      }
+    },
+    "errors": []
+  },
+  "attribution": {
+    "/home/user/.local/bin/git": {
+      "package": null,
+      "config": false,
+      "state": {
+        "state": "unowned"
+      }
+    }
+  }
+}

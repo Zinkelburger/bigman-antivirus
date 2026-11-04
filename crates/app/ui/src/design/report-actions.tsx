@@ -1,10 +1,14 @@
 // What a reader can do with a report, wherever it opens (the tab that ran it,
 // Activity, a recent list): the same follow-ups for the same report.
+import { useState } from "react";
 import type { Quarantined, Report, ScanItem } from "@/ipc";
-import { useQuarantined, useScanItems } from "@/ipc";
+import { useQuarantined, useScanItems, useToolGroups } from "@/ipc";
 import { ActionDialog } from "./action";
+import { Disclosure } from "./components/Disclosure";
 import { EvidenceBlock } from "./components/EvidenceBlock";
 import { KeyValue } from "./components/KeyValue";
+import { TextField } from "./components/TextField";
+import { Toggle } from "./components/Toggle";
 
 /** The quarantine entry holding this scanned file, if it is still in quarantine. */
 export function heldIn(quarantine: readonly Quarantined[] | undefined, item: ScanItem): Quarantined | undefined {
@@ -86,7 +90,109 @@ function InstallerSource({ report }: { report: Report }) {
   );
 }
 
+/** Reports about a local folder or file someone may next want to run, and
+ * whether the subject is a folder. */
+const RUNNABLE: Record<string, "folder" | "file"> = {
+  "Installer inspection": "file",
+  "Package script inventory": "folder",
+  "Project inspection": "folder",
+  "Repository check": "folder",
+  "Archive check": "file",
+  "Launcher check": "file",
+  "Package file": "file",
+  "Package archive": "file",
+  "PKGBUILD check": "file",
+  "AppImage check": "file",
+};
+
+/** The port field's value as a port, null when empty, undefined when invalid. */
+export function parsePort(text: string): number | null | undefined {
+  const t = text.trim();
+  if (t === "") return null;
+  const n = /^\d{1,5}$/.test(t) ? Number(t) : 0;
+  return n >= 1 && n <= 65535 ? n : undefined;
+}
+
+/**
+ * Run the folder or file in a disposable Podman container. The daemon previews
+ * what it can reach and the exact commands; confirming opens a terminal with the
+ * container's shell. Under a High finding, or for an installer, the network
+ * starts off.
+ */
+function OpenInContainer({ report, subject }: { report: Report; subject: "folder" | "file" }) {
+  const tools = useToolGroups();
+  const cautious = report.kind === "Installer inspection" || report.findings.some((f) => f.severity === "high");
+  const [network, setNetwork] = useState(!cautious);
+  const [port, setPort] = useState("");
+  const parsed = parsePort(port);
+  const podman = tools.data?.find((t) => t.id === "container");
+  return (
+    <section aria-label="Run it in a disposable container" className="flex max-w-[56ch] flex-col gap-3">
+      <div className="flex flex-col gap-1">
+        <h3 className="m-0 text-small font-semibold text-ink-muted">Run it in a disposable container</h3>
+        <p className="m-0 text-small text-ink-muted">
+          A terminal opens with a shell in a Podman container that holds a copy of this {subject} and none of your files or keys. You run it there yourself
+          {report.kind === "Installer inspection" ? ", unlike the rehearsal, which runs the script once and records what it does" : ""}. Leaving the shell
+          deletes the container.
+        </p>
+      </div>
+      {podman && !podman.installed ? (
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-small text-ink-muted">This needs Podman, which is not installed.</span>
+          <ActionDialog action={{ kind: "install_tool", tool: "container" }} label="Install Podman…" />
+        </div>
+      ) : (
+        <>
+          <Toggle
+            checked={network}
+            onChange={setNetwork}
+            label="Allow network"
+            description={
+              cautious
+                ? "Off because of what this report found. Installing dependencies needs it."
+                : "Installing dependencies needs it. Code inside can then also reach your local network."
+            }
+          />
+          <Disclosure panel={false} summary={<span className="text-small font-semibold text-ink-muted">Open a port for a web app</span>}>
+            <TextField
+              label="Port inside the container"
+              value={port}
+              onChange={setPort}
+              mono
+              invalid={parsed === undefined}
+              hint={
+                parsed === undefined
+                  ? "Use a number from 1 to 65535."
+                  : parsed === null
+                    ? "For example 3000. You then open it in your own browser at 127.0.0.1."
+                    : `Open http://127.0.0.1:${parsed} in your browser. Only this computer can reach it.`
+              }
+            />
+          </Disclosure>
+          <div>
+            <ActionDialog
+              action={{ kind: "open_container", path: report.subject, offline: !network, port: parsed ?? null }}
+              label="Open in a disposable container…"
+              disabled={parsed === undefined}
+            />
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
 export function ReportFollowUp({ report }: { report: Report }) {
+  const subject = report.subject.startsWith("/") ? RUNNABLE[report.kind] : undefined;
+  return (
+    <>
+      <KindFollowUp report={report} />
+      {subject && <OpenInContainer report={report} subject={subject} />}
+    </>
+  );
+}
+
+function KindFollowUp({ report }: { report: Report }) {
   switch (report.kind) {
     case "File scan":
       return <FlaggedFiles report={report.id} />;

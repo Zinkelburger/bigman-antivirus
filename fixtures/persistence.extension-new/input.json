@@ -1,0 +1,26 @@
+{
+  "old": {
+    "format": 4,
+    "created": 1,
+    "entries": {},
+    "errors": []
+  },
+  "current": {
+    "format": 4,
+    "created": 2,
+    "entries": {
+      "/home/user/.vscode/extensions/example.formatter": {
+        "hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "bytes": 52311,
+        "mode": 33188,
+        "uid": 1000,
+        "gid": 1000,
+        "caps": null,
+        "category": "extensions",
+        "version": "2.3.0"
+      }
+    },
+    "errors": []
+  },
+  "attribution": {}
+}

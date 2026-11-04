@@ -1,0 +1,8 @@
+{
+  "driver": "repo",
+  "fires": [
+    "repo.encoded-url"
+  ],
+  "about": "A .env value posing as an API key that is a base64-encoded web address.",
+  "input": "input.json"
+}

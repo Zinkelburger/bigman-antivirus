@@ -62,7 +62,7 @@ These observations come from reading `browser-extension/link-detector.js`, `cont
 | PH-07 | OAuth consent phishing (malicious OAuth or GitHub apps) | High | Gap | Consent-page explainer that surfaces scopes, app name, publisher and referrer; warn on write or admin scopes reached from an external link. |
 | PH-08 | Device-code phishing (GitHub, Microsoft, others) | High | Gap | Content script on device-login pages: "Did you start this login yourself, on this computer?" Interstitial when the page was reached from a link. |
 | PH-09 | Malicious links in issue, PR, discussion and review comments | Medium | Partial | Forge-aware rules: flag archive or download hosts and shorteners in comments by new accounts; download-scan results surfaced inline. |
-| PH-10 | Fake job-interview and collaboration lures | High | Partial | `bigman packages` on take-home repos; extension rule for "interview" pages that push terminal commands or "camera driver" fixes. |
+| PH-10 | Fake job-interview and collaboration lures | High | Partial | `bigman repo-check URL` reads a take-home before cloning; loader, disguised-font and AI-settings rules; extension rule for "interview" pages that push terminal commands or "camera driver" fixes. |
 | PH-11 | ClickFix / fake CAPTCHA "paste into terminal or Run dialog" (Linux variants) | High | Partial | Linux phrases (Alt+F2, Ctrl+Alt+T, "terminal"); correlate with page clipboard writes; send copied text to the installer inspector. |
 | PH-12 | Clipboard hijacking of terminal commands (pastejacking, hidden text, zero-width and bidi characters) | High | Gap | Copy guard: compare selection and clipboard payload; flag trailing newline, invisible or bidi characters, hidden DOM text; `doctor` check for bracketed paste. |
 | PH-13 | Malicious QR codes (quishing) | Low | Gap | Optional local QR decode of page images and pasted screenshots; run the decoded URL through the link rules. |
@@ -348,6 +348,8 @@ These observations come from reading `browser-extension/link-detector.js`, `cont
 - **Real-world examples:**
   - Contagious Interview (MITRE G1052; also DeceptiveDevelopment, DEV#POPPER) targets Windows, **Linux** and macOS. On GNOME it persists via an XDG autostart `.desktop` entry (T1547.013). https://attack.mitre.org/groups/G1052/
   - Sekoia "ClickFake Interview", 2025-03-31: fake crypto-job interview sites show a camera error with a command to paste. Windows and macOS chains were documented; Sekoia did not describe a Linux chain. https://www.sekoia.com/blog/clickfake-interview-campaign-by-lazarus
+  - Binance, 2026-10-29, about $6.3 billion. Per Reuters (syndicated by NBC News), the attackers first got a wallet engineer to install a tampered coding tool from a search ad in June. In September a second engineer was interviewed by a fake HR person and a fake CEO, then downloaded a "coding assignment" repository onto his work computer. That machine and an internal AI tool were used to reach two more wallet engineers. The FBI attributes it to North Korea. https://www.nbcnews.com/business/markets/binance-hack-fake-job-interview-heist-rcna607238
+  - A developer who has received these repositories all year wrote up each shape: a server error handler that fetches a paste and runs it with `new (Function.constructor)('require', …)`; the same with the address hidden as a base64 "API key" in `.env`; `.vscode/tasks.json` set to `folderOpen` with hidden output; a `.woff2` "font" of hex text decoded and run by a config file. Post: https://www.reddit.com/r/ClaudeCode/comments/1xmznwt/the_binance_theft_started_as_a_coding_assignment/ ; advisories: https://github.com/Ubuntu-Buddha/security-advisories . How Bigman covers each: [interview-repo lures](../research/interview-repo-lures.md).
   - axios, 2026-03-31: the lead maintainer was approached by someone impersonating a company founder, invited to a branded fake Slack workspace and a staged Teams meeting, and told something on his system was "out of date". The "missing item" he installed was a RAT. The attacker then published `axios@1.14.1` and `0.30.4` with a cross-platform RAT dependency. Reporting attributes it to UNC1069. Postmortem: https://github.com/axios/axios/issues/10636 ; https://socket.dev/blog/axios-maintainer-confirms-social-engineering-behind-npm-compromise
 - **What a defender inspects:**
   - `~/.config/autostart/*.desktop` and `systemctl --user list-unit-files --state=enabled` (Bigman `changes` already baselines autostart and user units).
@@ -357,20 +359,26 @@ These observations come from reading `browser-extension/link-detector.js`, `cont
   - A page whose text combines interview or meeting vocabulary ("interview", "assessment", "camera", "microphone", "driver", "SDK", "meeting") with a terminal or paste instruction, or with an installer download.
   - A download of a script or AppImage from a domain first seen today.
   - Slack or Teams lookalike workspace domains.
-- **Bigman today:** **Partial.** `bigman repo-check` (and Inspect on a folder) now shows what a take-home repository runs on open: auto-run tasks, devcontainer commands, git hooks and config commands.
+- **Bigman today:** **Partial.** `bigman repo-check` (and Inspect on a folder) shows what a take-home repository runs on open: auto-run tasks (High when hidden or downloading), devcontainer commands, git hooks and config commands.
+  - The daemon's project watch checks a repository cloned or unpacked into `~/Projects`, `~/src`, `~/code`, Downloads and similar folders as soon as git finishes, and notifies on a High finding.
+  - `bigman repo-check https://github.com/OWNER/REPO` (also GitLab, Codeberg, Bitbucket, and Inspect's URL field) reads the repository before it is cloned: git fetches the latest commit into a bare repository, so nothing is checked out or run.
+  - It also reads the project's own source: `repo.code-loader` (text run with the Function constructor and `require`, or `eval` next to a fetch or decode), `repo.encoded-url`, `repo.payload-host` and `repo.disguised-asset` (a font or image that is text). See SC-24.
+  - AI-tool settings shipped with the project that redirect its API traffic or approve commands for you: `repo.ai-settings`; instruction files that tell the assistant to pipe a download into a shell: `repo.instructions-run-download`.
+  - A setup step that swaps a familiar command in `~/.local/bin` or `~/bin`: `persistence.shadowed-command`.
   - `bigman packages DIR` flags `package.lifecycle` and `package.script` in take-home repositories. This is npm/pnpm only; a Python take-home is not covered, see [supply-chain](./02-supply-chain-packages.md).
   - `bigman changes` would surface a new `.desktop` autostart entry.
   - `page.clickfix` does not match the "camera driver" wording (probe showed no finding).
 - **Proposed mitigation / detection:**
   - Extension rule `page.fake-interview`: interview, meeting or camera vocabulary plus a paste or terminal instruction.
   - Desktop: a "new project opened" helper (`bigman packages --watch ~/src` or a GUI drop target) that inspects a cloned repo before `npm install`.
-  - Guidance card: "Never run code during an interview; use a disposable VM."
+  - Guidance card: "Never run code during an interview; use a disposable VM." (Each new High repository finding now says this in its next step, and `bigman try` provides a disposable container: a copy of the project with none of your files, keys or environment, deleted on exit.)
   - Bigman `sandbox` can rehearse an installer offline.
 - **Test case idea:**
   - Fixture page "Camera access failed. Update your camera driver: open Terminal and paste the command below" (no real command). Assert `page.fake-interview`.
   - A temporary repo whose `package.json` has a `postinstall` that only runs `echo`. Assert `package.lifecycle`.
 - **References:**
   - The URLs above.
+  - https://github.com/Ubuntu-Buddha/security-advisories
   - MITRE T1566.003, T1204.002, T1547.013 https://attack.mitre.org/techniques/T1547/013/
 
 ### PH-11 ClickFix / fake CAPTCHA "paste into terminal or Run dialog" (Linux variants)
