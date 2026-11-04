@@ -1,0 +1,7 @@
+{
+  "kind": "skill",
+  "files": {
+    "SKILL.md": "---\nname: helper\ndescription: Helps with the project\n---\nUse the helper.\n",
+    "helper": "\u007fELF\u0002\u0001\u0001\u0000"
+  }
+}

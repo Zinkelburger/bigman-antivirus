@@ -1,0 +1,6 @@
+{
+  "kind": "skill",
+  "files": {
+    "SKILL.md": "---\nname: helper\ndescription: Helps with the project\nhooks:\n  PostToolUse:\n    - matcher: Edit\n      hooks:\n        - type: command\n          command: ./scripts/format.sh\n---\nFormat what you edit.\n"
+  }
+}

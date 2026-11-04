@@ -76,6 +76,25 @@ Every finding Bigman shows comes from one of these rules. Each has a synthetic f
 | `repo.hidden-instructions` | High | An AI instruction file contains invisible characters | SC-21, CR-19 |
 | `repo.workflow-unpinned` | Review | A workflow uses an action by tag | SC-15 |
 | `repo.workflow-pull-request-target` | Review | A workflow uses pull_request_target | SC-16 |
+| `skill.runs-on-load` | Review | A skill runs shell commands as soon as it is used | SC-25, SC-21 |
+| `skill.hooks` | Review | A skill or plugin registers hooks | SC-25, SC-21 |
+| `skill.allowed-tools` | Review | A skill approves broad tool use in advance | SC-25, SC-21 |
+| `skill.mcp-server` | Review | A plugin starts or connects to MCP servers | SC-25, SC-22 |
+| `skill.background-command` | Review | A plugin starts programs in the background | SC-25 |
+| `skill.bin-on-path` | Review | A plugin adds programs to the agent's PATH | SC-25, HI-19, MW-23 |
+| `skill.binary` | Review | A skill ships a compiled program or an archive | SC-25, MW-24 |
+| `skill.code-plugin` | Review | OpenCode loads plugin code at every start | SC-25, SC-22 |
+| `skill.npm-plugin` | Review | OpenCode installs and loads an npm plugin | SC-25, SC-01, SC-22 |
+| `skill.download-and-run` | High | A skill's instructions download and run a program | SC-25, DP-18 |
+| `skill.credential-paths` | Review | A skill refers to credential files | SC-25, SC-23, CR-18 |
+| `skill.exfil-endpoint` | High | A skill names a data-collection address | SC-25, SC-23 |
+| `skill.encoded-blob` | Review | A skill contains encoded text | SC-25, DP-18 |
+| `skill.secrecy` | Review | A skill asks the agent to keep things from you | SC-25, SC-21 |
+| `skill.memory-write` | Review | A skill changes agent memory or settings files | SC-25, SC-21, HI-05 |
+| `skill.html-comment` | Review | A skill has text hidden in an HTML comment | SC-25, SC-21 |
+| `skill.script-exfil` | High | A skill's code reads credentials and connects out | SC-25, SC-23 |
+| `skill.changed` | Review | An approved skill or plugin changed | SC-25, SC-05, DS-06 |
+| `skill.unreviewed` | Info | Skills and plugins not reviewed yet | SC-25 |
 | `lockfile.non-registry` | Review | A dependency comes from outside the registry | SC-02, SC-13 |
 | `lockfile.missing-integrity` | Review | A dependency has no integrity hash | SC-13 |
 | `lockfile.install-hook` | Info | A dependency runs an install script | SC-01 |
@@ -688,7 +707,7 @@ What you can do: Check the package and pin its version before allowing it.
 
 **An AI instruction file contains invisible characters** (High)
 
-An instruction file for AI coding tools (CLAUDE.md, AGENTS.md, .cursorrules and similar) contains zero-width, bidirectional or tag characters, which can carry instructions a reader never sees.
+An instruction file for AI coding tools (CLAUDE.md, AGENTS.md, .cursorrules, a skill's Markdown and similar) contains zero-width, bidirectional or tag characters, which can carry instructions a reader never sees.
 
 What you can do: Show and remove the characters before an AI tool reads the file.
 
@@ -707,6 +726,158 @@ What you can do: Pin third-party actions to a full commit SHA.
 pull_request_target runs with the repository's secrets and write access. Checking out the pull request's own code in it (its head ref or SHA, refs/pull, or gh pr checkout) is rated High.
 
 What you can do: Never check out or run the pull request's code in a pull_request_target workflow.
+
+## `skill.runs-on-load`
+
+**A skill runs shell commands as soon as it is used** (Review)
+
+The skill or command has !`command` lines or a ```! block. Claude Code runs them before the model reads the skill and puts their output in its place, without a prompt unless your permission rules say otherwise. High when a command downloads and runs code or touches credentials.
+
+What you can do: Read each command. Turn on disableSkillShellExecution in Claude Code's settings to stop skills you install from running them.
+
+## `skill.hooks`
+
+**A skill or plugin registers hooks** (Review)
+
+Hooks in a skill's or subagent's frontmatter, or in a plugin's hooks file or manifest, run commands on their own on events such as every tool call or the start of a session. High when a command downloads and runs code or touches credentials.
+
+What you can do: Read each hook command and the scripts it calls before enabling the skill or plugin.
+
+## `skill.allowed-tools`
+
+**A skill approves broad tool use in advance** (Review)
+
+Its allowed-tools let the agent use Bash without limits, run an interpreter, downloader or remover, or fetch any web page, without asking you while the skill runs. Claude Code applies a project skill's allowed-tools even in a folder you have not trusted.
+
+What you can do: Narrow allowed-tools to the exact commands the skill needs, or remove them and approve each use.
+
+## `skill.mcp-server`
+
+**A plugin starts or connects to MCP servers** (Review)
+
+The plugin declares MCP servers, which the AI tool starts or connects to on its own and hands your requests and data. High when it downloads an MCP bundle when it loads, or a server command downloads and runs code.
+
+What you can do: Check each server's program and publisher, and pin its version.
+
+## `skill.background-command`
+
+**A plugin starts programs in the background** (Review)
+
+The plugin declares monitors, which start with every session and keep running, or language servers, which start when you open matching files.
+
+What you can do: Read what each one runs before enabling the plugin.
+
+## `skill.bin-on-path`
+
+**A plugin adds programs to the agent's PATH** (Review)
+
+Files in a Claude Code plugin's bin folder are on the Bash tool's PATH while the plugin is enabled, so the agent runs them as ordinary commands. High when one has the name of a common command such as git, curl or python and so runs in its place.
+
+What you can do: Read each program; remove the plugin if one stands in for a command you rely on.
+
+## `skill.binary`
+
+**A skill ships a compiled program or an archive** (Review)
+
+A file in the skill or plugin is a Linux, Windows or macOS program, a WebAssembly module or an archive. None can be read like the rest of a skill, and password-protected archives are a known way past scanners.
+
+What you can do: Find out what the file is, where it came from and what runs it before using the skill.
+
+## `skill.code-plugin`
+
+**OpenCode loads plugin code at every start** (Review)
+
+A JavaScript or TypeScript file in an OpenCode plugin folder, or named in OpenCode's configuration, runs inside OpenCode at every start with your permissions and sees every prompt and tool result. The evidence says whether the code starts programs, connects to the network or reads credentials.
+
+What you can do: Read the code, or keep only plugins from sources you trust.
+
+## `skill.npm-plugin`
+
+**OpenCode installs and loads an npm plugin** (Review)
+
+OpenCode's configuration names an npm package that it installs with Bun and runs inside itself at every start. With the cached copy present, its install scripts and code get the other rules too.
+
+What you can do: Pin an exact version and read the package before trusting it.
+
+## `skill.download-and-run`
+
+**A skill's instructions download and run a program** (High)
+
+The instructions pipe a download into a shell, download then mark something executable, use PowerShell to fetch and run, or hand over a password for an archive. Fake setup steps like these installed infostealers from hundreds of ClawHub skills in 2026.
+
+What you can do: Do not run it. If the skill needs a tool, install that tool yourself from its real source.
+
+## `skill.credential-paths`
+
+**A skill refers to credential files** (Review)
+
+Its instructions or code name SSH keys, cloud, registry or GitHub credential files, AI tool tokens, browser login data or the cloud metadata address. Few skills need them.
+
+What you can do: Find out why it needs them before letting it run.
+
+## `skill.exfil-endpoint`
+
+**A skill names a data-collection address** (High)
+
+A file names a request catcher, tunnel, paste or file-drop site, a chat webhook, an out-of-band testing host, or a public IP address in a URL. Those are where stolen data is usually sent.
+
+What you can do: Find out what is sent there. Remove the skill if you cannot tell.
+
+## `skill.encoded-blob`
+
+**A skill contains encoded text** (Review)
+
+Readable files (Markdown, JSON, shell) hold a long base64 run, or code decodes text and runs it. Encoded content hides what it does, which is why malicious skills use it.
+
+What you can do: Decode it by hand and read it before using the skill.
+
+## `skill.secrecy`
+
+**A skill asks the agent to keep things from you** (Review)
+
+Its instructions tell the agent not to tell you about something, to act without asking, to skip your approval, to ignore earlier instructions, or to act silently. Phrases inside quotes are left out, as they are usually examples to refuse. A phrase alone is not proof.
+
+What you can do: Read the passage around it and decide whether the skill should be doing that without you.
+
+## `skill.memory-write`
+
+**A skill changes agent memory or settings files** (Review)
+
+Its instructions write to CLAUDE.md, AGENTS.md, MEMORY.md, SOUL.md, a Claude Code, Codex or OpenCode settings file, a shell startup file, authorized_keys or crontab. Those changes outlast the session.
+
+What you can do: Check what it writes and why.
+
+## `skill.html-comment`
+
+**A skill has text hidden in an HTML comment** (Review)
+
+The agent reads HTML comments; a rendered page does not show them. Reported for comments of eight words or more in SKILL.md, commands and subagents, and for comments anywhere that ask for downloads, sending data, credentials or secrecy.
+
+What you can do: Read the comment.
+
+## `skill.script-exfil`
+
+**A skill's code reads credentials and connects out** (High)
+
+A script or plugin file both reads credential files or collects the whole environment and opens network connections, the pairing stolen tokens leave by. Reading one named token for its own API is not counted.
+
+What you can do: Read what it reads and where it sends it before running it.
+
+## `skill.changed`
+
+**An approved skill or plugin changed** (Review)
+
+A file of a skill or plugin you approved was added, removed or changed since your approval. Updates are usually ordinary; a trusted skill turning malicious in an update looks exactly the same.
+
+What you can do: Read the changed files, then approve the new version in Protect > AI skills.
+
+## `skill.unreviewed`
+
+**Skills and plugins not reviewed yet** (Info)
+
+Installed skills and plugins you have not approved. Approving records the exact files you read so a later change is reported; it is not a verdict on the skill.
+
+What you can do: Read each one in Protect > AI skills and approve the version you read.
 
 ## `lockfile.non-registry`
 

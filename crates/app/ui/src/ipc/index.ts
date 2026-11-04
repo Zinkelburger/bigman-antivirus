@@ -34,6 +34,8 @@ export type { Response } from "./generated/Response";
 export type { Sample } from "./generated/Sample";
 export type { SampleSeries } from "./generated/SampleSeries";
 export type { ScanItem } from "./generated/ScanItem";
+export type { SkillFile } from "./generated/SkillFile";
+export type { SkillItem } from "./generated/SkillItem";
 export type { Severity } from "./generated/Severity";
 export type { Suggestion } from "./generated/Suggestion";
 export type { SignatureState } from "./generated/SignatureState";

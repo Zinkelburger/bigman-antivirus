@@ -84,6 +84,17 @@ enum Commands {
         #[arg(long)]
         accept_baseline: Option<String>,
     },
+    /// Installed skills and plugins for Claude Code, OpenCode and Codex: what each
+    /// runs without asking, what it pre-approves, and whether you approved it.
+    Skills {
+        /// Approve the version a report listed: the report ID and the item's
+        /// number (from the list) or key.
+        #[arg(long, num_args = 2, value_names = ["REPORT_ID", "ITEM"])]
+        approve: Option<Vec<String>>,
+        /// Take back an approval by the item's key, restoring the one it replaced.
+        #[arg(long, value_name = "KEY")]
+        revoke: Option<String>,
+    },
     /// Open a shell in a disposable Podman container that holds a copy of a folder
     /// or file and nothing else from this computer. The container and the copy are
     /// deleted when the shell exits.
@@ -442,6 +453,18 @@ fn run() -> Result<()> {
         Some(Commands::RepoCheck { path }) if checks::gitremote::repo_url(&path).is_some() => {
             Some(checks::gitremote::check(&store, &path, &stop)?)
         }
+        Some(Commands::Skills { approve, revoke }) => match (approve, revoke) {
+            (Some(args), _) => {
+                let key = checks::skills::key_for(&store, &args[0], &args[1])?;
+                println!("{}", checks::skills::approve(&store, &args[0], &key)?);
+                None
+            }
+            (None, Some(key)) => {
+                println!("{}", checks::skills::revoke(&store, &key)?);
+                None
+            }
+            (None, None) => Some(checks::skills::inventory(&store)?),
+        },
         Some(Commands::RepoCheck { path }) => {
             let r = checks::repo::repo_check(Path::new(&path))?;
             store.save(&r)?;

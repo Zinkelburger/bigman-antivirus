@@ -65,6 +65,8 @@ const KIND_TITLE: Record<string, string> = {
   "osv integration": "Dependency advisories",
   "Canary verification": "Canary test",
   "Local canary setup": "Canary setup",
+  "AI skills and plugins": "AI skills and plugins",
+  "Skill check": "Skill",
 };
 
 export function reportTitle(kind: string): string {

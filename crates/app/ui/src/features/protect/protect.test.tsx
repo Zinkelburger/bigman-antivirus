@@ -70,3 +70,36 @@ describe("Protect updates", () => {
     expect(within(result).getAllByText(/outranks the distribution/).length).toBeGreaterThan(0);
   });
 });
+
+describe("Protect AI skills", () => {
+  it("lists skills and plugins, opens one with what it runs, and approves the version read", async () => {
+    useShell.setState({ protectView: "skills" });
+    const { user } = renderWithDaemon(<ProtectPage />);
+    await user.click(await screen.findByRole("button", { name: "Check skills and plugins" }));
+    expect(await screen.findByRole("heading", { name: "4 skills and plugins · 1 changed since you approved them · 2 not reviewed · 3 with findings" })).toBeInTheDocument();
+    const grid = screen.getByRole("grid", { name: "Skills and plugins" });
+    const rows = within(grid).getAllByRole("row").slice(1);
+    expect(rows[0]).toHaveTextContent("deploy-helper");
+    expect(rows[0]).toHaveTextContent("Changedsince you approved it 12 days ago");
+    // Focus moves to the result, and the badge never stands for the count.
+    expect(screen.getByRole("heading", { name: /^4 skills and plugins/ })).toHaveFocus();
+    expect(within(grid).getByRole("row", { name: /repo-setup/ })).toHaveTextContent("High3 findings");
+
+    await user.click(within(grid).getByRole("row", { name: /repo-setup/ }));
+    const panel = await screen.findByRole("dialog", { name: "repo-setup" });
+    expect(within(panel).getByText("When it is used: git branch --show-current")).toBeInTheDocument();
+    // The answer leads: the High finding and what to do, before anything else.
+    const first = within(panel).getByRole("region", { name: "What to look at first" });
+    expect(within(first).getByText("Its instructions download and run a program")).toBeInTheDocument();
+    expect(within(panel).getByText("gio trash '/home/sam/.agents/skills/repo-setup'")).toBeInTheDocument();
+    // The SKILL.md is shown with the cited line marked.
+    expect(within(panel).getAllByText("skill.download-and-run").length).toBeGreaterThan(0);
+
+    await user.click(within(panel).getByRole("button", { name: "Approve…" }));
+    const dialog = await screen.findByRole("dialog", { name: "Approve this version" });
+    expect(await within(dialog).findByText(/It has a High finding, "Its instructions download and run a program", and 2 more to review/)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Approve" }));
+    expect(await within(dialog).findByText("repo-setup is approved as it is now.")).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Undo" })).toBeInTheDocument();
+  });
+});

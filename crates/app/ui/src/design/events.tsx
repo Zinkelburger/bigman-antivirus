@@ -15,6 +15,7 @@ import {
   Rocket,
   ShieldAlert,
   ShieldBan,
+  Sparkles,
   Upload,
   type LucideIcon,
 } from "lucide-react";
@@ -45,6 +46,7 @@ const SOURCE_LABEL: Partial<Record<SourceId, string>> = {
   extension: "Extensions",
   import: "Imported",
   ssh: "SSH",
+  skill: "AI skills",
 };
 
 const SOURCE_ICON: Partial<Record<SourceId, LucideIcon>> = {
@@ -63,6 +65,7 @@ const SOURCE_ICON: Partial<Record<SourceId, LucideIcon>> = {
   extension: Puzzle,
   import: Download,
   ssh: KeyRound,
+  skill: Sparkles,
 };
 
 export function sourceLabel(source: SourceId): string {

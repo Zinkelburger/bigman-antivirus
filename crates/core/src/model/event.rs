@@ -25,6 +25,8 @@ pub enum SourceId {
     Import,
     /// SSH keys, tunnels and network logins.
     Ssh,
+    /// AI tool skills and plugins that appeared or changed.
+    Skill,
 }
 
 impl SourceId {
@@ -45,6 +47,7 @@ impl SourceId {
             SourceId::Extension => "extension",
             SourceId::Import => "import",
             SourceId::Ssh => "ssh",
+            SourceId::Skill => "skill",
         }
     }
     pub fn parse(s: &str) -> Option<SourceId> {
@@ -52,7 +55,7 @@ impl SourceId {
     }
 }
 
-pub const ALL_SOURCES: [SourceId; 15] = [
+pub const ALL_SOURCES: [SourceId; 16] = [
     SourceId::Network,
     SourceId::Listener,
     SourceId::Receipt,
@@ -68,6 +71,7 @@ pub const ALL_SOURCES: [SourceId; 15] = [
     SourceId::Extension,
     SourceId::Import,
     SourceId::Ssh,
+    SourceId::Skill,
 ];
 
 /// Where an event's evidence lives.

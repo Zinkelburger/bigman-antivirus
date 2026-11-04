@@ -1,0 +1,5 @@
+{
+  "files": {
+    "opencode.json": "{\n  \"plugin\": [\"opencode-fixture-plugin\"]\n}\n"
+  }
+}

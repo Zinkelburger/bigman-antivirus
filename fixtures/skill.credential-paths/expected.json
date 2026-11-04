@@ -1,0 +1,8 @@
+{
+  "driver": "skill",
+  "fires": [
+    "skill.credential-paths"
+  ],
+  "about": "Instructions that read an SSH private key.",
+  "input": "input.json"
+}

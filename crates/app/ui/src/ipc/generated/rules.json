@@ -751,7 +751,7 @@
     "id": "repo.hidden-instructions",
     "severity": "high",
     "title": "An AI instruction file contains invisible characters",
-    "explanation": "An instruction file for AI coding tools (CLAUDE.md, AGENTS.md, .cursorrules and similar) contains zero-width, bidirectional or tag characters, which can carry instructions a reader never sees.",
+    "explanation": "An instruction file for AI coding tools (CLAUDE.md, AGENTS.md, .cursorrules, a skill's Markdown and similar) contains zero-width, bidirectional or tag characters, which can carry instructions a reader never sees.",
     "remediation": "Show and remove the characters before an AI tool reads the file.",
     "threats": [
       "SC-21",
@@ -776,6 +776,218 @@
     "remediation": "Never check out or run the pull request's code in a pull_request_target workflow.",
     "threats": [
       "SC-16"
+    ]
+  },
+  {
+    "id": "skill.runs-on-load",
+    "severity": "review",
+    "title": "A skill runs shell commands as soon as it is used",
+    "explanation": "The skill or command has !`command` lines or a ```! block. Claude Code runs them before the model reads the skill and puts their output in its place, without a prompt unless your permission rules say otherwise. High when a command downloads and runs code or touches credentials.",
+    "remediation": "Read each command. Turn on disableSkillShellExecution in Claude Code's settings to stop skills you install from running them.",
+    "threats": [
+      "SC-25",
+      "SC-21"
+    ]
+  },
+  {
+    "id": "skill.hooks",
+    "severity": "review",
+    "title": "A skill or plugin registers hooks",
+    "explanation": "Hooks in a skill's or subagent's frontmatter, or in a plugin's hooks file or manifest, run commands on their own on events such as every tool call or the start of a session. High when a command downloads and runs code or touches credentials.",
+    "remediation": "Read each hook command and the scripts it calls before enabling the skill or plugin.",
+    "threats": [
+      "SC-25",
+      "SC-21"
+    ]
+  },
+  {
+    "id": "skill.allowed-tools",
+    "severity": "review",
+    "title": "A skill approves broad tool use in advance",
+    "explanation": "Its allowed-tools let the agent use Bash without limits, run an interpreter, downloader or remover, or fetch any web page, without asking you while the skill runs. Claude Code applies a project skill's allowed-tools even in a folder you have not trusted.",
+    "remediation": "Narrow allowed-tools to the exact commands the skill needs, or remove them and approve each use.",
+    "threats": [
+      "SC-25",
+      "SC-21"
+    ]
+  },
+  {
+    "id": "skill.mcp-server",
+    "severity": "review",
+    "title": "A plugin starts or connects to MCP servers",
+    "explanation": "The plugin declares MCP servers, which the AI tool starts or connects to on its own and hands your requests and data. High when it downloads an MCP bundle when it loads, or a server command downloads and runs code.",
+    "remediation": "Check each server's program and publisher, and pin its version.",
+    "threats": [
+      "SC-25",
+      "SC-22"
+    ]
+  },
+  {
+    "id": "skill.background-command",
+    "severity": "review",
+    "title": "A plugin starts programs in the background",
+    "explanation": "The plugin declares monitors, which start with every session and keep running, or language servers, which start when you open matching files.",
+    "remediation": "Read what each one runs before enabling the plugin.",
+    "threats": [
+      "SC-25"
+    ]
+  },
+  {
+    "id": "skill.bin-on-path",
+    "severity": "review",
+    "title": "A plugin adds programs to the agent's PATH",
+    "explanation": "Files in a Claude Code plugin's bin folder are on the Bash tool's PATH while the plugin is enabled, so the agent runs them as ordinary commands. High when one has the name of a common command such as git, curl or python and so runs in its place.",
+    "remediation": "Read each program; remove the plugin if one stands in for a command you rely on.",
+    "threats": [
+      "SC-25",
+      "HI-19",
+      "MW-23"
+    ]
+  },
+  {
+    "id": "skill.binary",
+    "severity": "review",
+    "title": "A skill ships a compiled program or an archive",
+    "explanation": "A file in the skill or plugin is a Linux, Windows or macOS program, a WebAssembly module or an archive. None can be read like the rest of a skill, and password-protected archives are a known way past scanners.",
+    "remediation": "Find out what the file is, where it came from and what runs it before using the skill.",
+    "threats": [
+      "SC-25",
+      "MW-24"
+    ]
+  },
+  {
+    "id": "skill.code-plugin",
+    "severity": "review",
+    "title": "OpenCode loads plugin code at every start",
+    "explanation": "A JavaScript or TypeScript file in an OpenCode plugin folder, or named in OpenCode's configuration, runs inside OpenCode at every start with your permissions and sees every prompt and tool result. The evidence says whether the code starts programs, connects to the network or reads credentials.",
+    "remediation": "Read the code, or keep only plugins from sources you trust.",
+    "threats": [
+      "SC-25",
+      "SC-22"
+    ]
+  },
+  {
+    "id": "skill.npm-plugin",
+    "severity": "review",
+    "title": "OpenCode installs and loads an npm plugin",
+    "explanation": "OpenCode's configuration names an npm package that it installs with Bun and runs inside itself at every start. With the cached copy present, its install scripts and code get the other rules too.",
+    "remediation": "Pin an exact version and read the package before trusting it.",
+    "threats": [
+      "SC-25",
+      "SC-01",
+      "SC-22"
+    ]
+  },
+  {
+    "id": "skill.download-and-run",
+    "severity": "high",
+    "title": "A skill's instructions download and run a program",
+    "explanation": "The instructions pipe a download into a shell, download then mark something executable, use PowerShell to fetch and run, or hand over a password for an archive. Fake setup steps like these installed infostealers from hundreds of ClawHub skills in 2026.",
+    "remediation": "Do not run it. If the skill needs a tool, install that tool yourself from its real source.",
+    "threats": [
+      "SC-25",
+      "DP-18"
+    ]
+  },
+  {
+    "id": "skill.credential-paths",
+    "severity": "review",
+    "title": "A skill refers to credential files",
+    "explanation": "Its instructions or code name SSH keys, cloud, registry or GitHub credential files, AI tool tokens, browser login data or the cloud metadata address. Few skills need them.",
+    "remediation": "Find out why it needs them before letting it run.",
+    "threats": [
+      "SC-25",
+      "SC-23",
+      "CR-18"
+    ]
+  },
+  {
+    "id": "skill.exfil-endpoint",
+    "severity": "high",
+    "title": "A skill names a data-collection address",
+    "explanation": "A file names a request catcher, tunnel, paste or file-drop site, a chat webhook, an out-of-band testing host, or a public IP address in a URL. Those are where stolen data is usually sent.",
+    "remediation": "Find out what is sent there. Remove the skill if you cannot tell.",
+    "threats": [
+      "SC-25",
+      "SC-23"
+    ]
+  },
+  {
+    "id": "skill.encoded-blob",
+    "severity": "review",
+    "title": "A skill contains encoded text",
+    "explanation": "Readable files (Markdown, JSON, shell) hold a long base64 run, or code decodes text and runs it. Encoded content hides what it does, which is why malicious skills use it.",
+    "remediation": "Decode it by hand and read it before using the skill.",
+    "threats": [
+      "SC-25",
+      "DP-18"
+    ]
+  },
+  {
+    "id": "skill.secrecy",
+    "severity": "review",
+    "title": "A skill asks the agent to keep things from you",
+    "explanation": "Its instructions tell the agent not to tell you about something, to act without asking, to skip your approval, to ignore earlier instructions, or to act silently. Phrases inside quotes are left out, as they are usually examples to refuse. A phrase alone is not proof.",
+    "remediation": "Read the passage around it and decide whether the skill should be doing that without you.",
+    "threats": [
+      "SC-25",
+      "SC-21"
+    ]
+  },
+  {
+    "id": "skill.memory-write",
+    "severity": "review",
+    "title": "A skill changes agent memory or settings files",
+    "explanation": "Its instructions write to CLAUDE.md, AGENTS.md, MEMORY.md, SOUL.md, a Claude Code, Codex or OpenCode settings file, a shell startup file, authorized_keys or crontab. Those changes outlast the session.",
+    "remediation": "Check what it writes and why.",
+    "threats": [
+      "SC-25",
+      "SC-21",
+      "HI-05"
+    ]
+  },
+  {
+    "id": "skill.html-comment",
+    "severity": "review",
+    "title": "A skill has text hidden in an HTML comment",
+    "explanation": "The agent reads HTML comments; a rendered page does not show them. Reported for comments of eight words or more in SKILL.md, commands and subagents, and for comments anywhere that ask for downloads, sending data, credentials or secrecy.",
+    "remediation": "Read the comment.",
+    "threats": [
+      "SC-25",
+      "SC-21"
+    ]
+  },
+  {
+    "id": "skill.script-exfil",
+    "severity": "high",
+    "title": "A skill's code reads credentials and connects out",
+    "explanation": "A script or plugin file both reads credential files or collects the whole environment and opens network connections, the pairing stolen tokens leave by. Reading one named token for its own API is not counted.",
+    "remediation": "Read what it reads and where it sends it before running it.",
+    "threats": [
+      "SC-25",
+      "SC-23"
+    ]
+  },
+  {
+    "id": "skill.changed",
+    "severity": "review",
+    "title": "An approved skill or plugin changed",
+    "explanation": "A file of a skill or plugin you approved was added, removed or changed since your approval. Updates are usually ordinary; a trusted skill turning malicious in an update looks exactly the same.",
+    "remediation": "Read the changed files, then approve the new version in Protect > AI skills.",
+    "threats": [
+      "SC-25",
+      "SC-05",
+      "DS-06"
+    ]
+  },
+  {
+    "id": "skill.unreviewed",
+    "severity": "info",
+    "title": "Skills and plugins not reviewed yet",
+    "explanation": "Installed skills and plugins you have not approved. Approving records the exact files you read so a later change is reported; it is not a verdict on the skill.",
+    "remediation": "Read each one in Protect > AI skills and approve the version you read.",
+    "threats": [
+      "SC-25"
     ]
   },
   {

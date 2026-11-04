@@ -1,0 +1,8 @@
+{
+  "driver": "skill",
+  "fires": [
+    "skill.hooks"
+  ],
+  "about": "A skill whose frontmatter registers a PostToolUse hook.",
+  "input": "input.json"
+}

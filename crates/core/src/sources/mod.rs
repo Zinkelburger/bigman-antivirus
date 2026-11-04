@@ -9,6 +9,7 @@ mod listeners;
 mod packages;
 mod projects;
 mod reports;
+mod skills;
 mod snapshot;
 mod ssh;
 mod throughput;
@@ -22,6 +23,7 @@ pub use listeners::Listeners;
 pub use packages::{transaction_summary, Packages};
 pub use projects::Projects;
 pub use reports::Reports;
+pub use skills::Skills;
 pub use snapshot::{network_snapshot, ConnectionRow, ListenerRow, NetworkSnapshot};
 pub use ssh::{AuthorizedKeys, RemoteLogins, StrayKeys, Tunnels};
 pub use throughput::Throughput;
@@ -93,6 +95,7 @@ pub fn label(name: &str) -> &'static str {
         "ssh_logins" => "Network logins",
         "ssh_stray_keys" => "SSH private keys outside ~/.ssh",
         "heartbeat" => "Gaps in Bigman's monitoring",
+        "skills" => "AI skills and plugins, as they are installed or change",
         _ => "Other",
     }
 }
@@ -138,6 +141,7 @@ pub fn linux_sources(stop: crate::runner::Cancel) -> Vec<Box<dyn Source>> {
         )),
         Box::new(StrayKeys::default_dirs()),
         Box::new(Heartbeat::new(Box::new(linux::KernelClock))),
+        Box::new(Skills::new(crate::checks::skills::Places::current())),
     ];
     if let Some(history) = linux::package_history() {
         sources.push(Box::new(Packages::new(

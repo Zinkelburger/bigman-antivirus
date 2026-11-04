@@ -1,0 +1,8 @@
+{
+  "driver": "skill",
+  "fires": [
+    "skill.runs-on-load"
+  ],
+  "about": "A skill that runs git as soon as it is used.",
+  "input": "input.json"
+}

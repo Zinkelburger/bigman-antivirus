@@ -27,5 +27,6 @@ pub mod route;
 pub mod scan;
 pub mod setup;
 pub mod shell;
+pub mod skills;
 pub mod source;
 pub mod ssh;

@@ -14,6 +14,7 @@ use crate::{
         receipt::Receipt,
         scan::{Quarantined, ScanItem},
         setup::ToolGroup,
+        skills::SkillItem,
     },
     model::{Event, Report, Sample, SampleSeries, SourceId, Unread},
     notify::NotificationSettings,
@@ -81,6 +82,13 @@ pub enum Request {
         against: Option<PathBuf>,
     },
     Changes,
+    /// Installed skills and plugins for Claude Code, OpenCode and Codex, with
+    /// what each runs without asking and whether you approved it.
+    Skills,
+    /// The skills and plugins an inventory report listed, with their files.
+    SkillItems {
+        report: String,
+    },
     /// Where packages come from: signatures, transport, key scope, priority
     /// overrides and personal or third-party repositories.
     PackageSources,
@@ -184,6 +192,7 @@ pub enum Response {
     Hardening(Box<HardeningReview>),
     History(Vec<Report>),
     ScanItems(Vec<ScanItem>),
+    SkillItems(Vec<SkillItem>),
     Quarantined(Vec<Quarantined>),
     Canaries(Box<CanaryState>),
     ToolGroups(Vec<ToolGroup>),

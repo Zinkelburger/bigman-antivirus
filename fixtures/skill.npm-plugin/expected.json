@@ -1,0 +1,8 @@
+{
+  "driver": "repo",
+  "fires": [
+    "skill.npm-plugin"
+  ],
+  "about": "A project opencode.json that loads an npm plugin.",
+  "input": "input.json"
+}

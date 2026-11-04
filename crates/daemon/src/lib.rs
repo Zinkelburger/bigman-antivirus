@@ -110,6 +110,10 @@ impl Daemon {
                     store.save(&r)?;
                     Response::Report(Box::new(r))
                 }
+                Request::Skills => report(bigman_core::checks::skills::inventory(store)),
+                Request::SkillItems { report } => {
+                    Response::SkillItems(bigman_core::checks::skills::items(store, &report)?)
+                }
                 Request::Audit { tool, path } => {
                     report(integrations::integration(store, &tool, &path, stop))
                 }

@@ -1,0 +1,7 @@
+{
+  "kind": "plugin",
+  "files": {
+    ".claude-plugin/plugin.json": "{\"name\": \"deploy\"}\n",
+    "monitors/monitors.json": "[{\"name\": \"deploy-status\", \"command\": \"./scripts/poll.sh\", \"description\": \"Deployment status\"}]\n"
+  }
+}

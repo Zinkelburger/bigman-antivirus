@@ -5,7 +5,7 @@
 Companion material in this repository:
 
 - `README.md`: what exists today and the boundaries each workflow promises. Those boundaries stay true.
-- `docs/threats/`: 183 catalogued threats with IDs (PH-, SC-, DP-, HI-, MW-, CR-, NE-, DS-). Features below cite them.
+- `docs/threats/`: 184 catalogued threats with IDs (PH-, SC-, DP-, HI-, MW-, CR-, NE-, DS-). Features below cite them.
 - `docs/research/roadmap.md`, `linux-av-landscape-and-papers.md`, `vulnerability-intelligence-and-feeds.md`: the research this plan is built from. Section 4 of the feeds document is the advisories design.
 - `src/`: the current Rust code. It becomes the `core` crate almost unchanged.
 
@@ -352,6 +352,7 @@ Acceptance: 10,000 fixture events scroll at 60 fps in the virtualized list; a fo
 - **have** Repository and channel audit (`bigman package-sources`, shown in Protect > Updates; DP-10's domain lookups need the network and are not done): apt including deb822, yum.repos.d, zypp, `pacman.conf`, Flatpak remotes, Nix. Disabled signatures, plain HTTP, keys without `signed-by`, stale metadata, third-party repos overriding distro packages. DP-02, DP-03, DP-05, DP-10, DP-12, DP-22.
 - **have** Archive and launcher checks: list-only path traversal, symlink escapes, startup-path entries, `.desktop` launchers disguised as documents. DS-09, DS-13.
 - **have** Downloads watch: inotify on the Downloads directory routes new files to the right inspector or to a ClamAV scan automatically and posts a first-seen event. Replaces the daily timer as the default.
+- **have** AI skills and plugins (`bigman skills`, Protect > AI skills, added 2026-11-03 on branch `agent-skills`): every Claude Code, OpenCode and Codex skill, command, subagent and plugin, with what it runs without the model deciding to (`` !`command` `` lines, hooks, MCP and language servers, monitors, plugin `bin/`, OpenCode code and npm plugins), broad `allowed-tools`, and wording and code malicious skills have used. The user approves the exact files they read; a later change is `skill.changed`. A daemon source posts new and changed ones; skill folders, `SKILL.md`, skill archives and OpenCode plugin packages route through Inspect and the Downloads watch. No model judges the instructions; that stays with the optional reviewer (Part G). SC-21, SC-22, SC-25.
 - **later** AI reviewer on any receipt or inspection (Part G).
 
 Acceptance: one fixture per rule id fires its rule and no other; `bigman inspect` output for the existing fixtures is byte-identical to today's.

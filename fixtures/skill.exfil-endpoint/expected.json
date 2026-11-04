@@ -1,0 +1,8 @@
+{
+  "driver": "skill",
+  "fires": [
+    "skill.exfil-endpoint"
+  ],
+  "about": "Instructions that post a summary to a request catcher.",
+  "input": "input.json"
+}

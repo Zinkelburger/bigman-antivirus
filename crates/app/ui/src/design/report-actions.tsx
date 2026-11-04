@@ -182,6 +182,22 @@ function OpenInContainer({ report, subject }: { report: Report; subject: "folder
   );
 }
 
+/** A skill's SKILL.md, with the lines its findings cite highlighted. */
+function SkillSource({ report }: { report: Report }) {
+  const notes: Record<number, { text: string; tone: "review" | "high" }> = {};
+  for (const f of report.findings) {
+    if (f.severity === "info") continue;
+    for (const line of f.evidence.split("\n")) {
+      const m = /^(?:.*\/)?SKILL\.md, line (\d+)/.exec(line);
+      if (!m) continue;
+      const n = Number(m[1]);
+      const existing = notes[n];
+      notes[n] = { text: existing ? `${existing.text}, ${f.rule}` : f.rule, tone: existing?.tone === "high" || f.severity === "high" ? "high" : "review" };
+    }
+  }
+  return <EvidenceBlock label="SKILL.md, as read" text={report.details} highlight={Object.keys(notes).map(Number)} notes={notes} fold />;
+}
+
 export function ReportFollowUp({ report }: { report: Report }) {
   const subject = report.subject.startsWith("/") ? RUNNABLE[report.kind] : undefined;
   return (
@@ -229,6 +245,11 @@ function KindFollowUp({ report }: { report: Report }) {
       return report.details ? (
         <EvidenceBlock text={report.details} label={report.kind === "PKGBUILD check" ? "The PKGBUILD, as read" : "The launcher, as read"} />
       ) : null;
+    case "AI skills and plugins":
+      // Reviewed one at a time, with their files, in Protect > AI skills.
+      return <p className="m-0 max-w-[56ch] text-ink-muted">Read and approve each one in Protect › AI skills.</p>;
+    case "Skill check":
+      return report.details ? <SkillSource report={report} /> : null;
     case "Persistence changes":
       return report.errors.length === 0 ? (
         <div>

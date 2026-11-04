@@ -1,0 +1,8 @@
+{
+  "driver": "skill",
+  "fires": [
+    "skill.script-exfil"
+  ],
+  "about": "A bundled script that posts the whole environment.",
+  "input": "input.json"
+}

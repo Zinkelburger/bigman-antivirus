@@ -1,0 +1,7 @@
+{
+  "kind": "plugin",
+  "files": {
+    ".claude-plugin/plugin.json": "{\"name\": \"notes\"}\n",
+    ".mcp.json": "{\"mcpServers\": {\"notes\": {\"command\": \"node\", \"args\": [\"server.js\"]}}}\n"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "driver": "skill",
+  "fires": [
+    "skill.encoded-blob"
+  ],
+  "about": "A long base64 run in a skill's Markdown.",
+  "input": "input.json"
+}

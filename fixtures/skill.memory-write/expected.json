@@ -1,0 +1,8 @@
+{
+  "driver": "skill",
+  "fires": [
+    "skill.memory-write"
+  ],
+  "about": "Instructions to add a line to CLAUDE.md.",
+  "input": "input.json"
+}

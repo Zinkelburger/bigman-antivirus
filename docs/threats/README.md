@@ -11,14 +11,14 @@ The prioritised plan built from these files is in [research/roadmap.md](../resea
 | File | Prefix | Entries | Covered | Partial | Gap |
 |---|---|---|---|---|---|
 | [01 Phishing and social engineering](./01-phishing-social-engineering.md) | PH- | 21 | 1 | 11 | 9 |
-| [02 Package registry supply chain](./02-supply-chain-packages.md) | SC- | 24 | 1 | 16 | 7 |
+| [02 Package registry supply chain](./02-supply-chain-packages.md) | SC- | 25 | 1 | 17 | 7 |
 | [03 Distro packaging and install channels](./03-distro-packaging-and-install-channels.md) | DP- | 23 | 3 | 11 | 9 |
 | [04 Host integrity and hardening audit](./04-host-integrity-and-hardening-audit.md) | HI- | 25 | 0 | 20 | 5 |
 | [05 Malware families and detection](./05-malware-families-and-detection.md) | MW- | 24 | 0 | 15 | 9 |
 | [06 Credential and secret protection](./06-credential-and-secret-protection.md) | CR- | 22 | 0 | 7 | 15 |
 | [07 Network exposure and remote access](./07-network-exposure-and-remote-access.md) | NE- | 22 | 0 | 15 | 7 |
 | [08 Desktop and sandboxing](./08-desktop-and-sandboxing.md) | DS- | 22 | 0 | 9 | 13 |
-| **Total** | | **183** | **5** | **104** | **74** |
+| **Total** | | **184** | **5** | **105** | **74** |
 
 "Partial" usually means an existing workflow (ClamAV scans, `bigman inspect`, the startup baseline, the canary or the browser extension) catches some indicators but not the threat as a whole.
 
@@ -34,7 +34,7 @@ The prioritised plan built from these files is in [research/roadmap.md](../resea
 - **Package attribution.** Most host checks become far less noisy once each changed file is checked against the rpm/dpkg/pacman database. See HI-01, HI-22, DP-21, MW-08 and MW-15.
 - **Distro-correct advisories.** "Update X because of CVE Y" must use distro trackers, because distros backport fixes without changing upstream version numbers. See DP-20, HI-23, NE-04, DS-04 and MW-20.
 - **Rootless limits.** Sudoers, `/etc/shadow` status, root cron spools, polkit `/etc` rules and `sshd -T` are unreadable without privilege. Several files propose an optional, user-approved, read-only privileged helper.
-- **Developer-ecosystem focus.** Maintainers are targeted through registry phishing, worms that steal publish tokens, repo-open triggers, AI-tool configs and take-home repositories that run a hidden payload when started. See PH-02, PH-05, PH-10, SC-06, SC-20, SC-21, SC-24 and CR-02.
+- **Developer-ecosystem focus.** Maintainers are targeted through registry phishing, worms that steal publish tokens, repo-open triggers, AI-tool configs, skills and plugins, and take-home repositories that run a hidden payload when started. See PH-02, PH-05, PH-10, SC-06, SC-20, SC-21, SC-24, SC-25 and CR-02.
 - **Licensing.** Bigman is AGPL-3.0-only. GPL-2.0-only sources (ClamAV, OSSEC, Wazuh, AIDE, Tripwire, linux-audit) and Elastic License 2.0 rules cannot be copied in and must be reimplemented or downloaded at the user's request.
 
 ## Verification status

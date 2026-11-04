@@ -1,0 +1,8 @@
+{
+  "driver": "skill",
+  "fires": [
+    "skill.secrecy"
+  ],
+  "about": "Instructions to keep a step from the user.",
+  "input": "input.json"
+}
