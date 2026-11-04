@@ -270,6 +270,21 @@
    ],
    "file": "docs/references/pages/arxiv.org/abs-2406-10279-e1326713.md"
   },
+  "https://arxiv.org/abs/2602.06547": {
+   "file": "docs/references/pages/arxiv.org/abs-2602-06547-f9aec0e4.md",
+   "cited_in": [
+    "docs/research/agent-skill-security.md",
+    "docs/threats/02-supply-chain-packages.md"
+   ],
+   "wayback": "https://web.archive.org/web/20261016130909/https://arxiv.org/abs/2602.06547",
+   "title": "\"Do Not Mention This to the User\": Detecting and Understanding Malicious Agent Skills in the Wild",
+   "site": "arXiv.org",
+   "captured": "2026-11-04T17:35:34Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "d8f7bd166749709494c2952842213ca648ea9584db8cb80adbf364339c868365"
+  },
   "https://asec.ahnlab.com/en/55785/": {
    "file": "docs/references/pages/asec.ahnlab.com/en-55785-32a0c13c.md",
    "cited_in": [
@@ -2250,6 +2265,7 @@
    "sha256": "c6429473b1b3b5eeae7b7db6728d45ddff629b0ed1bd4e6dc6407a6eb71408c3",
    "wayback": "https://web.archive.org/web/20250915135033/https://bugzilla.redhat.com/show_bug.cgi?id=2228188",
    "cited_in": [
+    "docs/research/hardening.md",
     "docs/threats/07-network-exposure-and-remote-access.md"
    ],
    "file": "docs/references/pages/bugzilla.redhat.com/show-bug-cgi-id-2228188-9ca59e3c.md"
@@ -2429,6 +2445,21 @@
    ],
    "file": "docs/references/pages/cloud.google.com/docs-authentication-application-default-credentials-b67c5077.md"
   },
+  "https://code.claude.com/docs/en/plugins-reference": {
+   "file": "docs/references/pages/code.claude.com/docs-en-plugins-reference-e80a6d45.md",
+   "cited_in": [
+    "docs/research/agent-skill-security.md",
+    "docs/threats/02-supply-chain-packages.md"
+   ],
+   "wayback": "https://web.archive.org/web/20261026100951/https://code.claude.com/docs/en/plugins-reference",
+   "title": "Plugin manifest reference - Claude Code Docs",
+   "site": "Claude Code Docs",
+   "captured": "2026-11-04T17:35:35Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "638de22d0244a76be26ed4cbf5025602ae00dc126b526280fc8697bccee51e84"
+  },
   "https://code.claude.com/docs/en/settings-reference": {
    "file": "docs/references/pages/code.claude.com/docs-en-settings-reference-b641351b.md",
    "cited_in": [
@@ -2443,6 +2474,21 @@
    "http_status": 200,
    "content_type": "text/html",
    "sha256": "9101e32e8c96f0814bb420a60c6d67214e88889cf91c7537cffc81746a316281"
+  },
+  "https://code.claude.com/docs/en/skills": {
+   "file": "docs/references/pages/code.claude.com/docs-en-skills-542f21c1.md",
+   "cited_in": [
+    "docs/research/agent-skill-security.md",
+    "docs/threats/02-supply-chain-packages.md"
+   ],
+   "wayback_error": "URLError: <urlopen error [Errno 111] Connection refused>",
+   "title": "Extend Claude with skills - Claude Code Docs",
+   "site": "Claude Code Docs",
+   "captured": "2026-11-04T17:36:32Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "c8e00435b90169d8389337db01d36042c606a541dea8623f6cf2d6719b872eaa"
   },
   "https://code.visualstudio.com/docs/configure/settings-sync": {
    "title": "Settings Sync",
@@ -2655,6 +2701,22 @@
     "docs/threats/01-phishing-social-engineering.md"
    ],
    "file": "docs/references/pages/developers.google.com/safe-browsing-v4-usage-limits-0d0ff1ef.md"
+  },
+  "https://developers.redhat.com/articles/2026/03/10/agent-skills-explore-security-threats-and-controls": {
+   "file": "docs/references/pages/developers.redhat.com/articles-2026-03-10-agent-skills-explore-security-threats-and-controls-6c1d45a4.md",
+   "cited_in": [
+    "docs/research/agent-skill-security.md",
+    "docs/threats/02-supply-chain-packages.md"
+   ],
+   "wayback": "https://web.archive.org/web/20260922142144/https://developers.redhat.com/articles/2026/03/10/agent-skills-explore-security-threats-and-controls",
+   "title": "Agent Skills: Explore security threats and controls | Red Hat Developer",
+   "site": "Red Hat Developer",
+   "published": "2026-03-10T07:16:18+0000",
+   "captured": "2026-11-04T17:35:36Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "f2549d5a298efa26959bda112ab32ad6e6557da1ce46e2469653d4ba97fe9a4e"
   },
   "https://diffoscope.org/": {
    "title": "diffoscope: in-depth comparison of files, archives, and directories",
@@ -3216,6 +3278,7 @@
    "sha256": "9b57137c127bd8739d6692c96185c867c15581bbe4726fcd76b7c55e3bdce2dd",
    "wayback": "https://web.archive.org/web/20261102195221/https://docs.kernel.org/admin-guide/sysctl/kernel.html",
    "cited_in": [
+    "docs/research/hardening.md",
     "docs/threats/04-host-integrity-and-hardening-audit.md"
    ],
    "file": "docs/references/pages/docs.kernel.org/admin-guide-sysctl-kernel-html-0e7de02e.md"
@@ -4303,6 +4366,7 @@
    "sha256": "f13c586d53b3e2fed4e60e2496eb7224b27470c11c9f54e7d26fbe5b2fb4bd5f",
    "wayback": "https://web.archive.org/web/20260917112744/https://github.com/OpenPrinting/cups-browsed/security/advisories/GHSA-rj88-6mr5-rcw8",
    "cited_in": [
+    "docs/research/hardening.md",
     "docs/threats/07-network-exposure-and-remote-access.md"
    ],
    "file": "docs/references/pages/github.com/openprinting-cups-browsed-security-advisories-ghsa-rj88-6mr5-rcw8-792cbab4.md"
@@ -5383,6 +5447,21 @@
    ],
    "file": "docs/references/pages/github.com/nsacyber-mitigating-web-shells-c8c0b0ab.md"
   },
+  "https://github.com/nvidia/skillspector": {
+   "file": "docs/references/pages/github.com/nvidia-skillspector-3c5a84c6.md",
+   "cited_in": [
+    "docs/research/agent-skill-security.md",
+    "docs/threats/02-supply-chain-packages.md"
+   ],
+   "wayback": "https://web.archive.org/web/20261016153816/https://github.com/nvidia/skillspector",
+   "title": "GitHub - NVIDIA/SkillSpector: Security scanner for AI agent skills. Detect vulnerabilities, malicious patterns, security risks, prompt injection, data exfiltration, and supply-chain risks in Claude Code, Codex, and MCP skills before you install them.",
+   "site": "GitHub",
+   "captured": "2026-11-04T17:35:38Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "7a3376fac5c9e9b535e8a73c807a29b116bdc8921b943a2d3b200cb9b4b5b601"
+  },
   "https://github.com/openphish/public_feed": {
    "title": "GitHub - openphish/public_feed: OpenPhish Community Phishing Feed",
    "site": "GitHub",
@@ -6036,6 +6115,7 @@
    "source_url": "https://help.gnome.org/system-admin-guide/desktop-lockscreen.html",
    "sha256": "c1d3ee6fdc3f5e55b99e5b4ef4d2c9fe0b93df4a4e3a18973e34a07b8b2fd0b3",
    "cited_in": [
+    "docs/research/hardening.md",
     "docs/threats/08-desktop-and-sandboxing.md"
    ],
    "file": "docs/references/pages/help.gnome.org/admin-system-admin-guide-stable-desktop-lockscreen-html-en-b2eb90ad.md"
@@ -6084,6 +6164,20 @@
     "docs/threats/03-distro-packaging-and-install-channels.md"
    ],
    "file": "docs/references/pages/in-toto.io/index-f03e6679.md"
+  },
+  "https://invariantlabs.ai/blog/introducing-mcp-scan": {
+   "file": "docs/references/pages/invariantlabs.ai/blog-introducing-mcp-scan-df7d010e.md",
+   "cited_in": [
+    "docs/research/agent-skill-security.md"
+   ],
+   "wayback": "https://web.archive.org/web/20260819185243/https://invariantlabs.ai/blog/introducing-mcp-scan",
+   "title": "Introducing MCP-Scan: Protecting MCP with Invariant",
+   "published": "2025-04-11T10:00:00+02:00",
+   "captured": "2026-11-04T17:35:43Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "900e97d1ee144834b8e506d2234440b122d92f85c0719412c597b5c7a80f8674"
   },
   "https://invent.kde.org/plasma/kscreenlocker/-/blob/master/settings/kscreenlockersettings.kcfg": {
    "file": "docs/references/pages/invent.kde.org/plasma-kscreenlocker-blob-master-settings-kscreenlockersettings-kcfg-1fc4442c.md",
@@ -6677,6 +6771,7 @@
    "sha256": "71ed9c125409b1c53417b4e09709de58027949bdba6c57ed6a04b4d0cbffae1c",
    "wayback": "https://web.archive.org/web/20260817222604/https://man7.org/linux/man-pages/man5/resolved.conf.5.html",
    "cited_in": [
+    "docs/research/hardening.md",
     "docs/threats/07-network-exposure-and-remote-access.md"
    ],
    "file": "docs/references/pages/man7.org/linux-man-pages-man5-resolved-conf-5-html-1e67078e.md"
@@ -7204,6 +7299,7 @@
    "source_url": "https://nvd.nist.gov/vuln/detail/cve-2024-47176",
    "sha256": "566c55e4477abba789d66ea13c1e69b64ce791bfc248206815524bbc68659d3a",
    "cited_in": [
+    "docs/research/hardening.md",
     "docs/threats/07-network-exposure-and-remote-access.md"
    ],
    "file": "docs/references/pages/nvd.nist.gov/vuln-detail-cve-2024-47176-3c283f53.md"
@@ -7267,6 +7363,21 @@
     "docs/threats/03-distro-packaging-and-install-channels.md"
    ],
    "file": "docs/references/pages/openbuildservice.org/help-manuals-obs-user-guide-9c6f11ac.md"
+  },
+  "https://opencode.ai/docs/plugins/": {
+   "file": "docs/references/pages/opencode.ai/docs-plugins-dd7f7f0c.md",
+   "cited_in": [
+    "docs/research/agent-skill-security.md",
+    "docs/threats/02-supply-chain-packages.md"
+   ],
+   "wayback": "https://web.archive.org/web/20261102193923/https://opencode.ai/docs/plugins/",
+   "title": "Plugins",
+   "site": "OpenCode",
+   "captured": "2026-11-04T17:35:40Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "0a6111942217c1c5dae35aa08e73e754b4ebfffc69f687619f82c58844edf1f3"
   },
   "https://openphish.com/phishing_feeds.html": {
    "title": "OpenPhish - Phishing Feeds",
@@ -7590,6 +7701,20 @@
     "docs/threats/07-network-exposure-and-remote-access.md"
    ],
    "file": "docs/references/pages/redis.io/docs-latest-operate-oss-and-stack-management-security-676f92c4.md"
+  },
+  "https://redreamality.com/blog/agent-skills-2026-survey-lifecycle-map/": {
+   "file": "docs/references/pages/redreamality.com/blog-agent-skills-2026-survey-lifecycle-map-59be35f1.md",
+   "cited_in": [
+    "docs/research/agent-skill-security.md"
+   ],
+   "title": "Agent Skills in 2026: A Survey from SKILL.md to On-Demand Loading, Training, Acceptance Gates, and Signing",
+   "site": "Redreamality",
+   "published": "2026-10-06T02:40:00.000Z",
+   "captured": "2026-11-04T17:35:40Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "831597fb14efb2bbbcdb9d227278f9585707c8dee4e5a4f9c6a06b58cf624c53"
   },
   "https://release.gnome.org/44/": {
    "title": "Introducing GNOME 44 | GNOME Release Notes",
@@ -8342,6 +8467,22 @@
    ],
    "file": "docs/references/pages/snyk.io/blog-the-xz-backdoor-cve-2024-3094-7a45f975.md"
   },
+  "https://snyk.io/blog/toxicskills-malicious-ai-agent-skills-clawhub/": {
+   "file": "docs/references/pages/snyk.io/blog-toxicskills-malicious-ai-agent-skills-clawhub-d0b9f8d9.md",
+   "cited_in": [
+    "docs/research/agent-skill-security.md",
+    "docs/threats/02-supply-chain-packages.md"
+   ],
+   "wayback_error": "URLError: <urlopen error [Errno 111] Connection refused>",
+   "title": "Snyk Finds Prompt Injection in 36%, 1467 Malicious Payloads in a ToxicSkills Study of Agent Skills Supply Chain Compromise | Snyk",
+   "site": "Snyk",
+   "published": "2026-02-05T00:00-05:00",
+   "captured": "2026-11-04T17:36:31Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "7c5400e6f2585c23009593ce9fac4d9e29ff2aa269ac60806c4e20ee87cef67c"
+  },
   "https://snyk.io/blog/weaponizing-ai-coding-agents-for-malware-in-the-nx-malicious-package": {
    "title": "Weaponizing AI Coding Agents for Malware in the Nx Malicious Package Security Incident | Snyk",
    "site": "Snyk",
@@ -8820,6 +8961,21 @@
    ],
    "file": "docs/references/pages/thehackernews.com/2026-01-north-korea-linked-hackers-target-html-24db3fce.md"
   },
+  "https://thehackernews.com/2026/02/researchers-find-341-malicious-clawhub.html": {
+   "file": "docs/references/pages/thehackernews.com/2026-02-researchers-find-341-malicious-clawhub-html-c6d541a6.md",
+   "cited_in": [
+    "docs/research/agent-skill-security.md",
+    "docs/threats/02-supply-chain-packages.md"
+   ],
+   "wayback_error": "URLError: <urlopen error [Errno 111] Connection refused>",
+   "title": "Researchers Find 341 Malicious ClawHub Skills Stealing Data from OpenClaw Users",
+   "site": "The Hacker News",
+   "captured": "2026-11-04T17:36:31Z",
+   "via": "live",
+   "http_status": 200,
+   "content_type": "text/html",
+   "sha256": "cde6bdf93588d41f85a1020d304b9a0ab3daee6c4586af13409579e0ef4e2f7b"
+  },
   "https://thehackernews.com/2026/03/the-state-of-secrets-sprawl-2026-9.html": {
    "title": "The State of Secrets Sprawl 2026: 9 Takeaways for CISOs",
    "site": "The Hacker News",
@@ -9114,6 +9270,7 @@
    "sha256": "eaeacb4c8363c985e06d6cc68f529f195d1e4e426a4ed0842b0e5a3182a3ef31",
    "wayback": "https://web.archive.org/web/20261024202516/https://ubuntu.com/server/docs/how-to/security/firewalls/",
    "cited_in": [
+    "docs/research/hardening.md",
     "docs/threats/07-network-exposure-and-remote-access.md"
    ],
    "file": "docs/references/pages/ubuntu.com/server-docs-how-to-security-firewalls-54dae507.md"
@@ -10562,6 +10719,7 @@
    "sha256": "156febd9d065eb1e217c403747350e4e05073f9ba032357ba24ddc764196792c",
    "wayback": "https://web.archive.org/web/20261013093430/https://www.kernel.org/doc/html/latest/admin-guide/LSM/Yama.html",
    "cited_in": [
+    "docs/research/hardening.md",
     "docs/threats/04-host-integrity-and-hardening-audit.md",
     "docs/threats/06-credential-and-secret-protection.md"
    ],
