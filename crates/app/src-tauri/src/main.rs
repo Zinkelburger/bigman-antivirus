@@ -31,6 +31,7 @@ fn main() {
             daemon::daemon_request,
             daemon::daemon_cancel,
             daemon::daemon_subscribe,
+            daemon::stop_and_quit,
             files::choose_path,
             files::export_report
         ])

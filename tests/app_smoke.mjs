@@ -10,13 +10,21 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 
 const app = resolve(process.argv[2] ?? "target/debug/bigman-app");
-const TABS = ["Overview", "Network", "Activity", "Inspect", "Sandboxes", "Protect", "Setup"];
+const TABS = ["Overview", "Network", "Activity", "Inspect", "Protect", "Setup"];
 const DRIVER = "http://127.0.0.1:4444";
 const ELEMENT = "element-6066-11e4-a52e-4f735466cecf"; // W3C WebDriver element reference key
 
 const runtime = process.env.XDG_RUNTIME_DIR ?? tmpdir();
 const work = mkdtempSync(join(runtime, "bigman-smoke-"));
-const env = { ...process.env, BIGMAN_SOCKET: join(work, "run", "bigmand.sock") };
+// The webview keeps its storage (the first-run note's "Got it") under the XDG
+// folders; private ones make every run a fresh profile and leave yours alone.
+const env = {
+  ...process.env,
+  BIGMAN_SOCKET: join(work, "run", "bigmand.sock"),
+  XDG_DATA_HOME: join(work, "data"),
+  XDG_CONFIG_HOME: join(work, "config"),
+  XDG_CACHE_HOME: join(work, "cache"),
+};
 const children = [];
 let session = null;
 const start = (cmd, args) => {
@@ -85,6 +93,17 @@ try {
   }
 
   await click(await find(`//nav//button[.//span[normalize-space()='Overview']]`));
+  // A fresh profile is told what runs on its own, with the switches, once.
+  await until("first-run note", () => find("//main//h2[normalize-space()='What Bigman does on its own']"));
+  await until("its switches", () => find("//main//button[@role='switch'][@aria-checked='true']"), 30_000);
+  await click(await find("//main//button[normalize-space()='Got it']"));
+  console.log("read and dismissed the first-run note");
+  // Stopping is offered in Setup too, for desktops without a tray (not clicked:
+  // it quits the app).
+  await click(await tabButton("Setup"));
+  await until("the stop control", () => find("//main//button[normalize-space()='Stop background checks…']"), 30_000);
+  console.log("Setup offers Stop background checks");
+  await click(await tabButton("Overview"));
   // The tools tile becomes a button once bigmand has answered.
   const tile = await until("daemon status", () => find("//main//button[.//span[normalize-space()=\"Bigman's tools\"]]"), 30_000);
   await click(tile);
@@ -109,7 +128,7 @@ try {
 
   await wd("DELETE", s);
   session = null;
-  console.log("PASS: launched, visited every tab, opened and closed a drill-down, read live network state, quit");
+  console.log("PASS: launched, visited every tab, dismissed the first-run note, found the stop control, opened and closed a drill-down, read live network state, quit");
 } finally {
   // Deleting the session closes the app window, even after a failure.
   if (session) await wd("DELETE", session).catch(() => undefined);

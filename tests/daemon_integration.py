@@ -270,7 +270,19 @@ sys.exit(1 if detected else 0)
             assert len(posted) == 1 and posted[0]['severity'] == 'high' and posted[0]['rule'] == 'repo.autorun-task', posted
             assert 'take-home' in posted[0]['summary'], posted
             assert not any('take-home' in e['summary'] for e in scan_events()), 'the project also entered as a report'
-        print('PASS: scan, previewed quarantine and restore, nonexecuting inspection, package policy, disposable container launch, reviewed baseline, verified canary, history, timeline, live push, unread, receipt preview, Downloads and project watches and CLI over the daemon socket')
+        # Turned off in Setup, the Downloads watch says so and checks nothing.
+        prefs = value({'type': 'preferences'}, 'preferences')
+        value({'type': 'set_preferences', 'preferences': dict(prefs, watch_downloads=False)}, 'preferences')
+        assert any(s['name'] == 'downloads' and s['off'] and s['ok'] for s in value({'type': 'sources'}, 'sources'))
+        (downloads / 'Quiet.pdf.desktop').write_text('[Desktop Entry]\nType=Application\nName=Quiet.pdf\nExec=sh -c "echo fixture"\nIcon=application-pdf\n')
+        time.sleep(6)
+        assert not any('Quiet.pdf.desktop' in e['summary'] for e in download_events()), 'a watch turned off still checked a download'
+        # Stopped from the CLI: the process exits cleanly, as the tray's "Quit and
+        # stop background checks" asks it to.
+        stopped = subprocess.run([str(bin_dir / 'bigman'), 'daemon', 'stop'], env=env, capture_output=True, text=True, timeout=60)
+        assert stopped.returncode == 0 and 'bigmand stopped' in stopped.stdout, (stopped.stdout, stopped.stderr)
+        assert daemon.wait(timeout=5) == 0
+        print('PASS: scan, previewed quarantine and restore, nonexecuting inspection, package policy, disposable container launch, reviewed baseline, verified canary, history, timeline, live push, unread, receipt preview, Downloads and project watches, turning a watch off, stopping from the CLI and CLI over the daemon socket')
     finally:
         daemon.terminate()
         daemon.wait(timeout=10)

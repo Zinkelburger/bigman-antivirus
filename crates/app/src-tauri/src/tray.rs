@@ -1,6 +1,7 @@
 //! Tray icon: quiet; attention when Activity has unread entries; problem when the
 //! daemon is down or signatures are older than seven days. Menu: Open, Pause
-//! notifications (a daemon setting, since the daemon raises them), Quit.
+//! notifications (a daemon setting, since the daemon raises them), and two ways
+//! to quit, because bigmand outlives the window unless asked to stop.
 use crate::daemon::Launcher;
 use bigman_core::{
     ipc::{Request, Response},
@@ -51,8 +52,21 @@ pub fn install(app: &AppHandle) -> tauri::Result<()> {
         true,
         None::<&str>,
     )?;
-    let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&open, &pause, &quit])?;
+    let quit = MenuItem::with_id(
+        app,
+        "quit",
+        "Quit, keep background checks running",
+        true,
+        None::<&str>,
+    )?;
+    let quit_all = MenuItem::with_id(
+        app,
+        "quit_all",
+        "Quit and stop background checks",
+        true,
+        None::<&str>,
+    )?;
+    let menu = Menu::with_items(app, &[&open, &pause, &quit, &quit_all])?;
     let tray = TrayIconBuilder::with_id("bigman")
         .icon(icon(TrayState::Quiet)?)
         .tooltip(tooltip(TrayState::Quiet))
@@ -70,6 +84,14 @@ pub fn install(app: &AppHandle) -> tauri::Result<()> {
                 std::thread::spawn(move || pause_notifications(&launcher));
             }
             "quit" => app.exit(0),
+            "quit_all" => {
+                let launcher = app.state::<Arc<Launcher>>().inner().clone();
+                let app = app.clone();
+                std::thread::spawn(move || {
+                    launcher.stop_daemon();
+                    app.exit(0);
+                });
+            }
             _ => {}
         })
         .build(app)?;

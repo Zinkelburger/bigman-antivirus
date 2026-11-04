@@ -105,7 +105,7 @@ Twenty-six components, plus `Tally` (the life-list repeat mark inside `Timeline`
 
 ### B7. Navigation
 
-Seven tabs in a left sidebar, in this order: Overview, Network, Activity, Inspect, Sandboxes, Protect, Setup. A thin status strip at the bottom shows daemon state, signature age and the last event time. The tray icon has three states: quiet, attention (unread first-seen events), problem (daemon down or signatures older than seven days). Its menu: Open, Pause notifications for 1 hour, Quit.
+Seven tabs in a left sidebar, in this order: Overview, Network, Activity, Inspect, Sandboxes, Protect, Setup. A thin status strip at the bottom shows daemon state, signature age and the last event time. The tray icon has three states: quiet, attention (unread first-seen events), problem (daemon down or signatures older than seven days). Its menu: Open, Pause notifications for 1 hour, Quit (bigmand keeps running), Quit and stop background checks. The Sandboxes tab stays out of the sidebar until milestone 8 builds it: add it back to `TAB_IDS` and `shell/tabs.ts` then.
 
 Notifications: desktop notifications only for first-seen events in categories the user enabled, batched within a 30 second window, never more than one per minute, with a Setup toggle per category.
 

@@ -30,7 +30,7 @@ pub enum Action {
     JournalAccess {
         remove: bool,
     },
-    /// Install (or remove) the per-user monitor and daily scan/update units.
+    /// Install (or remove) the per-user collector, monitor and daily signature update units.
     Services {
         remove: bool,
     },
@@ -405,7 +405,7 @@ pub fn preview(action: &Action, store: &Store) -> Result<ActionPlan> {
                 if *remove {
                     "Stop and remove Bigman's per-user collector, monitor and daily update units. Reports, the timeline and canary files stay."
                 } else {
-                    "Write and enable per-user units: the collector daemon that keeps Activity and Network history while the window is closed, which also checks each new file in Downloads as it arrives, the canary and startup monitor, and daily signature updates. Nothing system-wide."
+                    "Write and enable per-user units so these start when you log in, not only when you open Bigman: the collector daemon (Activity, Network history and the Downloads and project watches), the canary and startup monitor, and a daily ClamAV signature download. Nothing system-wide."
                 },
                 setup::services(store, false, *remove, &crate::runner::cancel())?,
             )

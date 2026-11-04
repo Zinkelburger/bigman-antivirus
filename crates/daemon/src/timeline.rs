@@ -13,7 +13,7 @@ use bigman_core::{
     platform::Notifier,
     platform::Transaction,
     runner::Cancel,
-    sources::{label, Ctx, Source, SourceStatus},
+    sources::{label, Ctx, Preferences, Source, SourceStatus},
     store::{db::Db, Store},
 };
 use std::{
@@ -215,19 +215,44 @@ impl Timeline {
                 label: label(name).into(),
                 last_run,
                 ok: why.is_none(),
+                off: false,
                 why,
                 detail,
             },
         );
     }
 
+    /// Shows a change of Preferences in Setup at once, before each source's next run.
+    pub fn apply_preferences(&self, preferences: &Preferences) {
+        for status in self.statuses.lock().unwrap().values_mut() {
+            let off = !preferences.allows(&status.name);
+            if off != status.off {
+                *status = SourceStatus {
+                    off,
+                    last_run: None,
+                    ok: true,
+                    why: None,
+                    detail: String::new(),
+                    ..status.clone()
+                };
+            }
+        }
+    }
+
     /// One run of one source: record, push, and queue notifications.
     pub fn run_source(&self, source: &mut dyn Source, store: &Store, now: u64) -> Vec<Event> {
-        let collected = match source.collect(&Ctx {
+        let ctx = Ctx {
             db: &self.db,
             store,
             now,
-        }) {
+        };
+        let preferences = Preferences::load(&self.db);
+        if !preferences.allows(source.name()) {
+            source.turned_off(&ctx);
+            self.apply_preferences(&preferences);
+            return vec![];
+        }
+        let collected = match source.collect(&ctx) {
             Ok(c) => c,
             Err(gap) => {
                 self.set_status(source.name(), Some(now), Some((gap.why, gap.detail)));

@@ -25,6 +25,8 @@ pub struct Daemon {
     /// Where the Network tab's tables come from; tests substitute a fake.
     pub sockets: Box<dyn ProcessSockets>,
     pub started: u64,
+    /// Set to stop serving and collecting: by a signal, or by `Request::Shutdown`.
+    pub stop: Cancel,
 }
 
 pub fn error(message: impl ToString) -> Response {
@@ -48,6 +50,7 @@ impl Daemon {
             sockets: Box::new(ProcSockets),
             store,
             started: now(),
+            stop: bigman_core::runner::cancel(),
         })
     }
 
@@ -63,6 +66,14 @@ impl Daemon {
                     started: self.started,
                     state_dir: store.root.clone(),
                 }),
+                Request::Shutdown => {
+                    self.stop.store(true, std::sync::atomic::Ordering::Relaxed);
+                    Response::Done(Box::new(actions::ActionOutcome {
+                        message: "Background checks stopped.".into(),
+                        report: None,
+                        undo: None,
+                    }))
+                }
                 Request::Status => Response::Status(Box::new(self.status()?)),
                 Request::Doctor => report(doctor::doctor(store, stop)),
                 Request::Hardening => {
@@ -199,6 +210,7 @@ impl Daemon {
                         bigman_core::sources::Preferences::KEY,
                         &serde_json::to_string(&preferences)?,
                     )?;
+                    self.timeline.apply_preferences(&preferences);
                     Response::Preferences(preferences)
                 }
                 Request::SetNotifications { settings } => {
@@ -232,6 +244,7 @@ impl Daemon {
             last_scan,
             downloads: setup::downloads(),
             receipt_hook: bigman_core::checks::hooks::installed().map(|(_, path)| path),
+            services: setup::services_installed(),
         })
     }
 }

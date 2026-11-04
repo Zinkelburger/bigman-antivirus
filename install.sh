@@ -13,7 +13,7 @@ if [[ -z "$cargo_bin" && -x "$HOME/.cargo/bin/cargo" ]]; then cargo_bin="$HOME/.
 if [[ -z "$cargo_bin" ]]; then echo 'Install a Rust toolchain first.' >&2; exit 2; fi
 if ! command -v npm >/dev/null; then echo 'Install Node.js and npm to build the desktop app.' >&2; exit 2; fi
 if ! pkg-config --exists webkit2gtk-4.1 2>/dev/null; then
-  echo 'The desktop app needs WebKitGTK development files; see "Desktop app" in README.md.' >&2
+  echo 'The desktop app needs WebKitGTK development files; see "Desktop app" in docs/development.md.' >&2
   exit 2
 fi
 (cd "$project_dir/crates/app/ui" && npm ci --ignore-scripts --no-audit --no-fund && npm run build)

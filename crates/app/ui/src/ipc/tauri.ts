@@ -51,4 +51,5 @@ export const tauriShell: DesktopShell = {
       rethrow(error);
     }
   },
+  stopAndQuit: () => invoke("stop_and_quit"),
 };

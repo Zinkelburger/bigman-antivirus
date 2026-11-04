@@ -4,8 +4,10 @@ import {
   ActionButton,
   ActionDialog,
   applyTheme,
+  AutomaticChecks,
   IncompleteNotice,
   PageHeader,
+  PreviewDialog,
   Select,
   Skeleton,
   storedTheme,
@@ -21,12 +23,11 @@ import {
 } from "@/design";
 import { useQueryClient } from "@tanstack/react-query";
 import {
+  desktopShell,
   DisconnectedError,
   useHealth,
   useNotifications,
   useOpenTool,
-  usePreferences,
-  useSetPreferences,
   useSetNotifications,
   useSources,
   useStatus,
@@ -144,21 +145,6 @@ function Notifications({ disabled }: { disabled: boolean }) {
   );
 }
 
-function AutoUpdates({ disabled }: { disabled: boolean }) {
-  const prefs = usePreferences();
-  const save = useSetPreferences();
-  if (disabled || !prefs.data) return null;
-  return (
-    <Toggle
-      label="Check for security updates on its own"
-      description="Once a day and two minutes after package changes. Uses the network for public data only; no package list is sent."
-      checked={prefs.data.check_updates}
-      disabled={save.isPending}
-      onChange={(check_updates) => save.mutate({ ...prefs.data, check_updates })}
-    />
-  );
-}
-
 function Sources({ disabled }: { disabled: boolean }) {
   const sources = useSources();
   const now = nowSeconds();
@@ -173,10 +159,12 @@ function Sources({ disabled }: { disabled: boolean }) {
             <span className="font-semibold text-ink">{source.label}</span>
             <span className="text-ink-muted">
               {" · "}
-              {source.ok
+              {source.off
+                ? "off"
+                : source.ok
                 ? source.last_run === null
                   ? "starting"
-                  : `read ${ago(source.last_run, now)}`
+                  : `${source.name === "updates" ? "checked" : "read"} ${ago(source.last_run, now)}`
                 : `not collected (${SKIP_REASON[source.why ?? "failed"].toLowerCase()})`}
             </span>
           </span>
@@ -189,6 +177,46 @@ function Sources({ disabled }: { disabled: boolean }) {
         </li>
       ))}
     </ul>
+  );
+}
+
+/** Stops bigmand and quits, since the open app would start it again. */
+function StopChecks({ services }: { services: boolean }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <div>
+        <ActionButton onClick={() => setOpen(true)}>
+          Stop background checks…
+        </ActionButton>
+      </div>
+      <PreviewDialog
+        open={open}
+        onOpenChange={setOpen}
+        title="Stop background checks"
+        confirmLabel="Stop and quit Bigman"
+        plan={
+          <div className="flex max-w-[56ch] flex-col gap-3 text-ink">
+            <p className="m-0">
+              bigmand stops and Bigman quits. Until you open Bigman again{services ? " or log in" : ""}, new downloads
+              and project folders are not checked, Activity and Network record nothing, and the daily security-update
+              check does not run.
+            </p>
+            {services && (
+              <p className="m-0">
+                Still running, because background services are installed: the canary and startup monitor and the daily
+                ClamAV signature download. Remove the services to stop those too.
+              </p>
+            )}
+            <p className="m-0 text-ink-muted">Reports, Activity history and canary files stay as they are.</p>
+          </div>
+        }
+        onConfirm={async () => {
+          await desktopShell().stopAndQuit();
+          return "Background checks stopped.";
+        }}
+      />
+    </>
   );
 }
 
@@ -213,11 +241,20 @@ export function SetupPage() {
           <Item title="Background checks" done={health.data ? true : down ? false : null}>
             <p className="m-0 max-w-[56ch] text-ink-muted">
               {health.data
-                ? `bigmand ${health.data.version} is running as you and keeps its data in ${health.data.state_dir}.`
+                ? `bigmand ${health.data.version} is running as you and keeps its data in ${health.data.state_dir}. It keeps running after you close this window, until you log out${status.data?.services ? "; the background services also start it when you log in" : ""}.`
                 : down
                   ? "bigmand is not running, so the steps below cannot be checked or changed yet."
                   : "Checking…"}
             </p>
+            {health.data && (
+              <>
+                <StopChecks services={status.data?.services ?? false} />
+                <p className="m-0 max-w-[56ch] text-small text-ink-muted">
+                  The tray menu&apos;s Quit and stop background checks does the same, and so does{" "}
+                  <span className="font-mono">bigman daemon stop</span> in a terminal.
+                </p>
+              </>
+            )}
             {down && (
               <div>
                 <ActionButton variant="primary" onClick={() => void client.invalidateQueries()}>
@@ -225,6 +262,14 @@ export function SetupPage() {
                 </ActionButton>
               </div>
             )}
+          </Item>
+
+          <Item title="Checks that run on their own" done={null}>
+            <p className="m-0 max-w-[56ch] text-ink-muted">
+              While background checks run, these happen without you asking. Findings appear in Activity, and as a
+              desktop notification if you allow it under Notifications.
+            </p>
+            <AutomaticChecks disabled={down} />
           </Item>
 
           <Item title="Malware scanning" done={down ? null : scanning}>
@@ -249,13 +294,20 @@ export function SetupPage() {
 
           <Item title="Background services" done={null}>
             <p className="m-0 max-w-[56ch] text-ink-muted">
-              Per-user units for the collector that keeps Activity and Network history while this window is closed and
-              checks each new file in Downloads as it arrives, the canary and startup monitor, and daily signature
-              updates. They follow your login session; nothing system-wide is enabled.
+              {status.data?.services
+                ? "Installed: background checks start when you log in, along with the canary and startup monitor and a daily ClamAV signature download."
+                : "Not installed: background checks run only once you open Bigman. Installing makes them start when you log in, along with the canary and startup monitor and a daily ClamAV signature download."}{" "}
+              They follow your login session; nothing system-wide is enabled.
             </p>
             <div className="flex gap-2">
-              <ActionDialog action={{ kind: "services", remove: false }} label="Install services…" disabled={down} />
-              <ActionDialog action={{ kind: "services", remove: true }} label="Remove services…" variant="quiet" disabled={down} />
+              {status.data?.services ? (
+                <>
+                  <ActionDialog action={{ kind: "services", remove: true }} label="Remove services…" disabled={down} />
+                  <ActionDialog action={{ kind: "services", remove: false }} label="Install again…" variant="quiet" disabled={down} />
+                </>
+              ) : (
+                <ActionDialog action={{ kind: "services", remove: false }} label="Install services…" disabled={down} />
+              )}
             </div>
           </Item>
 
@@ -276,11 +328,11 @@ export function SetupPage() {
 
           <Item title="What is collected" done={null}>
             <p className="m-0 max-w-[56ch] text-ink-muted">
-              Each source reads as you, without administrator access. A source that cannot read says so here and in
-              Activity rather than reporting nothing.
+              Each source reads as you, without administrator access, and sends nothing. Only security updates use the
+              network, to download public data. A source that cannot read says so here and in Activity rather than
+              reporting nothing.
             </p>
             <Sources disabled={down} />
-            <AutoUpdates disabled={down} />
           </Item>
 
           <Item title="Notifications" done={null}>
@@ -320,7 +372,9 @@ export function SetupPage() {
             <p className="m-0 max-w-[56ch] text-ink-muted">
               Reports stay on this computer in a private folder (mode 0700) and leave it only when you export one.
               A report can contain local paths, file hashes and the source of scripts you inspected. Bigman sends no
-              telemetry; only checks you start that say so (advisories, HTTPS installer fetches) use the network.
+              telemetry. It downloads public data for the daily security-update check (turn it off under Checks that
+              run on their own) and ClamAV signatures (when you update them, and daily with background services). Checks
+              you start use the network only when they say so, such as fetching an installer from an HTTPS address.
             </p>
           </Item>
         </ul>

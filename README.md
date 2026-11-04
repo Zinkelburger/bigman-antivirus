@@ -1,274 +1,87 @@
 # Bigman Security Companion
 
-Bigman makes a set of deterministic Linux security checks easier to use. It has a desktop app, a CLI, and an optional Chromium extension. There is no AI model, automatic file upload, or automatic deletion of detections.
+Bigman helps with two questions on a Linux desktop: *is anything on my computer new or worth a look?* and *what would this thing I downloaded do if I ran it?* It inspects downloads, installer scripts, packages and cloned projects before you run them. It also notes new network activity and package changes, watches the files that start programs when you log in, and tells you which security updates matter. It has a desktop app, a command-line tool (`bigman`) and an optional Chromium extension.
 
-Results say **findings to review**, **no findings from these checks**, or **incomplete**. A scan cannot certify that a file or machine is safe. Capability rules explain behavior without equating every download, permission change, or unfamiliar hostname with malware.
+Every result comes from a fixed rule with a plain explanation; there is no AI model. Results say **findings to review**, **no findings from these checks**, or **incomplete**. Bigman never says a file or computer is safe, because no scan can know that.
 
-## Start
+Bigman never deletes, moves or runs anything on its own, never uploads your files, and sends no telemetry. Anything that changes your system, such as installing a tool, quarantining a file or changing a setting, first shows exactly what will happen and waits for you to confirm.
 
-Requirements: Linux, a current stable Rust toolchain, Node.js 22 with npm, and WebKitGTK development files for the desktop app (see [Desktop app](#desktop-app)). Build checks were run with Rust 1.98. The CLI works without a graphical session. Optional system tools are discovered at runtime.
+![Bigman's Overview tab: findings to review, five status tiles and the last 24 hours of activity, shown with sample data](docs/images/overview.png)
+
+## Install
+
+Requirements: Linux, a current stable Rust toolchain, Node.js 22 with npm, and WebKitGTK development files for the desktop app ([build dependencies](docs/development.md#desktop-app)). Build checks were run with Rust 1.98. The CLI works without a graphical session.
 
 ```sh
 ./install.sh
 ```
 
-This builds the locked release of `bigman` (CLI), `bigmand` (the per-user daemon that runs every check) and `bigman-app` (the desktop app), and installs them under `~/.local` with an application-menu entry. It does not install antivirus packages, change firewall policy, register browser hosts, start monitors, or enable schedules. Use the app's **Setup** tab to review and apply those supported actions; each one shows exactly what will change before it runs.
+This builds `bigman` (the CLI), `bigmand` (the background service that runs every check) and `bigman-app` (the desktop app), and installs them under `~/.local` with an application-menu entry. It installs no other packages and sets nothing to start at login.
 
-Recommended first use:
+## First use
 
-1. On **Overview**, click **Run checkup**.
-2. In **Setup**, install the ClamAV group if needed. In **Protect → Scans**, click **Update signatures**, then scan Downloads.
-3. In **Protect → Startup files**, compare and review the inventory before accepting an initial baseline.
-4. In **Protect → Canaries**, click **Create, monitor and test…**. The result must say **Local read detection verified**; any startup failure is shown separately.
-5. In **Setup**, install the background services if you want the monitor and the daily scan and update timers.
+1. Open **Bigman** from the application menu. A note on **Overview** lists what it does on its own (see the next section); turn off anything you don't want.
+2. On **Overview**, click **Run checkup**. It only reads: which of Bigman's tools are installed, how old the malware signatures are, and which programs accept network connections.
+3. In **Setup**, install ClamAV if it is missing. Then in **Protect → Scans**, click **Update signatures** and scan your Downloads folder.
+4. In **Protect → Startup files**, click **Compare startup files**. The first time, this lists every file that starts programs or controls how you log in. Look through it, then click **Accept as baseline**; later comparisons show only what changed since.
+5. Optional: in **Protect → Canaries**, click **Create, monitor and test…**. This puts a decoy file in your Documents folder and alerts you when anything reads it. The result should say **Local read detection verified**.
+6. Optional: in **Setup → Background services**, install the services so Bigman's checks also run after you log in, not only once you open the app.
 
-Package installation plans support Fedora, Debian and Ubuntu. Packages come from the user's configured repositories and administrator authentication uses polkit. Repository availability can vary; failures remain visible. Bigman does not add package repositories or disable existing security services.
+Installing tools works on Fedora, Debian and Ubuntu, from the repositories you already use, with your administrator password through polkit. Bigman does not add repositories or turn off security tools you already have.
 
-## Implemented workflows
+## What runs on its own
 
-| Workflow | What it does | Important boundary |
+Opening the app starts `bigmand` if it isn't already running. It runs as you, without administrator rights, and **keeps running after you close the window, until you log out**. While it runs:
+
+- **New downloads** are checked once they finish downloading, with the inspector that fits the file (installer script, archive, launcher, package, PDF and so on) or with ClamAV when none does. Files are only read: nothing is moved, deleted or opened.
+- **New project folders** cloned or unpacked into `~/Projects`, `~/src`, `~/code` (and similar folders) or Downloads are checked for what they would run when opened in an editor or terminal. Nothing in them is run.
+- **Security updates** are checked once a day and shortly after package changes. This is the only automatic use of the network. It downloads public security data from your distribution and CISA's list of exploited vulnerabilities; no package list is sent.
+- **Activity** records the first time each of your programs connects somewhere new, new listening programs, package installs, SELinux and AppArmor denials, SSH keys and logins, and AI-tool plugins. This only reads your own computer.
+- **Notifications**: findings to review appear as a desktop notification, at most one a minute. Other kinds are off until you turn them on in **Setup → Notifications**.
+
+The first three can be turned off in **Setup → Checks that run on their own**, which the first-open note also offers. **Setup → What is collected** lists every source and whether it can read.
+
+To stop it, click **Stop background checks…** in **Setup → Background checks** (Bigman quits too, since the open app would start it again), choose **Quit and stop background checks** from the tray menu, or run `bigman daemon stop`. It starts again the next time you open Bigman. If you installed the background services, it also starts at your next login, and the canary monitor and the daily ClamAV signature download keep running; remove the services in **Setup → Background services** or with `bigman services --remove --apply`.
+
+## What it checks
+
+| Area | Examples | Where |
 |---|---|---|
-| System checkup | Tool availability, known signature locations/age, monitor heartbeat, Git plaintext-store detection, listening sockets and selected protection status | Read-only inventory; no claim that the machine is clean |
-| File scans | ClamAV checks private snapshots; findings map to original paths and SHA-256 hashes | Limits, missing tools, failures and skipped files are reported |
-| Quarantine | Saves a private recovery copy, verifies the current file hash, then removes the original | Explicit per-file action, only for scan findings; no automatic cleanup |
-| Restore | Verifies the recovery hash and creates the original path with mode 0600 | Never overwrites an existing file; executable permissions are not restored |
-| Installer inspection | Saves exact local/HTTPS script bytes; source-linked capability rules and optional ShellCheck | Never runs scripts while inspecting; dynamic behavior remains unresolved |
-| Inspect routing | One field for a file, folder or HTTPS URL (`bigman check`); the inspector is chosen from the URL scheme, file name and first bytes, never from what the file says about itself. A GitHub, GitLab, Codeberg or Bitbucket repository address is read before cloning (see `repo-check`) | A file no inspector recognises goes to the installer rules on the CLI and to ClamAV from the Downloads watch |
-| Package inspection | Reads local package manifests, referenced script files, unavailable lockfile hooks, or `.tgz` contents without extracting; npm packages with a `binding.gyp` and no install script are flagged because npm builds them at install anyway. A project's `node_modules/.bin` (and each workspace package's) is checked for commands the package manager did not make: a plain file where npm, Yarn and Bun put a link, a link or pnpm shim that leads outside the project's `node_modules`, or a shim that downloads, decodes or reaches your home folder | npm/pnpm-focused; no lifecycle or build commands invoked |
-| Lockfile linter | `bigman lockfile`: dependencies from git, URLs or local paths, missing integrity hashes and install hooks in npm, Yarn, pnpm, Bun and Cargo lockfiles; `--against OLDER` reports only what a change adds, including a package that changed source without a new version | Reads the lockfile as text; install hooks are known only where the format records them (npm, pnpm) |
-| Project folders (`repo-check`) | What a cloned folder can run when opened: VS Code auto-run tasks (High when hidden or downloading), `.envrc`, devcontainer commands, git hooks, filters and config commands, Claude Code hooks and helper commands, AI settings that redirect the tool's API traffic or approve commands for you, MCP servers, AI instruction files with hidden Unicode or a download piped into a shell, skills, commands and OpenCode plugins kept in the project, unpinned or `pull_request_target` workflows. The project's own source is read for the fake-interview loader: text run with the Function constructor and `require`, or `eval` next to a fetch or decode, web addresses stored base64- or hex-encoded, JSON storage hosts these lures load from, and fonts or images that are really text. Give a repository URL to read it before cloning: git fetches the latest commit into a bare repository, with no checkout, hooks, credentials or proxies. Rust and Python projects get the build-script rules below | Nothing in the project is run. A loader spread across several files, or built from generated strings, is not followed. A repository URL gets no lockfile or build-file rules until cloned |
-| Package sources | `bigman package-sources`: apt (one-line and deb822), dnf, zypper, pacman, Flatpak and Nix sources with signatures off, plain HTTP, apt keys without `signed-by`, expiry checks off, stale metadata, priority over the distribution, personal repositories and an inventory of third-party ones; Protect > Updates | Configuration only; no repository is contacted, so an abandoned repository's domain is not checked. A private mirror of the distribution reads as third-party |
-| Archives and launchers | Lists zip and tar archives (gzip, and xz, zstd or bzip2 through the isolated system decompressor) for `..` and absolute names, links leaving the folder, devices and setuid entries, startup and login paths and 100-fold expansion; `.desktop` launchers, alone or inside an archive, are reported as programs, High when they borrow a document's name or icon or download on open | Nothing is extracted or run; other file contents are not checked, and 7z and RAR are recognised but not listed |
-| System package files | `.deb`, `.rpm`, built Arch packages, PKGBUILDs and AppImages parsed in Rust: maintainer scripts with the receipt line rules, files or script lines that add package sources or keys, setuid files, startup and sign-in paths, files in home or temporary folders, PKGBUILD downloads with `SKIP` checksums, AppImage signature and update address | No dpkg, rpm or makepkg runs; signatures are noted, not verified; an AppImage's own files are not listed |
-| Language packages | Wheels, sdists, `.crate` files and `.vsix` extensions: `.pth` and sitecustomize code that runs at every Python start, console scripts named like common commands, `setup.py` that starts processes or fetches, crate build scripts (High when they open connections or read the home folder) and proc-macros, VS Code extensions that start with the editor, pull in other publishers' extensions, hide invisible text or ship native code | Static reading of the files that decide what runs; nothing is built, installed or imported |
-| Project watch | The daemon watches the folders people keep code in (`~/Projects`, `~/projects`, `~/src`, `~/code`, `~/Code`, `~/git`, `~/dev`, `~/repos`, `~/workspace`, `~/Developer`, `~/work`) and Downloads for a new project folder. A clone is checked once git finishes its checkout, an unpacked or new folder once it stops changing, with the full project inspection; a High finding notifies you | Only folders directly inside those; a deeper layout such as `~/src/github.com/OWNER/REPO` is not watched. It notifies, it does not block: an editor opened in the first seconds after a clone can still run a task. Folders with no project files (no `.git`, `package.json`, `.vscode` and similar) are skipped |
-| AI skills and plugins | `bigman skills` or Protect > AI skills: every Claude Code, OpenCode and Codex skill, command, subagent and plugin, with what it runs without the model deciding to (`` !`command` `` lines, hooks, MCP and language servers, monitors, programs on the agent's PATH, OpenCode code and npm plugins), tools it approves in advance, and wording and code malicious skills have used (download-and-run setup steps, credential paths, data-collection addresses, encoded text, secrecy, hidden comments and characters, memory writes). Approve the exact version you read; any later change to its files is flagged, and the daemon posts new and changed ones to Activity. `bigman check` runs the same rules on a skill folder, `SKILL.md`, a skill archive or an OpenCode plugin package | Read as data; nothing is run. The wording of instructions is not judged, so a skill that talks the agent into harm in plain words can pass every rule; approval records what you read, not that it is safe. Code plugins are read with fixed patterns, not followed through their imports |
-| Downloads watch | The daemon checks each new file in Downloads (`XDG_DOWNLOAD_DIR`) once it stops changing, with the inspector above or a ClamAV scan, and posts one first-seen entry per file contents; files that arrived while it was stopped are checked when it starts | Runs while `bigmand` runs; partial browser downloads are skipped; it reads the file after it lands, so a desktop that previews or indexes it first is not prevented from doing so |
-| Project script policy | Previews and writes `ignore-scripts=true` to project `.npmrc`, retaining a backup | Explicit `npm run` and command-line overrides can still execute code; this is not package trust certification |
-| Disposable container | `bigman try PATH`, or **Run it in a disposable container** under an Inspect result: a shell in a rootless Podman container holding a copy of the folder or file and nothing else from this computer (no home folder, keys, browser data, agent sockets or environment variables). The image is chosen from the project files (Node, Python, Rust, Go, Ruby, otherwise Debian); the shell runs as an unprivileged user with no capabilities, 4 GiB of memory and 4,096 processes. The container and its copy are deleted when the shell exits or its window closes, and a later run removes any a killed session left. `--offline` removes the network, `--port N` opens one port on 127.0.0.1 | A container shares the kernel, so it is weaker than a separate computer or a virtual machine. With network, code inside reaches the internet, your local network and services on this computer that listen on its network address (not those on 127.0.0.1). Images come from Docker Hub by tag. Nothing comes back, including work done inside |
-| Restricted rehearsal | Runs an explicitly approved saved installer hash in an offline Bubblewrap environment, optionally traced with strace | No host install or promotion; restrictions can prevent completion; not a malware-detonation service |
-| PDF triage | Escaped/raw PDF names, PDFiD, pdf-parser statistics, pdfinfo links | External tools require Bubblewrap; compressed/encrypted or unsupported content may remain unexamined |
-| Startup changes | Compares startup, cron, shell, PAM, loader, kernel-module, udev, SSH, name-resolution and desktop-handler files, the programs in `~/.local/bin` and `~/bin` and in developer tool folders (npm's global prefix, nvm, fnm, Volta, pnpm, Bun, Yarn, Deno, `~/.cargo/bin`, `~/go/bin`), and the extensions installed in VS Code, VSCodium, Cursor and Windsurf (content, mode, owner, file capabilities), with a reviewed baseline, and attributes each change to its package: an update the package database explains is Info, a package's file that no longer matches is Review, or High for PAM, loader and SSH files. A new or changed program in your own bin folder that hides a system command (git, ssh, node) is High. An editor extension whose code changed while its version did not is High; a new one is Review and an update Info | Baseline records prior state, not trust or the writer; root-only files are compared by metadata; sudoers needs the optional helper. Tool programs and extension code over 256 KiB are compared by size, inode and change time, not content, and an extension by the file the editor loads first, not every file it ships. Tool folders are found from `~/.npmrc` and the usual locations; a prefix set only in a shell profile is not seen |
-| Local canaries | One-action local generation, monitor startup, verified kernel read receipt, test/disarm, durable alerts and health heartbeat | No account or network required; login startup uses systemd when available; no reader identity or access blocking |
-| SSH access watch | Live: new keys in `authorized_keys`, `ssh -R` tunnels back to this computer, network logins for any user, private keys left in temp and config folders, and gaps in Bigman's own monitoring | Your own processes and keys only; rootless; reports, never blocks or removes |
-| Hardening suggestions | Settings worth changing on this computer: unused network services (sshd, cups-browsed, rpcbind, Samba and others), no firewall or one that opens every high port, `ptrace_scope` and two other kernel settings, LLMNR, screen lock, autologin, disk encryption, Secure Boot, the docker group, a readable home folder and npm install scripts. Each shows the evidence, why it matters and what it costs; exposure takes the firewall zones into account | Reads everything as you; changes run only after a preview of the exact commands, through one polkit prompt when they need root, and each can be undone. Firmware and installer settings get steps instead. Refuses to turn off SSH while you are logged in over the network |
-| Hosted canary shortcuts | Saves an HTTPS token URL supplied by the user | Bigman does not provision a provider account or token; the provider triggers only when the URL is activated |
-| Optional integrations | Lynis report findings, OSV advisory matching, osquery process JSON, user-supplied YARA-X rules, OpenSnitch launch/setup | External tools must be installed; adapters preserve failures and raw evidence |
-| Browser checks | Text/destination mismatch, lookalikes, selected Unicode confusables, ClickFix text combinations, user-imported blocklists, warning pages and expiring exceptions. On a GitHub, GitLab, Codeberg or Bitbucket repository page the popup offers **Check before you clone**, which runs the desktop's read-before-clone check (`repo-check URL`) and lists what it found | Limited page/link heuristics; no remote reputation requests or complete navigation interception |
-| Activity timeline | `bigmand` records your programs' first connections and new address ranges, new listening programs, package transactions (dnf5 history, pacman or dpkg log), SELinux/AppArmor denials as plain sentences, and every saved report; repeats fold into their first sighting, unread entries feed Overview and the tray | First-seen is a record of what was observed, not a verdict; denials need journal access (systemd-journal, adm or wheel) and say so when it is missing; other users' processes are not named without the optional helper |
-| Network | Per-interface throughput kept in SQLite (1 s, minute averages after a day, hour averages after 30 days), current connections and listeners; listener rules for wildcard binds, the container API, debugger ports and local AI or notebook servers | Read from `/proc` as you; no packet capture, blocking or firewall changes |
-| Security updates | Installed packages against the distribution's own security data (dnf updateinfo on Fedora, the Debian and Arch security trackers), with updates fixing a CISA KEV entry first, a pending-reboot flag and packages outside the distribution's data; `bigman advisories` or Protect > Updates | Uses the network for public data only (no package list is sent); shows the update command and never runs it; Ubuntu, SUSE and Alpine are not supported yet |
-| Install receipts | Every package transaction gets a receipt: packages, files by category, install scripts verbatim with `receipt.*` rules marking suspicious lines, services shipped, raised privileges and what started listening within a minute; changed hooks are noticed against earlier receipts. Optional from Setup: a dnf, apt or pacman hook shows the receipt before the transaction commits, with Continue and Abort | Built after the fact from the package database; old package versions are not compared yet; removed packages are listed by name only. The preview hook needs Bigman installed system-wide and continues on its own after a minute or whenever Bigman cannot answer |
-| Notifications | Batched desktop notifications for the categories you choose (findings on by default), at most one a minute, pausable from the tray | Raised by the daemon through `notify-send`; Activity always has every entry |
-| Background services | Rootless collector daemon (which runs the Downloads and project watches), monitor and private ClamAV update timer; installing or removing clears the daily Downloads scan timer earlier versions installed | Explicit installation/removal; follows user session; no lingering or system services enabled |
-| History/export | Private JSON reports, coverage, errors and evidence shared by the CLI, the desktop app's Activity tab and the native host | Export is explicit; reports can contain local paths and inspected source |
+| Before you run something | Installer scripts (`curl … \| sh`), archives, `.desktop` launchers, `.deb`, `.rpm`, Arch and AppImage packages, npm, Python, Rust and VS Code packages, lockfiles, PDFs, cloned projects | **Inspect**, `bigman check FILE-FOLDER-OR-URL` |
+| Files | ClamAV scans, quarantine and restore | **Protect → Scans**, `bigman scan` |
+| Your system | Startup and login files against your baseline, package sources, security updates, hardening suggestions, AI-tool skills and plugins | **Protect** |
+| What happens | Connections, listening programs, package changes with install receipts, denials, SSH access | **Activity**, **Network** |
+| Decoys | Canary files that alert you when read | **Protect → Canaries**, [docs/canaries.md](docs/canaries.md) |
+| Browser | Lookalike links, ClickFix pages, your own blocklists | [docs/browser-extension.md](docs/browser-extension.md) |
 
-## CLI
+What each workflow does, and the limit it promises, is in [docs/features.md](docs/features.md). Every rule, with its explanation and fix, is in [docs/rules.md](docs/rules.md).
+
+## Command line
 
 ```sh
-bigman doctor
-bigman scan ~/Downloads
-bigman scan ~/Downloads --notify
-bigman update
-bigman inspect ./install.sh
-bigman inspect https://example.org/install.sh
-cat ./install.sh | bigman
-bigman packages ./project
-bigman packages ./downloaded-package.tgz
-bigman check ~/Downloads/tool_1.0_amd64.deb   # picks the inspector: archive, launcher, package file, PDF, …
-bigman repo-check ./cloned-project
-bigman repo-check https://github.com/OWNER/take-home   # read it before you clone it
-bigman try ./take-home                      # shell in a disposable container with a copy of it
-bigman try --offline --port 3000 ./take-home -- npm start
-bigman skills                                   # installed AI skills and plugins
-bigman skills --approve REPORT_ID 3             # approve item 3 of that report as you read it
-bigman check ~/Downloads/some-skill.zip         # a skill folder, SKILL.md, archive or OpenCode plugin
-bigman lockfile ./package-lock.json --against ./old/package-lock.json
-bigman package-sources
-bigman package-policy ./project                 # preview
-bigman package-policy ./project --apply
-bigman changes
-bigman changes --accept-baseline REVIEWED_REPORT_ID
-bigman harden                                   # suggestions, with what each costs
-bigman harden harden.sshd                       # preview: the exact commands and the undo
-bigman harden harden.sshd --apply
-bigman harden harden.sshd --undo
-bigman harden harden.sshd --keep                # stop suggesting it; --suggest-again
-bigman history
-bigman history REPORT_ID
-bigman --json scan ~/Downloads
+bigman doctor                       # read-only checkup
+bigman check ~/Downloads/tool.deb   # inspect a file, folder or HTTPS URL; never runs it
+bigman scan ~/Downloads             # ClamAV scan
+bigman changes                      # compare startup files with your baseline
+bigman advisories                   # security updates
+bigman history                      # past reports
+bigman daemon stop                  # stop background checks
 ```
 
-Baseline acceptance rechecks the saved report’s inventory hash and refuses changes made since review.
+Commands return **0** when there is nothing to review, **1** when there are findings to review, and **2** when something could not be checked. Add `--json` for machine-readable reports. The full reference, including quarantine, the offline rehearsal sandbox and optional tools, is in [docs/cli.md](docs/cli.md).
 
-Report-producing commands return **0** when there are no review/high findings and no errors, **1** for review/high findings, and **2** for errors/incomplete coverage. Informational findings alone do not cause exit 1. `--json` formats reports and inventories; administrative status messages remain text. Piped input is inspection, never execution.
+## Your data
 
-Restricted execution requires both the saved report and its exact hash:
+Reports stay in `~/.local/share/bigman` (mode 0700) and leave the computer only when you export one. They can contain local paths, file hashes and the source of scripts you inspected. Bigman sends no telemetry. The network is used by the daily security-update check, which you can turn off, and by checks you start that say so, such as fetching an installer from an HTTPS address. Bigman's private files protect against other users on the computer, not against malware already running as you.
 
-```sh
-bigman sandbox REPORT_ID --approve-sha256 SHA256_FROM_REPORT
-```
+## More
 
-The saved file is rehashed before launch. The sandbox exposes system runtime files read-only, uses a disposable home/work directory, clears inherited environment credentials, omits host service/agent sockets, and denies networking through a separate network namespace. It has wall-clock, CPU, address-space, output, descriptor, file-size and UID-relative process limits. The process limit is not a dedicated cgroup quota. If Bubblewrap cannot enforce the profile, execution fails without an unrestricted retry. Missing strace makes behavioral coverage incomplete even if the script finishes.
+- [docs/features.md](docs/features.md): every workflow, what it does and the boundary it promises
+- [docs/cli.md](docs/cli.md): command reference, quarantine, the rehearsal sandbox, limits and optional tools
+- [docs/canaries.md](docs/canaries.md): decoy files and the monitor
+- [docs/browser-extension.md](docs/browser-extension.md): building and connecting the extension
+- [docs/development.md](docs/development.md): crates, state, tests and building the desktop app
+- [docs/threats](docs/threats/README.md): the threats Bigman addresses and how
+- [SECURITY.md](SECURITY.md): reporting a vulnerability
 
-`bigman try` shows the exact Podman commands and asks before starting (`--yes` skips the question). The folder is copied in with `podman cp`, never mounted, so nothing inside can write to it. `--image` takes a full image name with its registry; `--root` makes the shell root inside the container, for installing system packages, at the cost that an escape would act as your account. The command after `--` runs instead of a shell, and its exit code is returned. In the app, the same preview opens a terminal through `systemd-run --user`, because rootless Podman cannot start under the daemon's no-new-privileges setting.
-
-Inspection fetches use HTTPS, bounded size/time/redirects, public destination checks and DNS pinning through curl. Each redirect is checked. Proxies and curl user configuration are disabled for these fetches. Installers that need private endpoints can be downloaded separately and explicitly inspected as local files.
-
-ClamAV defaults: at most 2,000 regular files, 64 MiB per file, 512 MiB total snapshot data. Archive expansion is limited to 256 MiB, 256 files and nesting depth 16. Symlinks, Bigman state and registered canaries are excluded. Directory walks have a 50,000-entry limit. Limit/encryption detections mean incomplete examination. The app prefers its private definitions after `update`, otherwise ClamAV’s default database configuration applies. Checkup freshness knows the private directory and `/var/lib/clamav`; custom system configurations require separate verification.
-
-Quarantine identifiers and indexed scan items:
-
-```sh
-# Item indexes and hashes are in STATE/artifacts/REPORT_ID.scan.json.
-# In the app, open a scan in Protect → Scans and use Quarantine… on a flagged file.
-bigman quarantine REPORT_ID ITEM_INDEX
-bigman quarantined
-bigman restore QUARANTINE_ID
-```
-
-## Hardening suggestions
-
-**Protect → Hardening** (and `bigman harden`) lists settings you could change to close a way in, split into **To review** and **Optional**. Severity follows exposure on this computer: a network service is Review when the firewall lets other computers reach it and Info when it does not, and the SSH server drops to Info when the logs show you log in over the network. Everything is read without root; anything that could not be read is listed as not checked, and the result says **incomplete**.
-
-A change Bigman can make opens a preview that leads with what stops working, then says whether polkit will ask for your password, then lists the exact commands. The daemon rebuilds the change from the suggestion's ID at that moment, so the app never sends commands. After the change, Bigman reads the setting again and says whether it took; **Changed by Bigman** keeps an undo for each. **Leave as it is…** stops a suggestion from counting without changing anything.
-
-Bigman gives steps rather than making the change for Secure Boot, disk encryption, autologin and installing a firewall. It refuses, with the reason, to turn off SSH while you are logged in over the network, to change a sysctl that a later file in `/etc/sysctl.d` would override at boot, and to change a GNOME setting an administrator locked. The reasoning, distribution defaults and sources for every rule are in [docs/research/hardening.md](docs/research/hardening.md).
-
-## Canaries and monitoring
-
-The default is entirely local: no Canarytokens account, API key, paid service or internet connection is needed. In the app, choose **Protect → Canaries → Create, monitor and test…**. The CLI equivalent is:
-
-```sh
-bigman canary arm
-```
-
-This creates `~/Documents/backup-access.env` (or `~/backup-access.env` if Documents does not exist), starts monitoring, enables only the monitor at future user logins, performs a read, and waits for a fresh kernel-event receipt. Existing registered local decoys at that path are reused; unrelated existing files are refused. Install Bigman at a stable path first with `./install.sh` so the login service can still find it later.
-
-The setup result reports local detection and startup coverage separately. If the user service manager is unavailable or has conflicting settings, Bigman runs a detached session monitor and reports **incomplete** startup coverage. It does not overwrite a differently configured monitor unit. The monitor continues after closing the app/CLI; logout/reboot gaps are not covered. Enabling at login while a session monitor is already running preserves that process until logout.
-
-```sh
-bigman canary arm ~/Documents/another-decoy.env
-bigman canary arm --session-only        # no login service changes
-bigman canary list
-bigman canary start                    # restart existing tokens; create no new files
-bigman canary test CANARY_ID            # verifies a new real read receipt
-bigman history
-bigman canary stop                      # stop monitor, remove its login service
-bigman canary stop --session-only       # stop current process; leave service configuration
-bigman canary disarm CANARY_ID          # remove this registration; retain its file
-```
-
-Verification fails if monitoring is stopped, the path isn't watched, or no new receipt arrives. An old receipt does not count. Receipts prove local filesystem detection and durable evidence; they do not prove desktop notifications were displayed. Alerts remain available in History if notification utilities or the desktop notification service are unavailable. Deliberate verification reads can also appear as ordinary canary alerts.
-
-For manual creation without starting anything, use `bigman canary create PATH`, followed by `bigman watch`. `stop` also stops the startup-change monitor, but preserves tokens, registrations, reports and scan timers. `disarm` only removes the selected registration.
-
-Creation is exclusive: an existing file, directory or symlink is not overwritten. The local token is a UUID-based decoy with no working privileges. Pick a location that ordinary applications rarely read. Test reads, backups, search indexers, antivirus tools and synchronization software can produce legitimate alerts. Bigman's own scanner skips registered decoys.
-
-The monitor watches parent directories so replacements can be observed. It reports queue overflow, missing paths and watcher failures; writes a heartbeat; and groups repeated events for a canary within three seconds. Files copied or read while the monitor is stopped cannot be reconstructed later. inotify does not provide a reliable reader PID or tell whether data was exfiltrated. Host malware with the same user privileges can interfere with this application or its state.
-
-Local monitoring cannot detect later use of a stolen token on a different computer. That needs a reachable callback service, either hosted by you or a provider; Bigman does not expose a network listener or provision one. This is optional and separate from account-free local detection.
-
-To use an existing hosted token:
-
-```sh
-bigman canary create ~/Documents/backup-access.url --hosted-url https://YOUR-PROVIDER/YOUR-TOKEN
-```
-
-Use the HTTPS URL the provider gave you. This writes a shortcut and does not visit the URL. Opening the file as plain text does not necessarily activate the provider; following the URL does. Bigman does not embed tokens in live credentials, create cloud credentials, intercept HTTPS, or change certificate trust.
-
-Enable persistent per-user services only after installing Bigman at a stable path:
-
-```sh
-bigman services                         # show exact unit contents
-bigman services --apply                 # enable monitor and daily scan/update timers
-bigman services --remove                # removal preview
-bigman services --remove --apply
-systemctl --user status bigmand.service bigman-monitor.service bigman-scan.timer bigman-update.timer
-```
-
-The monitor compares persistence snapshots every five minutes. Review the initial inventory and establish a baseline first. Existing state remains after disabling services. Use `bigman canary stop` before replacing a session monitor with the complete service/timer setup.
-
-## Optional deterministic tools
-
-```sh
-bigman setup clamav                     # preview repository installation
-bigman setup clamav --apply
-bigman setup shellcheck --apply
-bigman setup sandbox --apply            # bubblewrap + strace
-bigman setup pdf --apply                # Poppler utilities
-bigman setup container --apply          # Podman, for bigman try
-bigman audit lynis
-bigman audit osv ./project              # may query advisory services
-bigman audit osquery
-bigman yara ./reviewed-rules.yar ./Downloads
-```
-
-Install PDFiD/pdf-parser, OSV-Scanner, osquery and YARA-X through their upstream or distro-supported distribution methods. The PDF parser isolation profile supports executables under `/usr/bin` or `/usr/local/bin`; user virtualenv-only tools are not automatically given home-directory access. YARA-X requires a reviewed local rules file; no unreviewed rule feed is fetched.
-
-OSV integration targets its `scan source --format=json` interface. OSV identifies known vulnerabilities, not malware; its advisory queries are an explicit network action. Lynis runs as the user, so privileged checks may be unavailable. OpenSnitch provides its own firewall interface. Bigman does not enable arbitrary firewall rules or run a second system audit collector. Socket/LLM classification is deliberately absent to keep decisions non-AI.
-
-## Browser extension
-
-```sh
-cd browser-extension
-npm ci --ignore-scripts --no-audit --no-fund
-npm run build
-```
-
-Load the `browser-extension` directory as an unpacked extension in Chromium's Extensions page. The generated `dist/link-detector.js` bundles the maintained Public Suffix List library; the unbuilt source alone cannot be loaded. Copy its extension ID, then register the installed native host:
-
-```sh
-./install-native-messaging.sh YOUR_32_CHARACTER_EXTENSION_ID
-```
-
-Registration uses an explicit Chrome extension origin and the actual binary location. Chrome and Chromium user host manifests are generated; wildcard origins and the old checked-in machine-specific manifest were removed. Firefox, Flatpak browser bridges and other browsers need separate packaging and are not claimed supported here.
-
-In the popup, check the desktop connection. Download scanning is off until explicitly enabled in Settings. It scans completed downloads, queues jobs in local extension storage, and reports missing hosts/failures. It does not prevent auto-opening a download. The native host accepts only regular download files under `~/Downloads`; arbitrary folders require explicit desktop selection. Installer preview requests from the browser accept HTTPS URLs only. Repository checks accept only a repository address on those four hosts; the popup reduces the page's address to the repository (a `/tree/main/src` page becomes `OWNER/REPO`) and sends nothing else about the page. Native messages are capped at 64 KiB and report frames stay below Chrome's response limit. There is no TCP listener.
-
-Blocklists are imported locally as domains or exact HTTP(S) URLs. Domain entries match on label boundaries and include subdomains. Imports replace the old list and display their timestamp; they do not refresh automatically. Hostname exceptions last one hour and cannot suppress blocklist findings. “Continue once” is a deliberate bypass. Internationalized domains and HTTP alone receive informational results, not phishing verdicts.
-
-The main-page popup summarizes the main document. Content scripts also check accessible frames and recheck links at click time. The extension cannot intercept all scripted navigation, redirects, typed addresses, forms, inaccessible frames or privileged browser pages. In-page markings are advisory and can be removed by a hostile page. Browser-native protections should stay enabled.
-
-## Data and development
-
-State defaults to `$XDG_DATA_HOME/bigman` or `~/.local/share/bigman`. Use an absolute `--state /path/to/private-directory` for separate profiles/tests. Directories are mode 0700 and report/recovery files mode 0600. Writes use temporary files and atomic replacement. Existing broad-permission or symlinked state directories are refused. This protects against other ordinary users, not compromise of the same account or root.
-
-The Cargo workspace has five crates. `crates/core` holds the report model, private store, bounded process runner, daemon contract (`ipc`) and one module per check under `checks/`; it has no binaries and no UI. `crates/cli` is the `bigman` command; `bigman gui` opens the desktop app. `crates/daemon` is `bigmand`, the per-user daemon that runs every check for the app: it listens on `$XDG_RUNTIME_DIR/bigman/bigmand.sock` (mode 0600, peer uid checked; `BIGMAN_SOCKET` overrides the path), and a client that disconnects cancels its running check. `bigman daemon status` queries it. `crates/app` is the desktop app. `crates/native-host` is the browser native-messaging bridge. Rules have stable IDs and local evidence: `crates/core/src/rules/mod.rs` registers every rule with its explanation, remediation and the threats it covers, [docs/rules.md](docs/rules.md) is generated from it, and `fixtures/<rule-id>/` holds a synthetic input that must fire exactly its listed rules (`cargo test -p bigman-core --test fixtures`). There is no telemetry from Bigman; explicitly launched upstream tools may have their own network behavior.
-
-```sh
-cargo fmt --check
-cargo clippy --locked --all-targets -- -D warnings
-cargo test --locked
-cargo build --locked
-python3 tests/cli_integration.py target/debug/bigman
-python3 tests/canary_onboarding.py target/debug/bigman
-python3 tests/cli_golden.py target/debug/bigman
-python3 tests/daemon_integration.py target/debug
-cd browser-extension && npm run check
-```
-
-### Desktop app
-
-The new desktop app lives in `crates/app`: a Tauri 2 shell (`src-tauri`) and a React + TypeScript UI (`ui`). It is a thin client of `bigmand`; it never runs a check itself and starts the daemon if it is not answering. Every state change is a previewed action (`crates/core/src/actions.rs`): the daemon describes exactly what will change, you confirm, then it applies.
-
-```sh
-# Fedora build dependencies for the Tauri shell
-sudo dnf install webkit2gtk4.1-devel libsoup3-devel javascriptcoregtk4.1-devel libappindicator-gtk3-devel librsvg2-devel openssl-devel
-
-cd crates/app/ui
-npm ci --ignore-scripts
-npm run dev:browser          # UI in a normal browser against fixture data (?scenario=calm|incomplete|empty|disconnected)
-npm run check                # typecheck, lint, architecture rules, vitest
-npm run build                # bundle the UI into crates/app/ui/dist
-cd ../../..
-cargo build                  # bigman, bigmand
-cargo run -p bigman-app      # the desktop app, using the built UI
-# Hot reload: npm --prefix crates/app/ui run dev, then cargo run -p bigman-app --no-default-features
-```
-
-`http://127.0.0.1:1420/#/gallery` shows every design-system component in every state, light and dark. The TypeScript types for the daemon contract are generated from the Rust types by `cargo test` into `crates/app/ui/src/ipc/generated`; never edit them by hand. `tests/app_smoke.mjs` drives the built app through `tauri-driver` (install it with `cargo install tauri-driver`; it needs `WebKitWebDriver`). `cargo deny check` enforces the licence policy in `deny.toml`.
-
-`tests/cli_integration.py` uses synthetic files and a scanner contract fixture. `tests/cli_golden.py` pins the exact text and JSON output of `doctor`, `inspect`, piped inspection and `packages` against `tests/golden/`; rerun it with `--update` only after an intentional output change. `tests/daemon_integration.py` drives the desktop app's workflows (scan, previewed quarantine and restore, inspection, package policy, baseline, canaries, history) against a real `bigmand` over its socket. `tests/canary_onboarding.py` exercises real monitoring, fresh-read verification, repeat setup, failure fallback and stop behavior; its service manager is a fixture so tests do not change the host’s login configuration. Rust tests exercise real inotify events and filesystem safeguards. Browser tests cover host parsing, Unicode, mismatches, exceptions, ClickFix rules and DOM mutations. `tests/browser_smoke.cjs` additionally exercises the built bundle with real Chrome click events using Playwright (set `BIGMAN_PLAYWRIGHT_MODULE` and optionally `BIGMAN_CHROME`). CI runs Rust/CLI and extension checks and builds an extension artifact.
-
-The historical [review](REVIEW.md) explains the original prototype and proposals. This README describes the implemented interfaces and their limits. Advanced host-wide credential-read attribution, privileged on-access blocking, incident cleanup, Windows/macOS support, provider-side token provisioning and enterprise monitoring servers are not implemented or implied by this release.
+Not implemented: telling which program read a file across the whole system, blocking files as they are opened, cleaning up after an incident, Windows and macOS, and monitoring many computers.

@@ -498,14 +498,10 @@ fn security_updates_wait_after_install_then_follow_package_changes() {
         now + 600,
         "the first check is ten minutes after the first start"
     );
-    // Turned off, nothing runs.
+    // Turned off, the daemon does not run it (see bigmand's preferences tests).
     w.db.set_setting(Preferences::KEY, r#"{"check_updates":false}"#)
         .unwrap();
-    run(&w, &mut source, now + 700).unwrap();
-    assert_eq!(
-        w.db.setting("advisories.last_run").unwrap().unwrap(),
-        first.to_string()
-    );
+    assert!(!Preferences::load(&w.db).allows(source.name()));
 }
 
 #[test]

@@ -10,7 +10,10 @@ use serde::Serialize;
 use std::{
     collections::HashMap,
     process::{Command, Stdio},
-    sync::{Arc, Mutex},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, Mutex,
+    },
     time::{Duration, Instant},
 };
 
@@ -30,6 +33,8 @@ pub struct Launcher {
     last_start: Mutex<Option<Instant>>,
     /// Requests the UI may cancel, by the token it chose.
     running: Mutex<HashMap<String, Canceller>>,
+    /// Set on the way out after stopping bigmand, so no request starts it again.
+    stopped: AtomicBool,
 }
 
 const RESTART_COOLDOWN: Duration = Duration::from_secs(10);
@@ -74,7 +79,19 @@ impl Launcher {
         self.running.lock().unwrap_or_else(|p| p.into_inner())
     }
 
+    /// Asks bigmand to stop; an unreachable daemon is already stopped.
+    pub fn stop_daemon(&self) {
+        self.stopped.store(true, Ordering::Relaxed);
+        if let Ok(mut client) = Client::connect() {
+            let _ = client.set_timeout(Some(Duration::from_secs(5)));
+            let _ = client.request(Request::Shutdown);
+        }
+    }
+
     pub(crate) fn start_daemon(&self) {
+        if self.stopped.load(Ordering::Relaxed) {
+            return;
+        }
         let mut last = self.last_start.lock().unwrap_or_else(|p| p.into_inner());
         if last.is_some_and(|t| t.elapsed() < RESTART_COOLDOWN) {
             return;
@@ -101,6 +118,21 @@ pub async fn daemon_request(
     tauri::async_runtime::spawn_blocking(move || launcher.request_with_token(request, token))
         .await
         .map_err(|e| RequestError::Failed(e.to_string()))?
+}
+
+/// Stops bigmand and quits the app, from Setup or the tray: while the app is open
+/// it would start bigmand again, so the two go together.
+#[tauri::command]
+pub async fn stop_and_quit(
+    app: tauri::AppHandle,
+    launcher: tauri::State<'_, Arc<Launcher>>,
+) -> Result<(), String> {
+    let launcher = launcher.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || launcher.stop_daemon())
+        .await
+        .map_err(|e| e.to_string())?;
+    app.exit(0);
+    Ok(())
 }
 
 /// Cancels the request started with this token; its cancelled report still arrives.

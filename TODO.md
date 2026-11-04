@@ -1,4 +1,4 @@
-> Historical brainstorming notes, preserved for context. See [README.md](README.md) for implemented workflows and current limitations. These notes are not setup instructions.
+> Historical brainstorming notes, preserved for context. See [docs/features.md](docs/features.md) for implemented workflows and current limitations. These notes are not setup instructions.
 
 # UI
 ## ClamTK equivalent

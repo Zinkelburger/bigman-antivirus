@@ -8,6 +8,7 @@ import {
   type Event,
   type Live,
   type NotificationSettings,
+  type Preferences,
   type Quarantined,
   type Report,
   type Request,
@@ -48,7 +49,7 @@ class MockDaemon {
   notifications: NotificationSettings = { findings: true, new_connections: false, new_listeners: false, packages: false, denials: false, paused_until: null };
   subscribers = new Set<(live: Live) => void>();
   hook = false;
-  preferences = { check_updates: true };
+  preferences: Preferences = { check_updates: true, watch_downloads: true, watch_projects: true };
   hardening: MockHardening;
   skills: SkillItem[] = seedSkills();
   skillItems = new Map<string, SkillItem[]>();
@@ -261,6 +262,7 @@ class MockDaemon {
   async handle(request: Request, token?: string): Promise<Response> {
     const r = (value: Report): Response => ({ type: "report", value });
     switch (request.type) {
+      case "shutdown": return { type: "done", value: { message: "Background checks stopped.", report: null, undo: null } };
       case "health": return { type: "health", value: { version: "0.2.0", pid: 4100, started: NOW - 3_600, state_dir: "/home/sam/.local/share/bigman" } };
       case "status": {
         const value = statusScenarios[this.scenario] ?? statusScenarios.findings;
@@ -385,7 +387,7 @@ class MockDaemon {
         const snapshot = networkSnapshot(this.scenario);
         return { type: "network", value: this.scenario === "empty" ? { ...snapshot, connections: [], listeners: [] } : snapshot };
       }
-      case "sources": return { type: "sources", value: sourceStatuses(this.scenario) };
+      case "sources": return { type: "sources", value: sourceStatuses(this.scenario, this.preferences) };
       case "notifications": return { type: "notifications", value: this.notifications };
       case "preferences": return { type: "preferences", value: this.preferences };
       case "set_preferences": this.preferences = request.preferences; return { type: "preferences", value: this.preferences };
@@ -457,10 +459,11 @@ export function mockTransport(scenario = "findings", latencyMs = 250, speed = 1)
   };
 }
 
-/** Browser stand-ins for the desktop file chooser and report export. */
+/** Browser stand-ins for the desktop file chooser, report export and quitting. */
 export const mockShell: DesktopShell = {
   choosePath: (kind) => Promise.resolve(kind === "directory" ? "/home/sam/Projects/example-app" : "/home/sam/Downloads/install-tool.sh"),
   exportReport: (reportId) => Promise.resolve(`/home/sam/bigman-${reportId}.json`),
+  stopAndQuit: () => Promise.resolve(),
 };
 
 export function scenarioFromLocation(): string {

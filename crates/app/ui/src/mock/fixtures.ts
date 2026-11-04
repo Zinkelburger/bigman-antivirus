@@ -81,6 +81,7 @@ export const statusScenarios: Record<string, ProtectionStatus> = {
     checked_at: NOW,
     downloads: "/home/sam/Downloads",
     receipt_hook: null,
+    services: false,
     tools: tools(["lynis", "osv-scanner", "osqueryi", "yr", "pdfid.py", "pdf-parser.py"]),
     signatures: { updated: days(5), location: "/var/lib/clamav" },
     monitor: {
@@ -97,6 +98,7 @@ export const statusScenarios: Record<string, ProtectionStatus> = {
     checked_at: NOW,
     downloads: "/home/sam/Downloads",
     receipt_hook: null,
+    services: false,
     tools: tools([]),
     signatures: { updated: minutes(180), location: "/home/sam/.local/share/bigman/signatures" },
     monitor: {
@@ -113,6 +115,7 @@ export const statusScenarios: Record<string, ProtectionStatus> = {
     checked_at: NOW,
     downloads: "/home/sam/Downloads",
     receipt_hook: null,
+    services: false,
     tools: tools(["shellcheck", "strace"]),
     signatures: { updated: minutes(600), location: "/var/lib/clamav" },
     monitor: null,
@@ -122,6 +125,7 @@ export const statusScenarios: Record<string, ProtectionStatus> = {
     checked_at: NOW,
     downloads: "/home/sam/Downloads",
     receipt_hook: null,
+    services: false,
     tools: tools(TOOL_LIST.map(([name]) => name)),
     signatures: null,
     monitor: null,

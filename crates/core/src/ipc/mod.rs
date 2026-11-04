@@ -37,6 +37,9 @@ pub const MAX_FRAME: u64 = 16 * 1024 * 1024;
 #[ts(export)]
 pub enum Request {
     Health,
+    /// Stops bigmand cleanly. Whatever started it (the app, the service manager
+    /// at login) starts it again next time.
+    Shutdown,
     /// Protection state for the Overview tiles. Read-only and fast.
     Status,
     /// Run the read-only security checkup and save its report.
@@ -267,6 +270,9 @@ pub struct ProtectionStatus {
     pub downloads: PathBuf,
     /// The package-manager hook that previews receipts, when it is installed.
     pub receipt_hook: Option<PathBuf>,
+    /// The background services are installed: bigmand, the canary monitor and
+    /// the daily signature update also start at login.
+    pub services: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]

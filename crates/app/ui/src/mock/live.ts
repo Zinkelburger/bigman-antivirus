@@ -1,7 +1,7 @@
 // Synthetic live data for browser dev mode and tests: timeline events, throughput
 // with one collection gap, the current sockets and source health. Invented, and
 // shaped like what bigmand's sources produce.
-import type { Event, Finding, ListenerRow, NetworkSnapshot, Receipt, Report, Sample, SampleSeries, Socket, SourceStatus } from "@/ipc";
+import type { Event, Finding, ListenerRow, NetworkSnapshot, Preferences, Receipt, Report, Sample, SampleSeries, Socket, SourceStatus } from "@/ipc";
 import rules from "@/ipc/generated/rules.json";
 import { NOW } from "./fixtures";
 
@@ -248,17 +248,21 @@ export function networkSnapshot(scenario: string): NetworkSnapshot {
   };
 }
 
-export function sourceStatuses(scenario: string): SourceStatus[] {
-  const ok = (name: string, label: string): SourceStatus => ({ name, label, last_run: NOW - 2, ok: true, why: null, detail: "" });
+export function sourceStatuses(scenario: string, preferences: Preferences): SourceStatus[] {
+  const ok = (name: string, label: string): SourceStatus => ({ name, label, last_run: NOW - 2, ok: true, off: false, why: null, detail: "" });
+  const switched = (name: string, label: string, on: boolean): SourceStatus => (on ? ok(name, label) : { ...ok(name, label), last_run: null, off: true });
   return [
     ok("connections", "Your programs' connections"),
     scenario === "calm"
       ? ok("denials", "SELinux and AppArmor denials")
-      : { name: "denials", label: "SELinux and AppArmor denials", last_run: NOW - 4, ok: false, why: "permission_denied", detail: "Reading the system journal needs membership of systemd-journal, adm or wheel." },
+      : { name: "denials", label: "SELinux and AppArmor denials", last_run: NOW - 4, ok: false, off: false, why: "permission_denied", detail: "Reading the system journal needs membership of systemd-journal, adm or wheel." },
     ok("listeners", "Listening programs"),
     ok("packages", "Package installs and updates"),
     ok("reports", "Checks you run"),
     ok("throughput", "Network throughput"),
+    switched("downloads", "New files in Downloads", preferences.watch_downloads),
+    switched("projects", "New project folders", preferences.watch_projects),
+    switched("updates", "Security updates, daily and after package changes", preferences.check_updates),
   ];
 }
 

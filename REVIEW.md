@@ -1,6 +1,6 @@
 # Bigman: repository review and practical direction
 
-> Historical pre-implementation review. The deterministic implementation and current limitations are documented in README.md; findings below refer to the original commit.
+> Historical pre-implementation review. The deterministic implementation and current limitations are documented in README.md and docs/features.md; findings below refer to the original commit.
 
 Reviewed September 8, 2026, at commit `ee689eb`. Scope: all tracked application source, browser extension, installer, dependency manifests, tests, TODO, and the supplied historical Obsidian note. The note was treated as background, not instructions. Recommendations below are proposed work, not implemented features.
 

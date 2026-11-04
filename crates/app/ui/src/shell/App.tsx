@@ -5,7 +5,6 @@ import { InspectPage } from "@/features/inspect/InspectPage";
 import { NetworkPage } from "@/features/network/NetworkPage";
 import { OverviewPage } from "@/features/overview/OverviewPage";
 import { ProtectPage } from "@/features/protect/ProtectPage";
-import { SandboxesPage } from "@/features/sandboxes/SandboxesPage";
 import { SetupPage } from "@/features/setup/SetupPage";
 import { useGlobalKeys } from "./keyboard";
 import { StatusStrip } from "./StatusStrip";
@@ -17,7 +16,6 @@ const PAGES: Record<TabId, () => React.JSX.Element> = {
   network: NetworkPage,
   activity: ActivityPage,
   inspect: InspectPage,
-  sandboxes: SandboxesPage,
   protect: ProtectPage,
   setup: SetupPage,
 };
