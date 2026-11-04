@@ -36,7 +36,7 @@ fn fingerprint(units: &[skills::Unit]) -> String {
             u.source
         ));
         for e in walkdir::WalkDir::new(&u.root)
-            .max_depth(8)
+            .max_depth(skills::MAX_DEPTH)
             .sort_by_file_name()
             .into_iter()
             .filter_entry(|e| e.file_name() != "node_modules" && e.file_name() != ".git")

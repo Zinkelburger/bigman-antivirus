@@ -296,20 +296,21 @@ pub fn assess(r: &mut Report, files: &[File], git_config: Option<&str>) {
 /// checked with the skill rules as one unit; skill files elsewhere in the tree
 /// (a collection of skills) get the rules on their own.
 fn project_skills(r: &mut Report, files: &[File]) {
-    let mut units: std::collections::BTreeMap<(String, String), Vec<&File>> = Default::default();
+    let mut units: std::collections::BTreeMap<(skills::Kind, String), Vec<&File>> =
+        Default::default();
     for f in files {
         let p = f.path.to_string_lossy().replace('\\', "/");
         if let Some((kind, root)) = skills::project_unit(&p) {
-            units
-                .entry((format!("{kind:?}"), root))
-                .or_default()
-                .push(f);
+            units.entry((kind, root)).or_default().push(f);
         } else if p.rsplit('/').next() == Some("SKILL.md") {
             let root = p
                 .trim_end_matches("SKILL.md")
                 .trim_end_matches('/')
                 .to_string();
-            units.entry(("Skill".into(), root)).or_default().push(f);
+            units
+                .entry((skills::Kind::Skill, root))
+                .or_default()
+                .push(f);
         } else if p == "opencode.json"
             || p == "opencode.jsonc"
             || p == ".opencode/opencode.json"
@@ -319,12 +320,6 @@ fn project_skills(r: &mut Report, files: &[File]) {
         }
     }
     for ((kind, root), group) in units {
-        let kind = match kind.as_str() {
-            "Command" => skills::Kind::Command,
-            "Agent" => skills::Kind::Agent,
-            "CodePlugin" => skills::Kind::CodePlugin,
-            _ => skills::Kind::Skill,
-        };
         let single = group.len() == 1 && group[0].path.to_string_lossy() == root;
         let rel: Vec<String> = group
             .iter()
