@@ -1,0 +1,28 @@
+# Template for the AUR package bigman-bin. scripts/build-packages.sh fills in the
+# version and the tarball's checksum and writes dist/PKGBUILD, which the release
+# attaches. To publish: copy it into the AUR repository, run `makepkg --printsrcinfo > .SRCINFO`, commit and push.
+pkgname=bigman-bin
+pkgver=@VERSION@
+pkgrel=1
+pkgdesc='Deterministic security companion for the Linux desktop'
+arch=('x86_64')
+url='https://github.com/Zinkelburger/bigman-antivirus'
+license=('AGPL-3.0-only')
+depends=('webkit2gtk-4.1' 'gtk3' 'libsoup3' 'dbus' 'wayland' 'glib2' 'cairo' 'gdk-pixbuf2' 'gcc-libs' 'glibc')
+optdepends=('clamav: malware signature scans'
+            'podman: disposable containers for bigman try')
+provides=('bigman')
+conflicts=('bigman')
+options=('!strip' '!debug')
+source=("$url/releases/download/v$pkgver/bigman-$pkgver-x86_64-linux.tar.gz")
+sha256sums=('@SHA256@')
+
+package() {
+  cd "bigman-$pkgver"
+  install -Dm755 -t "$pkgdir/usr/bin" bin/bigman bin/bigmand bin/bigman-app
+  install -Dm644 -t "$pkgdir/usr/share/applications" share/applications/bigman-app.desktop
+  for icon in share/icons/hicolor/*/apps/bigman-app.png; do
+    install -Dm644 "$icon" "$pkgdir/usr/$icon"
+  done
+  install -Dm644 -t "$pkgdir/usr/share/licenses/$pkgname" LICENSE
+}
