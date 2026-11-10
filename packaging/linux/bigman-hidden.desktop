@@ -1,0 +1,8 @@
+[Desktop Entry]
+# Tauri names the entry it generates after the package, bigman.desktop. The window's
+# application ID is bigman-app, so the menu entry is bigman-app.desktop (installed
+# beside this one) and this one is hidden.
+Type=Application
+Name=Bigman
+Exec=bigman-app
+Hidden=true

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Bigman
+Comment=Deterministic security checks for your Linux desktop
+Exec=bigman-app
+Icon=bigman-app
+StartupWMClass=bigman-app
+Terminal=false
+Categories=Utility;Security;

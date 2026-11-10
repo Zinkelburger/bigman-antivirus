@@ -103,7 +103,13 @@ pub fn inventory(path: &Path) -> Result<Report> {
         paths.sort();
         for p in paths.iter().take(2000) {
             let b = read_file(p, MAX_INPUT)?;
-            identity.extend_from_slice(p.as_os_str().as_encoded_bytes());
+            // Paths relative to the project, so the same project hashes the same
+            // wherever it is checked out. A single file contributes its name.
+            let name = match p.strip_prefix(&root) {
+                Ok(rel) if !rel.as_os_str().is_empty() => rel.as_os_str(),
+                _ => p.file_name().unwrap_or_default(),
+            };
+            identity.extend_from_slice(name.as_encoded_bytes());
             identity.extend_from_slice(&b);
             manifest(&mut r, p, &b)?;
             count += 1;
@@ -477,6 +483,29 @@ mod tests {
         let r = packages(&store, &project).unwrap();
         assert!(r.findings.iter().any(|f| f.rule == "package.lifecycle"));
         assert!(!project.join("MUST_NOT_EXIST").exists());
+    }
+
+    #[test]
+    fn hash_does_not_depend_on_where_the_project_is() {
+        let d = tempfile::tempdir().unwrap();
+        let store = Store::open(Some(d.path().join("state"))).unwrap();
+        let hash = |dir: &str| {
+            let project = d.path().join(dir);
+            fs::create_dir_all(project.join("sub")).unwrap();
+            fs::write(project.join("package.json"), r#"{"name":"a"}"#).unwrap();
+            fs::write(project.join("sub/package.json"), r#"{"name":"b"}"#).unwrap();
+            packages(&store, &project).unwrap().sha256.unwrap()
+        };
+        assert_eq!(hash("one"), hash("elsewhere/two"));
+        // A renamed manifest is a different project.
+        let moved = d.path().join("three");
+        fs::create_dir_all(moved.join("other")).unwrap();
+        fs::write(moved.join("package.json"), r#"{"name":"a"}"#).unwrap();
+        fs::write(moved.join("other/package.json"), r#"{"name":"b"}"#).unwrap();
+        assert_ne!(
+            hash("one"),
+            packages(&store, &moved).unwrap().sha256.unwrap()
+        );
     }
 
     /// A project with a package.json and the given node_modules files and .bin

@@ -4,7 +4,7 @@ exit 1
   "created": 0,
   "kind": "Package script inventory",
   "subject": "<inputs>/project",
-  "sha256": "4b07b1440bc83d8e624799c664f944e9e2bbd95a681c2e6577f94d2104e860fc",
+  "sha256": "c125c862b2183d9992caab7d4fd4978a604b14113f0cb55349a4ab79987f8130",
   "findings": [
     {
       "rule": "package.lifecycle",

@@ -7,7 +7,8 @@ docs/references/index.json. If the live page is gone, the Wayback copy is used.
 
 Only citations are archived. URLs inside code spans or fenced code blocks are
 examples, indicators or API endpoints and are never fetched. Neither are
-placeholder hosts (.invalid, .example, localhost) or bulk data files.
+placeholder hosts (.invalid, .example, localhost), bulk data files, or this
+project's own GitHub pages (its releases change with every release).
 
     python3 -I scripts/archive_references.py                 # capture new citations
     python3 -I scripts/archive_references.py --wayback-save  # also request missing snapshots
@@ -61,6 +62,8 @@ NOTICE = (
 # Placeholder or local hosts used as examples in the docs.
 PLACEHOLDER_SUFFIXES = (".invalid", ".example", ".test", ".tld", ".localhost", ".local")
 PLACEHOLDER_HOSTS = {"localhost", "example.com", "example.org", "example.net"}
+# This project's own pages are links, not citations.
+OWN_REPO = "github.com/zinkelburger/bigman-antivirus/"
 # Data endpoints and bulk downloads: cited as sources of data, not as articles.
 DATA_EXTENSIONS = (
     ".gz", ".zip", ".xz", ".bz2", ".zst", ".tar", ".tgz", ".csv", ".json", ".xml",
@@ -123,6 +126,8 @@ def skip_reason(url: str) -> str | None:
         return "placeholder host"
     if host in PLACEHOLDER_HOSTS or host.endswith(PLACEHOLDER_SUFFIXES):
         return "placeholder host"
+    if f"{host}{parts.path.lower()}/".startswith(OWN_REPO):
+        return "this project's own page"
     if re.fullmatch(r"[\d.]+", host) or host.startswith("["):
         return "bare IP address"
     if host in DATA_HOSTS or host.startswith("api."):

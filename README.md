@@ -10,6 +10,19 @@ Bigman never deletes, moves or runs anything on its own, never uploads your file
 
 ## Install
 
+Download the package for your distribution from the [latest release](https://github.com/Zinkelburger/bigman-antivirus/releases/latest). Each one contains `bigman` (the CLI), `bigmand` (the background service that runs every check) and `bigman-app` (the desktop app), with an application-menu entry; it sets nothing to start at login. Packages are built for x86-64 and tested on Ubuntu 22.04 and later, Debian 12 and later, Fedora 43 and later, and Arch.
+
+```sh
+sudo apt install ./bigman_VERSION_amd64.deb      # Debian, Ubuntu
+sudo dnf install ./bigman-VERSION-1.x86_64.rpm   # Fedora
+# Arch: build the release's PKGBUILD with makepkg -si
+# Anything else: unpack bigman-VERSION-x86_64-linux.tar.gz and run ./install.sh (installs under ~/.local)
+```
+
+Check a download against the release's `SHA256SUMS`, or confirm that this repository's release workflow built it with `gh attestation verify FILE -R Zinkelburger/bigman-antivirus`.
+
+### From source
+
 Requirements: Linux, a current stable Rust toolchain, Node.js 22 with npm, and WebKitGTK development files for the desktop app ([build dependencies](docs/development.md#desktop-app)). Build checks were run with Rust 1.98. The CLI works without a graphical session.
 
 ```sh
@@ -83,6 +96,7 @@ Reports stay in `~/.local/share/bigman` (mode 0700) and leave the computer only 
 - [docs/canaries.md](docs/canaries.md): decoy files and the monitor
 - [docs/browser-extension.md](docs/browser-extension.md): building and connecting the extension
 - [docs/development.md](docs/development.md): crates, state, tests and building the desktop app
+- [docs/releasing.md](docs/releasing.md): tagging a release and what the packages contain
 - [docs/threats](docs/threats/README.md): the threats Bigman addresses and how
 - [SECURITY.md](SECURITY.md): reporting a vulnerability
 
