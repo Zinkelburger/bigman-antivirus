@@ -244,12 +244,24 @@ pub fn service_plan(store: &Store) -> Result<Vec<(String, String)>> {
 /// Units earlier versions installed: the daily Downloads scan, which the
 /// daemon's Downloads watch replaces. Installing or removing clears them.
 const LEGACY: [&str; 2] = ["bigman-scan.timer", "bigman-scan.service"];
-pub fn services(store: &Store, apply: bool, remove: bool, stop: &Cancel) -> Result<String> {
-    let plan = service_plan(store)?;
-    let root = std::env::var_os("XDG_CONFIG_HOME")
+
+/// Where per-user units live.
+fn unit_dir() -> PathBuf {
+    std::env::var_os("XDG_CONFIG_HOME")
         .map(PathBuf::from)
         .unwrap_or_else(|| home().join(".config"))
-        .join("systemd/user");
+        .join("systemd/user")
+}
+
+/// Whether the background services are installed, so bigmand, the monitor and
+/// the signature update also start at login.
+pub fn services_installed() -> bool {
+    unit_dir().join("bigmand.service").exists()
+}
+
+pub fn services(store: &Store, apply: bool, remove: bool, stop: &Cancel) -> Result<String> {
+    let plan = service_plan(store)?;
+    let root = unit_dir();
     let legacy: Vec<&str> = LEGACY
         .iter()
         .copied()
@@ -353,9 +365,9 @@ pub fn services(store: &Store, apply: bool, remove: bool, stop: &Cancel) -> Resu
             bail!("Units written, but enable failed: {}", o.stderr);
         }
     }
-    Ok(if remove{"User services removed"}else{"The collector daemon, monitoring, daily scan and definition updates are enabled. They follow your user session; no system-wide service or lingering was enabled. A daemon the app already started keeps running until you log out, and the service takes over from the next login."}.into())
+    Ok(if remove{"User services removed"}else{"The collector daemon, the canary and startup monitor and the daily signature update are enabled. They follow your user session; no system-wide service or lingering was enabled. A daemon the app already started keeps running until you log out, and the service takes over from the next login."}.into())
 }
-/// Configure only the monitor; easy canary setup must not enable unrelated scan timers.
+/// Configure only the monitor; easy canary setup must not enable the other units.
 pub fn monitor_service(
     store: &Store,
     remove: bool,

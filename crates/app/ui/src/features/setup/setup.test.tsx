@@ -1,5 +1,6 @@
 import { screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { mockShell } from "@/mock/transport";
 import { renderWithDaemon } from "@/test-utils";
 import { SetupPage } from "./SetupPage";
 
@@ -36,6 +37,35 @@ describe("Setup notifications", () => {
   it("shows which sources cannot read and why", async () => {
     renderWithDaemon(<SetupPage />);
     expect(await screen.findByText(/not collected \(no permission to read\)/)).toBeInTheDocument();
+  });
+});
+
+describe("Setup checks that run on their own", () => {
+  it("turns the Downloads watch off and shows it as off, not as a gap", async () => {
+    const { user } = renderWithDaemon(<SetupPage />);
+    const row = (await screen.findByText("New files in Downloads")).closest("li");
+    if (!row) throw new Error("Downloads source missing");
+    expect(within(row).getByText(/read /)).toBeInTheDocument();
+    await user.click(screen.getByRole("switch", { name: /Check new downloads/ }));
+    expect(await within(row).findByText(/· off/)).toBeInTheDocument();
+  });
+
+  it("stops background checks from Setup, after saying what stops and what does not", async () => {
+    const stop = vi.spyOn(mockShell, "stopAndQuit");
+    const { user } = renderWithDaemon(<SetupPage />);
+    await user.click(await screen.findByRole("button", { name: "Stop background checks…" }));
+    const dialog = await screen.findByRole("dialog", { name: "Stop background checks" });
+    expect(within(dialog).getByText(/new downloads\s+and project folders are not checked/)).toBeInTheDocument();
+    expect(stop).not.toHaveBeenCalled();
+    await user.click(within(dialog).getByRole("button", { name: "Stop and quit Bigman" }));
+    expect(stop).toHaveBeenCalledOnce();
+    stop.mockRestore();
+  });
+
+  it("does not claim the network is used only when you ask", async () => {
+    renderWithDaemon(<SetupPage />);
+    expect(await screen.findByText(/daily security-update check/)).toBeInTheDocument();
+    expect(screen.queryByText(/only checks you start/)).not.toBeInTheDocument();
   });
 });
 

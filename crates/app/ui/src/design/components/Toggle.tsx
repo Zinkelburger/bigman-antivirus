@@ -12,14 +12,16 @@ export function Toggle({ checked, onChange, label, description, disabled = false
   const id = useId();
   return (
     <div className="flex items-start justify-between gap-4">
-      <label htmlFor={id} className="flex flex-col">
-        <span className="text-body font-semibold text-ink">{label}</span>
+      <div className="flex flex-col">
+        <label htmlFor={id} className="text-body font-semibold text-ink">
+          {label}
+        </label>
         {description && (
           <span id={`${id}-description`} className="text-small text-ink-muted">
             {description}
           </span>
         )}
-      </label>
+      </div>
       <button
         id={id}
         type="button"

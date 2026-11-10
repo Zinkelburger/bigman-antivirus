@@ -23,6 +23,7 @@ export type { Live } from "./generated/Live";
 export type { MonitorHealth } from "./generated/MonitorHealth";
 export type { NetworkSnapshot } from "./generated/NetworkSnapshot";
 export type { NotificationSettings } from "./generated/NotificationSettings";
+export type { Preferences } from "./generated/Preferences";
 export type { ProtectionStatus } from "./generated/ProtectionStatus";
 export type { Quarantined } from "./generated/Quarantined";
 export type { Receipt } from "./generated/Receipt";

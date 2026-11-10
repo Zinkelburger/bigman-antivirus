@@ -4,6 +4,17 @@ import { renderWithDaemon } from "@/test-utils";
 import { ProtectPage } from "./ProtectPage";
 import { useShell } from "@/shell/store";
 
+describe("Protect startup files", () => {
+  it("says a baseline is a starting point and points at the rated entries before accepting", async () => {
+    useShell.setState({ protectView: "startup" });
+    const { user } = renderWithDaemon(<ProtectPage />);
+    await user.click(await screen.findByRole("button", { name: "Compare startup files" }));
+    expect(await screen.findByText(/It does not mark anything as trustworthy/)).toBeInTheDocument();
+    expect(screen.getByText(/2 entries are rated 1 High and 1 Review/)).toBeInTheDocument();
+    expect(screen.queryByText(/saves this list as normal/)).not.toBeInTheDocument();
+  });
+});
+
 describe("Protect", () => {
   it("scans the Downloads folder and shows the result", async () => {
     useShell.setState({ protectView: "scans" });

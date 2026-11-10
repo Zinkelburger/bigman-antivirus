@@ -1,5 +1,5 @@
 use anyhow::Result;
-use bigman_core::{ipc, model, platform::linux::NotifySend, runner, sources, store::Store};
+use bigman_core::{ipc, model, platform::linux::NotifySend, sources, store::Store};
 use bigman_daemon::{server, timeline, Daemon};
 use clap::Parser;
 use std::{path::PathBuf, sync::Arc};
@@ -33,10 +33,10 @@ fn run() -> Result<()> {
         Some(p) => p,
         None => ipc::socket_path()?,
     })?;
-    let stop = runner::cancel();
+    let daemon = Arc::new(Daemon::new(store)?);
+    let stop = daemon.stop.clone();
     let signal = stop.clone();
     ctrlc::set_handler(move || signal.store(true, std::sync::atomic::Ordering::Relaxed))?;
-    let daemon = Arc::new(Daemon::new(store)?);
     let collectors = timeline::start(
         &daemon,
         sources::linux_sources(stop.clone()),
@@ -45,6 +45,9 @@ fn run() -> Result<()> {
     );
     eprintln!("bigmand: listening on {}", socket.path.display());
     let served = server::serve(&socket, daemon.clone(), &stop);
+    // Removing the socket first tells clients at once that the daemon is gone,
+    // while a source finishes its current run.
+    drop(socket);
     stop.store(true, std::sync::atomic::Ordering::Relaxed);
     for thread in collectors {
         let _ = thread.join();

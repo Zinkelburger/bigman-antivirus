@@ -236,7 +236,11 @@ export function useSetPreferences() {
   const client = useQueryClient();
   return useMutation({
     mutationFn: (preferences: Preferences) => call({ type: "set_preferences", preferences }, "preferences"),
-    onSuccess: (preferences) => client.setQueryData(["preferences"], preferences),
+    onSuccess: (preferences) => {
+      client.setQueryData(["preferences"], preferences);
+      // A source turned off or on shows as such in What is collected.
+      void client.invalidateQueries({ queryKey: ["sources"] });
+    },
   });
 }
 

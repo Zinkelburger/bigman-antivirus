@@ -7,6 +7,7 @@ mod downloads;
 mod heartbeat;
 mod listeners;
 mod packages;
+mod preferences;
 mod projects;
 mod reports;
 mod skills;
@@ -21,13 +22,14 @@ pub use downloads::Downloads;
 pub use heartbeat::{Heartbeat, DAEMON_STOPPED};
 pub use listeners::Listeners;
 pub use packages::{transaction_summary, Packages};
+pub use preferences::Preferences;
 pub use projects::Projects;
 pub use reports::Reports;
 pub use skills::Skills;
 pub use snapshot::{network_snapshot, ConnectionRow, ListenerRow, NetworkSnapshot};
 pub use ssh::{AuthorizedKeys, RemoteLogins, StrayKeys, Tunnels};
 pub use throughput::Throughput;
-pub use updates::{Preferences, Updates};
+pub use updates::Updates;
 
 use crate::{
     model::{Observation, Sample, SkipReason},
@@ -65,6 +67,10 @@ pub trait Source: Send {
     /// One run. `Err(Gap)` when the source cannot see anything right now, which is
     /// reported as incomplete coverage rather than as "nothing happened".
     fn collect(&mut self, ctx: &Ctx) -> Result<Collected, Gap>;
+    /// Runs instead of `collect` while Preferences turn this source off. Sources
+    /// that watch let go here, so turning them back on starts from then rather
+    /// than catching up on what arrived while they were off.
+    fn turned_off(&mut self, _ctx: &Ctx) {}
 }
 
 /// A source's health, for Setup and the coverage of the timeline.
@@ -75,6 +81,8 @@ pub struct SourceStatus {
     pub label: String,
     pub last_run: Option<u64>,
     pub ok: bool,
+    /// Turned off in Setup. Not a gap: nothing is being missed by accident.
+    pub off: bool,
     pub why: Option<SkipReason>,
     pub detail: String,
 }

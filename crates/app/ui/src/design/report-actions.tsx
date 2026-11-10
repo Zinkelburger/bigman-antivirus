@@ -9,8 +9,30 @@ import { EvidenceBlock } from "./components/EvidenceBlock";
 import { KeyValue } from "./components/KeyValue";
 import { TextField } from "./components/TextField";
 import { Toggle } from "./components/Toggle";
+import { plural } from "./format";
 
 /** The quarantine entry holding this scanned file, if it is still in quarantine. */
+/** What to look at before accepting a startup-files baseline: the rated entries first. */
+function BaselineAdvice({ report }: { report: Report }) {
+  const high = report.findings.filter((f) => f.severity === "high").length;
+  const review = report.findings.filter((f) => f.severity === "review").length;
+  if (high + review === 0) {
+    return (
+      <p className="m-0 max-w-[56ch] text-ink-muted">
+        Look through it for anything you do not recognise, such as a program started from your home folder, Downloads
+        or /tmp, or an SSH key you did not add.
+      </p>
+    );
+  }
+  const rated = [high ? `${String(high)} High` : "", review ? `${String(review)} Review` : ""].filter(Boolean).join(" and ");
+  return (
+    <p className="m-0 max-w-[56ch] text-ink">
+      {plural(high + review, "entry")} {high + review === 1 ? "is" : "are"} rated {rated}. Read {high + review === 1 ? "it" : "them"}{" "}
+      above before you accept. If you do not recognise one, search its name, or ask whoever set up this computer.
+    </p>
+  );
+}
+
 export function heldIn(quarantine: readonly Quarantined[] | undefined, item: ScanItem): Quarantined | undefined {
   return quarantine?.find((q) => !q.restored && q.original === item.path && q.hash === item.hash);
 }
@@ -252,9 +274,16 @@ function KindFollowUp({ report }: { report: Report }) {
       return report.details ? <SkillSource report={report} /> : null;
     case "Persistence changes":
       return report.errors.length === 0 ? (
-        <div>
-          <ActionDialog action={{ kind: "accept_baseline", report: report.id }} label="Accept as baseline…" />
-        </div>
+        <section className="flex flex-col gap-2">
+          <p className="m-0 max-w-[56ch] text-ink-muted">
+            Accepting records this list as the starting point, so the next comparison shows only what changed after it.
+            It does not mark anything as trustworthy.
+          </p>
+          <BaselineAdvice report={report} />
+          <div>
+            <ActionDialog action={{ kind: "accept_baseline", report: report.id }} label="Accept as baseline…" />
+          </div>
+        </section>
       ) : null;
     default:
       return null;

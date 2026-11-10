@@ -1,7 +1,7 @@
 // Synthetic live data for browser dev mode and tests: timeline events, throughput
 // with one collection gap, the current sockets and source health. Invented, and
 // shaped like what bigmand's sources produce.
-import type { Event, Finding, ListenerRow, NetworkSnapshot, Receipt, Report, Sample, SampleSeries, Socket, SourceStatus } from "@/ipc";
+import type { Event, Finding, ListenerRow, NetworkSnapshot, Preferences, Receipt, Report, Sample, SampleSeries, Socket, SourceStatus } from "@/ipc";
 import rules from "@/ipc/generated/rules.json";
 import { NOW } from "./fixtures";
 
@@ -230,9 +230,17 @@ export function networkSnapshot(scenario: string): NetworkSnapshot {
     range,
     first_at: firstAt,
   });
+  // A browser-heavy desktop: enough rows that both tables scroll inside the page.
+  const busy = scenario === "busy";
+  if (busy) {
+    for (let i = 0; i < 40; i++) listeners.push(listenerRow(listener(`service-${String(i)}`, 5000 + i, `127.0.0.1:${String(9000 + i)}`, `/usr/bin/service-${String(i)}`), "this computer only", [], i % 7 === 0 ? minutes(30 + i) : days(1 + i)));
+  }
   return {
     at: NOW,
     connections: [
+      ...(busy
+        ? Array.from({ length: 180 }, (_, i) => connection(i % 3 === 0 ? "firefox" : `worker-${String(i % 9)}`, 6000 + i, `151.101.${String(i % 250)}.${String(1 + (i % 200))}:443`, `151.101.${String(i % 250)}.x`, i % 11 === 0 ? minutes(5 + i) : days(1 + (i % 30))))
+        : []),
       connection("curl", 4021, "93.184.215.14:443", "93.184.215.x", minutes(9)),
       connection("firefox", 4242, "142.250.80.46:443", "142.250.80.x", days(30)),
       connection("firefox", 4242, "151.101.1.69:443", "151.101.1.x", days(12)),
@@ -248,17 +256,21 @@ export function networkSnapshot(scenario: string): NetworkSnapshot {
   };
 }
 
-export function sourceStatuses(scenario: string): SourceStatus[] {
-  const ok = (name: string, label: string): SourceStatus => ({ name, label, last_run: NOW - 2, ok: true, why: null, detail: "" });
+export function sourceStatuses(scenario: string, preferences: Preferences): SourceStatus[] {
+  const ok = (name: string, label: string): SourceStatus => ({ name, label, last_run: NOW - 2, ok: true, off: false, why: null, detail: "" });
+  const switched = (name: string, label: string, on: boolean): SourceStatus => (on ? ok(name, label) : { ...ok(name, label), last_run: null, off: true });
   return [
     ok("connections", "Your programs' connections"),
     scenario === "calm"
       ? ok("denials", "SELinux and AppArmor denials")
-      : { name: "denials", label: "SELinux and AppArmor denials", last_run: NOW - 4, ok: false, why: "permission_denied", detail: "Reading the system journal needs membership of systemd-journal, adm or wheel." },
+      : { name: "denials", label: "SELinux and AppArmor denials", last_run: NOW - 4, ok: false, off: false, why: "permission_denied", detail: "Reading the system journal needs membership of systemd-journal, adm or wheel." },
     ok("listeners", "Listening programs"),
     ok("packages", "Package installs and updates"),
     ok("reports", "Checks you run"),
     ok("throughput", "Network throughput"),
+    switched("downloads", "New files in Downloads", preferences.watch_downloads),
+    switched("projects", "New project folders", preferences.watch_projects),
+    switched("updates", "Security updates, daily and after package changes", preferences.check_updates),
   ];
 }
 

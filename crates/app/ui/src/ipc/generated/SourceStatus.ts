@@ -4,4 +4,8 @@ import type { SkipReason } from "./SkipReason";
 /**
  * A source's health, for Setup and the coverage of the timeline.
  */
-export type SourceStatus = { name: string, label: string, last_run: number | null, ok: boolean, why: SkipReason | null, detail: string, };
+export type SourceStatus = { name: string, label: string, last_run: number | null, ok: boolean, 
+/**
+ * Turned off in Setup. Not a gap: nothing is being missed by accident.
+ */
+off: boolean, why: SkipReason | null, detail: string, };

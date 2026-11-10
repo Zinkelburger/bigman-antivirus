@@ -216,6 +216,9 @@ enum Commands {
 enum DaemonCommands {
     /// Show whether bigmand answers on its socket.
     Status,
+    /// Stop bigmand: the Downloads and project watches, Activity and Network
+    /// collection and the daily updates check, until it is started again.
+    Stop,
     /// Timeline entries, newest first.
     Events {
         /// Only the last N hours.
@@ -756,6 +759,38 @@ fn daemon_status(json: bool) -> Result<()> {
     Ok(())
 }
 
+fn daemon_stop() -> Result<()> {
+    let Ok(mut client) = Client::connect() else {
+        println!("bigmand is not running.");
+        return Ok(());
+    };
+    client.set_timeout(Some(std::time::Duration::from_secs(5)))?;
+    let pid = match client.request(ipc::Request::Health) {
+        Ok(ipc::Response::Health(h)) => Some(h.pid),
+        _ => None,
+    };
+    // The daemon may close the connection before its answer arrives; whether it
+    // stopped is told by its process (or, without a pid, its socket), below.
+    let _ = client.request(ipc::Request::Shutdown);
+    let running = || match pid {
+        // A zombie has exited; only its parent's reaping is left.
+        Some(pid) => std::fs::read_to_string(format!("/proc/{pid}/stat")).is_ok_and(|stat| {
+            stat.rsplit_once(") ")
+                .is_some_and(|(_, rest)| !rest.starts_with('Z'))
+        }),
+        None => Client::connect().is_ok(),
+    };
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+    while running() {
+        if std::time::Instant::now() > deadline {
+            bail!("bigmand was asked to stop but is still running after 30 seconds.");
+        }
+        std::thread::sleep(std::time::Duration::from_millis(200));
+    }
+    println!("bigmand stopped. The desktop app starts it again whenever it is open, and so does your next login if the background services are installed.");
+    Ok(())
+}
+
 fn daemon_request(request: ipc::Request) -> Result<ipc::Response> {
     let mut client = Client::connect()?;
     client.set_timeout(Some(std::time::Duration::from_secs(30)))?;
@@ -787,6 +822,7 @@ fn print_event(e: &model::Event) {
 fn daemon_live(command: DaemonCommands, json: bool) -> Result<()> {
     match command {
         DaemonCommands::Status => daemon_status(json),
+        DaemonCommands::Stop => daemon_stop(),
         DaemonCommands::Events {
             hours,
             sources,

@@ -101,7 +101,7 @@ export function PreviewDialog({
             </Dialog.Close>
           </div>
           <Dialog.Description className="sr-only">{description}</Dialog.Description>
-          <div className="flex flex-col gap-4 overflow-y-auto px-5 py-4 text-body">
+          <div className="relative flex flex-col gap-4 overflow-y-auto px-5 py-4 text-body">
             {phase.step === "result" ? (
               <>
                 <h3 className="font-semibold text-ink">Done</h3>

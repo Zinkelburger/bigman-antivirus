@@ -59,7 +59,7 @@ Admin changes run as one `pkexec` call per change, so polkit asks once. Changes 
 
 ### The SSH server (`harden.sshd`)
 
-An SSH server is often turned on once and forgotten on a desktop. It is the way in that the tampered editor extension of October 2026 used: it added a key to `authorized_keys` and opened `ssh -R` back to `localhost:22`, so the attacker arrived over loopback, which a host firewall does not filter. Turning sshd off is what breaks that chain. The [SSH access watch](../../README.md#implemented-workflows) catches the other steps.
+An SSH server is often turned on once and forgotten on a desktop. It is the way in that the tampered editor extension of October 2026 used: it added a key to `authorized_keys` and opened `ssh -R` back to `localhost:22`, so the attacker arrived over loopback, which a host firewall does not filter. Turning sshd off is what breaks that chain. The [SSH access watch](../features.md#workflows) catches the other steps.
 
 Defaults by distribution:
 

@@ -54,6 +54,7 @@ export {
   type ReportResult,
 } from "./report";
 export { ActionDialog, ActionDialogHost, closeActionDialog } from "./action";
+export { AutomaticChecks } from "./automatic";
 export { CheckStatus } from "./check";
 export { DaemonGate } from "./daemon-gate";
 export { ReportById } from "./report-by-id";

@@ -242,6 +242,12 @@ impl Source for Downloads {
     fn interval(&self) -> Duration {
         Duration::from_secs(2)
     }
+    fn turned_off(&mut self, ctx: &Ctx) {
+        self.watcher = None;
+        self.pending.clear();
+        self.missed = 0;
+        set_cursor(ctx.db, "downloads", &ctx.now.to_string());
+    }
     fn collect(&mut self, ctx: &Ctx) -> Result<Collected, Gap> {
         if self.watcher.is_none() {
             self.start(ctx)?;

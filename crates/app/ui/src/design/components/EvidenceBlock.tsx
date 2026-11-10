@@ -76,7 +76,7 @@ export function EvidenceBlock({
         </button>
         </span>
       </figcaption>
-      <pre className="m-0 overflow-x-auto py-2 font-mono text-small leading-5 text-ink">
+      <pre className="relative m-0 overflow-x-auto py-2 font-mono text-small leading-5 text-ink">
         {kept.map((i, k) => {
           const line = shown[i] ?? "";
           const n = startLine + i;

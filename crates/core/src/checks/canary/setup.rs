@@ -170,7 +170,7 @@ fn start_inner(
         match crate::checks::setup::monitor_service(store, false, health(store).is_some(), stop) {
             Ok(()) => {
                 service_enabled = true;
-                report.coverage.push("Monitor enabled for future user logins using the current binary path. Keep that binary installed; logout/reboot gaps are not monitored. No scan timers were enabled.".into());
+                report.coverage.push("Monitor enabled for future user logins using the current binary path. Keep that binary installed; logout/reboot gaps are not monitored. No other Bigman services were enabled.".into());
             },
             Err(error) => report.errors.push(format!("Automatic startup unavailable: {error}. Falling back to a background monitor for this session.")),
         }

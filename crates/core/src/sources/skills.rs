@@ -6,6 +6,8 @@ use crate::{
 use std::{collections::BTreeSet, os::unix::fs::MetadataExt, time::Duration};
 
 const SEEN: &str = "skills.seen";
+/// The fingerprint the last saved inventory was taken at, kept across restarts.
+const FINGERPRINT: &str = "skills.fingerprint";
 /// Entries looked at per fingerprint, across every skill and plugin folder.
 const MAX_ENTRIES: usize = 50_000;
 
@@ -13,7 +15,9 @@ const MAX_ENTRIES: usize = 50_000;
 /// fingerprint (names, sizes and modification times) of each folder is
 /// compared with the last; when it moves, the inventory runs and each skill or
 /// plugin that is new, or different from what was there, gets one entry. The
-/// first run records what is installed without posting it.
+/// first run records what is installed without posting it. The fingerprint is
+/// stored, so a daemon that starts with nothing changed saves no new inventory
+/// (each one holds the text of every skill file, several megabytes).
 pub struct Skills {
     places: Places,
     last: Option<String>,
@@ -130,6 +134,9 @@ impl Source for Skills {
     fn collect(&mut self, ctx: &Ctx) -> Result<Collected, Gap> {
         let units = skills::discover(&self.places);
         let fp = fingerprint(&units);
+        if self.last.is_none() {
+            self.last = ctx.db.setting(FINGERPRINT).ok().flatten();
+        }
         if self.last.as_deref() == Some(fp.as_str()) {
             return Ok(Collected::default());
         }
@@ -152,6 +159,7 @@ impl Source for Skills {
         }
         super::downloads::IN_FLIGHT.lock().unwrap().remove(&subject);
         let (report, items) = result.map_err(|e| gap(SkipReason::Failed, format!("{e:#}")))?;
+        let _ = ctx.db.set_setting(FINGERPRINT, &fp);
         self.last = Some(fp);
         let now: BTreeSet<String> = items
             .iter()

@@ -13,7 +13,7 @@ if [[ -z "$cargo_bin" && -x "$HOME/.cargo/bin/cargo" ]]; then cargo_bin="$HOME/.
 if [[ -z "$cargo_bin" ]]; then echo 'Install a Rust toolchain first.' >&2; exit 2; fi
 if ! command -v npm >/dev/null; then echo 'Install Node.js and npm to build the desktop app.' >&2; exit 2; fi
 if ! pkg-config --exists webkit2gtk-4.1 2>/dev/null; then
-  echo 'The desktop app needs WebKitGTK development files; see "Desktop app" in README.md.' >&2
+  echo 'The desktop app needs WebKitGTK development files; see "Desktop app" in docs/development.md.' >&2
   exit 2
 fi
 (cd "$project_dir/crates/app/ui" && npm ci --ignore-scripts --no-audit --no-fund && npm run build)
@@ -24,7 +24,10 @@ for bin in bigman bigmand bigman-app; do
 done
 mkdir -p "$prefix/share/applications" "$prefix/share/icons/hicolor/128x128/apps"
 install -m644 "$project_dir/browser-extension/icons/128.png" "$prefix/share/icons/hicolor/128x128/apps/bigman.png"
-cat > "$prefix/share/applications/bigman.desktop" <<DESKTOP
+# Named after the window's application ID (the program name), so Wayland desktops
+# give the window and its taskbar entry this icon. Earlier versions wrote bigman.desktop.
+rm -f "$prefix/share/applications/bigman.desktop"
+cat > "$prefix/share/applications/bigman-app.desktop" <<DESKTOP
 [Desktop Entry]
 Type=Application
 Name=Bigman

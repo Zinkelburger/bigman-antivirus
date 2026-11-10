@@ -17,7 +17,7 @@ export function StatusStrip() {
         <span aria-hidden className={`size-2 rounded-full ${down ? "border border-ink-muted" : health.data ? "bg-calm" : "bg-rule-strong"}`} />
         {down ? "Background checks are not running" : health.data ? "Background checks running" : "Connecting…"}
       </span>
-      {status.data && <span>{status.data.monitor ? "Canary tripwires watched" : "Canary tripwires off"}</span>}
+      {status.data && <span>{status.data.monitor ? "Canary files watched" : "Canary files not watched"}</span>}
       {status.data && <span>{signatures ? `Signatures ${signatureAge(signatures.updated, now)}` : "No signatures yet"}</span>}
       {last && <span>Last entry {formatTime(last.at)}</span>}
       <WaitingIndicator />

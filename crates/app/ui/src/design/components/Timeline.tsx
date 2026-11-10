@@ -75,7 +75,7 @@ export function Timeline({ label, entries, now, onOpen, empty, height = 420 }: T
   };
 
   return (
-    <div ref={scroller} className="overflow-auto rounded-panel border border-rule bg-surface" style={{ maxHeight: height }}>
+    <div ref={scroller} className="relative overflow-auto rounded-panel border border-rule bg-surface" style={{ maxHeight: height }}>
       <div
         role="listbox"
         aria-label={label}

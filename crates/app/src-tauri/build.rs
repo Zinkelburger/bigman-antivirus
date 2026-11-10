@@ -8,6 +8,7 @@ fn main() {
             "daemon_subscribe",
             "choose_path",
             "export_report",
+            "stop_and_quit",
         ]),
     ))
     .expect("Tauri build configuration is invalid");

@@ -9,7 +9,7 @@ function typing(target: EventTarget | null): boolean {
   );
 }
 
-/** Digits 1–7 switch tabs, `/` focuses search, Esc closes the drill-down. */
+/** Digits 1–6 switch tabs, `/` focuses search, Esc closes the drill-down. */
 export function useGlobalKeys(): void {
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {

@@ -270,7 +270,7 @@ Tabular numerals are set on `html` (`font-variant-numeric: tabular-nums`), so ev
 
 A fixed two-column desktop shell: a 12rem (192 px) graphite rail and a fluid content column, with a 32 px status strip at the foot of the content column. Minimum window 960 x 600; nothing scrolls horizontally, the main region scrolls vertically.
 
-- **Rail:** 12 px side padding, 16 px top, B mark and "Bigman" wordmark, then seven tabs (36 px tall, 2 px apart) in a fixed order, each with a 16 px icon, label, an optional accent count badge and its digit (1 to 7) right-aligned as the keyboard hint.
+- **Rail:** 12 px side padding, 16 px top, B mark and "Bigman" wordmark, then six tabs (36 px tall, 2 px apart) in a fixed order, each with a 16 px icon, label, an optional accent count badge and its digit (1 to 6) right-aligned as the keyboard hint. Sandboxes joins them as the fifth when it is built.
 - **Page:** PageHeader (min 56 px, 24 px gutters, hairline below) holds the h1 left, then page controls (the range Select), then the one primary action at the far right. Content below sits in a 24 px gutter with 20 px between sections.
 - **Overview:** one lead sentence, a row of five tiles (12 px gaps; three columns below 1280 px, five from there), then the life list (Timeline, 420 px max visible, virtualized).
 - **Drill-down:** an absolutely positioned right panel `min(560px, 62%)` over the content; the page behind becomes inert and clicking it closes the panel.
@@ -370,7 +370,7 @@ Monochrome by rule: received is a solid 1.75 px `ink` line, sent a dashed 1.25 p
 All transitions are 150 ms color/filter changes, except: row fade-in 200 ms ease-out, panel slide 180 ms expo-out, progress fill 300 ms, shimmer and indeterminate bar 1.4 s loops, the busy spinner. Under `prefers-reduced-motion: reduce` every animation and transition collapses to 0.01 ms.
 
 ### Keyboard model
-Digits 1 to 7 switch tabs and move focus to the new page's h1 (ignored while typing or while a modal dialog is open); `/` focuses the page's SearchField; Esc closes the drill-down (back one depth first) and clears a non-empty search; arrows, Home, End (and PageUp/PageDown in tables) move the cursor; Enter opens the row. A "Skip to content" link appears on first Tab.
+Digits 1 to 6 switch tabs and move focus to the new page's h1 (ignored while typing or while a modal dialog is open); `/` focuses the page's SearchField; Esc closes the drill-down (back one depth first) and clears a non-empty search; arrows, Home, End (and PageUp/PageDown in tables) move the cursor; Enter opens the row. A "Skip to content" link appears on first Tab.
 
 ## Do's and Don'ts
 

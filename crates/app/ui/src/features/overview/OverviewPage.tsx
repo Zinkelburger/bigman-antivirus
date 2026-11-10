@@ -1,6 +1,8 @@
 import type { ColumnDef } from "@tanstack/react-table";
+import { useState } from "react";
 import {
   ActionButton,
+  AutomaticChecks,
   DataTable,
   EventPanel,
   eventOccurrence,
@@ -36,6 +38,7 @@ import {
   useHardening,
   useEvents,
   useHistory,
+  usePreferences,
   useStatus,
   useUnread,
   type Event,
@@ -70,7 +73,7 @@ function readiness(status: ProtectionStatus, now: number) {
     : !fresh
       ? "Signatures out of date"
       : !status.monitor
-        ? "Tripwires off"
+        ? "Canary files not watched"
         : "Ready";
   const age = signatures ? `Signatures ${signatureAge(signatures.updated, now)}` : "File scans need ClamAV signatures";
   return { value, detail: `${age} · ${installed} of ${status.tools.length} optional tools`, installed };
@@ -87,7 +90,7 @@ function ToolsPanel({ status, now }: { status: ProtectionStatus; now: number }) 
       <KeyValue
         items={[
           {
-            label: "Canary tripwires",
+            label: "Canary files",
             value: status.monitor
               ? `Watched: ${status.monitor.watched} of ${plural(status.monitor.configured, "file")}`
               : "Not watched. Reads of decoy files are not noticed.",
@@ -187,6 +190,74 @@ function updatesTile(r: Report | undefined, now: number) {
     // An old figure keeps its words but loses its colour.
     severity: age > DAY ? null : reportSeverity(r),
   };
+}
+
+const NOTE_KEY = "bigman.background-explained";
+
+function noteSeen(): boolean {
+  try {
+    return localStorage.getItem(NOTE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+/** Said once, on the first open: what runs on its own, with the switches for it. */
+function BackgroundNote({ services }: { services: boolean }) {
+  const [seen, setSeen] = useState(noteSeen);
+  const prefs = usePreferences();
+  if (seen) return null;
+  const dismiss = () => {
+    try {
+      localStorage.setItem(NOTE_KEY, "1");
+    } catch {
+      // Without storage the note comes back next time; it still closes now.
+    }
+    setSeen(true);
+    document.getElementById("life-list")?.focus();
+  };
+  return (
+    <section aria-labelledby="background-note" className="flex flex-col gap-4 rounded-panel border border-rule bg-surface p-4">
+      <div className="flex flex-col gap-1">
+        <h2 id="background-note" className="m-0 text-body font-semibold text-ink">
+          What Bigman does on its own
+        </h2>
+        <p className="m-0 max-w-[56ch] text-ink-muted">
+          Background checks keep running after you close this window, until you log out
+          {services ? ", and start again when you log in" : ""}.
+        </p>
+      </div>
+      <div className="flex flex-col gap-1">
+        <h3 className="m-0 text-body font-semibold text-ink">Always, reading only this computer</h3>
+        <p className="m-0 max-w-[56ch] text-ink-muted">
+          Activity notes your programs&apos; new connections, new listening programs and package changes. Nothing is
+          sent anywhere.
+        </p>
+      </div>
+      {services && (
+        <div className="flex flex-col gap-1">
+          <h3 className="m-0 text-body font-semibold text-ink">Because background services are installed</h3>
+          <p className="m-0 max-w-[56ch] text-ink-muted">
+            The canary and startup monitor runs, and ClamAV signatures download once a day.
+          </p>
+        </div>
+      )}
+      <div className="flex flex-col gap-2">
+        <h3 className="m-0 text-body font-semibold text-ink">You can turn these off</h3>
+        <AutomaticChecks disabled={false} />
+      </div>
+      <p className="m-0 max-w-[56ch] text-small text-ink-muted">
+        Findings appear in Activity, and as a desktop notification unless you change that in Setup › Notifications. Setup
+        › Background checks can stop it all
+        {services ? " except the monitor and signature download, which stop when you remove the background services" : ""}.
+      </p>
+      {prefs.data && (
+        <div>
+          <ActionButton onClick={dismiss}>Got it</ActionButton>
+        </div>
+      )}
+    </section>
+  );
 }
 
 /** Days are loaded from the start of an hour so the query stays put as time passes. */
@@ -380,8 +451,10 @@ export function OverviewPage() {
           />
         </section>
 
+        {ready && data && <BackgroundNote services={data.services} />}
+
         <section aria-labelledby="life-list" className="flex flex-col gap-3">
-          <h2 id="life-list" className="m-0 text-body font-semibold text-ink">
+          <h2 id="life-list" tabIndex={-1} className="m-0 text-body font-semibold text-ink">
             {rangeLabel}
           </h2>
           {disconnected ? (

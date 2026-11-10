@@ -16,4 +16,9 @@ downloads: string,
 /**
  * The package-manager hook that previews receipts, when it is installed.
  */
-receipt_hook: string | null, };
+receipt_hook: string | null, 
+/**
+ * The background services are installed: bigmand, the canary monitor and
+ * the daily signature update also start at login.
+ */
+services: boolean, };

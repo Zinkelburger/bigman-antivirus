@@ -5,42 +5,11 @@ use crate::{
     runner,
     store::db::EventQuery,
 };
-use serde::{Deserialize, Serialize};
 use std::time::Duration;
-use ts_rs::TS;
 
 const DAY: u64 = 86_400;
 /// After a package transaction, wait for the package manager to finish.
 const SETTLE: u64 = 120;
-
-/// Choices that are not notifications.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
-#[ts(export)]
-pub struct Preferences {
-    /// Check for security updates once a day and after package changes. This uses
-    /// the network for public data only; no package list is sent.
-    pub check_updates: bool,
-}
-
-impl Default for Preferences {
-    fn default() -> Self {
-        Preferences {
-            check_updates: true,
-        }
-    }
-}
-
-impl Preferences {
-    pub const KEY: &'static str = "preferences";
-
-    pub fn load(db: &crate::store::db::Db) -> Preferences {
-        db.setting(Self::KEY)
-            .ok()
-            .flatten()
-            .and_then(|v| serde_json::from_str(&v).ok())
-            .unwrap_or_default()
-    }
-}
 
 /// Re-checks security updates once a day and shortly after each package
 /// transaction, so updates you installed stop being listed on their own. The
@@ -58,9 +27,6 @@ impl Source for Updates {
         Duration::from_secs(60)
     }
     fn collect(&mut self, ctx: &Ctx) -> Result<Collected, Gap> {
-        if !Preferences::load(ctx.db).check_updates {
-            return Ok(Collected::default());
-        }
         let Some(last) = ctx
             .db
             .setting(LAST)
