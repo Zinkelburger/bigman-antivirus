@@ -43,6 +43,7 @@
         "files": {
           "/usr/bin/bigman": "bundle-bin/bigman",
           "/usr/bin/bigmand": "bundle-bin/bigmand",
+          "/usr/bin/bigman-canary-helper": "bundle-bin/bigman-canary-helper",
           "/usr/share/applications/bigman-app.desktop": "../../../packaging/linux/bigman-app.desktop",
           "/usr/share/icons/hicolor/256x256/apps/bigman-app.png": "icons/128x128@2x.png",
           "/usr/share/doc/bigman/copyright": "../../../LICENSE"
@@ -53,6 +54,7 @@
         "files": {
           "/usr/bin/bigman": "bundle-bin/bigman",
           "/usr/bin/bigmand": "bundle-bin/bigmand",
+          "/usr/bin/bigman-canary-helper": "bundle-bin/bigman-canary-helper",
           "/usr/share/applications/bigman-app.desktop": "../../../packaging/linux/bigman-app.desktop",
           "/usr/share/icons/hicolor/256x256/apps/bigman-app.png": "icons/128x128@2x.png",
           "/usr/share/licenses/bigman/LICENSE": "../../../LICENSE"

@@ -4,7 +4,7 @@ A release is a tag `vX.Y.Z` on `main`. Pushing it runs [`.github/workflows/relea
 
 1. runs every check in `check.yml` (the release cannot publish if one fails);
 2. builds the packages with [`scripts/build-packages.sh`](../scripts/build-packages.sh) in an Ubuntu 22.04 container, so the programs need glibc 2.35 or newer;
-3. installs them on Ubuntu 22.04, 24.04 and 26.04, Debian 12 and 13, Fedora 43 and 44, and Arch with [`scripts/test-packages.sh`](../scripts/test-packages.sh), which checks that the three programs, the menu entry and every library are there, that `bigman inspect` works and that `bigmand` starts;
+3. installs them on Ubuntu 22.04, 24.04 and 26.04, Debian 12 and 13, Fedora 43 and 44, and Arch with [`scripts/test-packages.sh`](../scripts/test-packages.sh), which checks that the four programs, the menu entry and every library are there, that `bigman inspect` works and that `bigmand` starts;
 4. creates a **draft** release with the files below and signed build provenance.
 
 | File | For |
@@ -16,7 +16,7 @@ A release is a tag `vX.Y.Z` on `main`. Pushing it runs [`.github/workflows/relea
 | `bigman-extension-X.Y.Z.zip` | the Chromium extension, to load unpacked or upload to the Chrome Web Store |
 | `SHA256SUMS` | checksums of all of the above |
 
-Each package installs `/usr/bin/bigman`, `/usr/bin/bigmand`, `/usr/bin/bigman-app`, `bigman-app.desktop` (named after the window's application ID so Wayland desktops show its icon) and the icons. Nothing starts at install; the app's Setup tab installs the per-user services, which name the programs in `/usr/bin`.
+Each package installs `/usr/bin/bigman`, `/usr/bin/bigmand`, `/usr/bin/bigman-app`, `/usr/bin/bigman-canary-helper` (the optional root service for canary reader identification; it runs only after you turn that on, which copies it to `/usr/local/libexec/bigman`), `bigman-app.desktop` (named after the window's application ID so Wayland desktops show its icon) and the icons. Nothing starts at install; the app's Setup tab installs the per-user services, which name the programs in `/usr/bin`.
 
 There is no AppImage: Setup writes the daemon's path into systemd units and browser host manifests, and an AppImage's path changes every time it runs.
 

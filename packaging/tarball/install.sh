@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Installs Bigman from this release tarball: bigman (CLI), bigmand (background
-# service) and bigman-app (desktop app), with an application-menu entry.
+# service), bigman-app (desktop app) and bigman-canary-helper (only used if you
+# turn on reader identification for canaries), with an application-menu entry.
 #   ./install.sh                 under ~/.local, for you only
 #   sudo ./install.sh /usr/local for every user
 #   ./install.sh --uninstall [PREFIX]
@@ -17,13 +18,13 @@ if [[ $prefix != /* || $prefix == *$'\n'* || $prefix == *$'\r'* || $prefix == *'
 fi
 sizes=(32x32 128x128 256x256 512x512)
 if $uninstall; then
-  rm -f "$prefix/bin/bigman" "$prefix/bin/bigmand" "$prefix/bin/bigman-app" \
+  rm -f "$prefix/bin/bigman" "$prefix/bin/bigmand" "$prefix/bin/bigman-app" "$prefix/bin/bigman-canary-helper" \
     "$prefix/share/applications/bigman-app.desktop"
   for size in "${sizes[@]}"; do rm -f "$prefix/share/icons/hicolor/$size/apps/bigman-app.png"; done
   echo "Removed Bigman's programs from $prefix. Your settings and reports in ~/.local/share/bigman are kept."
   exit 0
 fi
-for bin in bigman bigmand bigman-app; do
+for bin in bigman bigmand bigman-app bigman-canary-helper; do
   install -Dm755 "$here/bin/$bin" "$prefix/bin/$bin"
 done
 for size in "${sizes[@]}"; do

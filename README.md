@@ -10,7 +10,7 @@ Bigman never deletes, moves or runs anything on its own, never uploads your file
 
 ## Install
 
-Download the package for your distribution from the [latest release](https://github.com/Zinkelburger/bigman-antivirus/releases/latest). Each one contains `bigman` (the CLI), `bigmand` (the background service that runs every check) and `bigman-app` (the desktop app), with an application-menu entry; it sets nothing to start at login. Packages are built for x86-64 and tested on Ubuntu 22.04 and later, Debian 12 and later, Fedora 43 and later, and Arch.
+Download the package for your distribution from the [latest release](https://github.com/Zinkelburger/bigman-antivirus/releases/latest). Each one contains `bigman` (the CLI), `bigmand` (the background service that runs every check) and `bigman-app` (the desktop app), with an application-menu entry, plus `bigman-canary-helper`, which is used only if you turn on reader identification for canaries; it sets nothing to start at login. Packages are built for x86-64 and tested on Ubuntu 22.04 and later, Debian 12 and later, Fedora 43 and later, and Arch.
 
 ```sh
 sudo apt install ./bigman_VERSION_amd64.deb      # Debian, Ubuntu

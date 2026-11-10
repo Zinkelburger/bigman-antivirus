@@ -32,7 +32,7 @@ else
   fail 'no apt-get, dnf or pacman in this container'
 fi
 
-for bin in bigman bigmand bigman-app; do
+for bin in bigman bigmand bigman-app bigman-canary-helper; do
   [[ -x /usr/bin/$bin ]] || fail "/usr/bin/$bin is missing"
 done
 [[ -f /usr/share/applications/bigman-app.desktop ]] || fail 'the bigman-app.desktop menu entry is missing'

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Builds the release files into dist/:
 #   bigman_VERSION_amd64.deb, bigman-VERSION-1.x86_64.rpm   (Tauri bundles)
-#   bigman-VERSION-x86_64-linux.tar.gz                       (the three programs, icons and install.sh)
+#   bigman-VERSION-x86_64-linux.tar.gz                       (the four programs, icons and install.sh)
 #   PKGBUILD                                                 (Arch bigman-bin, pointing at the tarball)
 #   SHA256SUMS
 # The release workflow runs this in an Ubuntu 22.04 container so the programs need
@@ -25,12 +25,15 @@ fi
 export SOURCE_DATE_EPOCH
 
 (cd crates/app/ui && npm ci --ignore-scripts --no-audit --no-fund && npm run build)
-"$cargo" build --locked --release -p bigman-cli -p bigman-daemon
+# bigman-canary-helper is the optional root service for canary reader identification.
+# It ships beside bigman, where Protect > Canaries looks for it; nothing installs or
+# starts it until the user turns reader identification on.
+"$cargo" build --locked --release -p bigman-cli -p bigman-daemon -p bigman-canary-helper
 
-# tauri.conf.json bundles the CLI and the daemon from here, wherever the target dir is.
+# tauri.conf.json bundles the CLI, the daemon and the helper from here, wherever the target dir is.
 stage=crates/app/src-tauri/bundle-bin
 rm -rf "$stage"
-install -Dm755 -t "$stage" "$target/release/bigman" "$target/release/bigmand"
+install -Dm755 -t "$stage" "$target/release/bigman" "$target/release/bigmand" "$target/release/bigman-canary-helper"
 # Builds bigman-app in release mode, then the .deb and .rpm.
 (cd crates/app/src-tauri && ../ui/node_modules/.bin/tauri build --ci --bundles deb,rpm -- --locked)
 
@@ -43,7 +46,7 @@ name="bigman-${version}-x86_64-linux"
 tree="$(mktemp -d)"
 trap 'rm -rf "$tree"' EXIT
 dir="$tree/bigman-$version"
-install -Dm755 -t "$dir/bin" "$target/release/bigman" "$target/release/bigmand" "$target/release/bigman-app"
+install -Dm755 -t "$dir/bin" "$target/release/bigman" "$target/release/bigmand" "$target/release/bigman-canary-helper" "$target/release/bigman-app"
 install -Dm644 packaging/linux/bigman-app.desktop "$dir/share/applications/bigman-app.desktop"
 icons=crates/app/src-tauri/icons
 for pair in 32x32:32x32.png 128x128:128x128.png 256x256:128x128@2x.png 512x512:icon.png; do
