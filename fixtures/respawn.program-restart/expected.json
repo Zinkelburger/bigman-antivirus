@@ -1,0 +1,8 @@
+{
+  "driver": "respawn",
+  "fires": [
+    "respawn.program-restart"
+  ],
+  "about": "A program you stopped, started again 1.2 s later by another of your programs.",
+  "input": "input.json"
+}

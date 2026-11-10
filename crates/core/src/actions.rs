@@ -3,8 +3,8 @@
 //! desktop app all go through these, so a preview can never drift from the change.
 use crate::{
     checks::{
-        canary, changes, disposable, hardening, hooks, inspect, packages, running, scan, setup,
-        skills,
+        canary, changes, disposable, hardening, hooks, inspect, packages, respawn, running, scan,
+        setup, skills,
     },
     model::Report,
     runner::Cancel,
@@ -64,6 +64,17 @@ pub enum Action {
     /// Take a mark back, restoring the one it replaced.
     ForgetKnown {
         key: String,
+    },
+    /// Ask one of your programs to stop (SIGTERM), then watch for a minute for
+    /// anything that starts it again. `start` is its start time from the
+    /// programs list, so a reused process ID is refused.
+    StopAndWatch {
+        pid: u32,
+        start: u64,
+    },
+    /// Start a program stopped by StopAndWatch again, the way it ran.
+    StartAgain {
+        report: String,
     },
     /// Move a scan finding into private quarantine.
     Quarantine {
@@ -490,6 +501,32 @@ pub fn preview(action: &Action, store: &Store) -> Result<ActionPlan> {
             ),
             "",
         ),
+        Action::StopAndWatch { pid, start } => {
+            let respawn::StopPlan {
+                summary,
+                note,
+                facts,
+                details,
+            } = respawn::stop_plan(*pid, *start)?;
+            ActionPlan {
+                facts: facts
+                    .into_iter()
+                    .map(|(label, value)| PlanFact { label, value })
+                    .collect(),
+                note: Some(note),
+                undo: Some("If nothing starts it again, Start it again appears under Stopped recently when the minute is up.".into()),
+                details_label: Some("Exactly what Bigman sends".into()),
+                ..plan("Stop and watch", "Stop and watch", summary, details)
+            }
+        }
+        Action::StartAgain { report } => {
+            let (summary, details, note) = respawn::start_plan(store, report)?;
+            ActionPlan {
+                note,
+                details_label: Some("Exactly what runs".into()),
+                ..plan("Start it again", "Start it again", summary, details)
+            }
+        }
         Action::RestorePreviousBaseline => plan(
             "Restore the previous baseline",
             "Restore",
@@ -696,6 +733,10 @@ pub fn apply(action: &Action, store: &Store, stop: &Cancel) -> Result<ActionOutc
             Action::ForgetKnown { key: key.clone() },
         ),
         Action::ForgetKnown { key } => message(running::forget(store, key)?),
+        Action::StopAndWatch { pid, start } => {
+            message(respawn::stop_in_background(store, *pid, *start)?)
+        }
+        Action::StartAgain { report } => message(respawn::start_again(store, report)?),
         Action::RestorePreviousBaseline => {
             changes::restore_previous_baseline(store)?;
             message("The previous baseline is back.")

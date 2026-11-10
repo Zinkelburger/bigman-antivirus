@@ -27,7 +27,10 @@ export function useGlobalKeys(): void {
         // Move focus to the new page's heading so screen readers announce it.
         requestAnimationFrame(() => document.querySelector<HTMLElement>("main h1")?.focus());
       } else if (event.key === "/") {
-        const field = document.querySelector<HTMLInputElement>("main [data-search-field]");
+        // An open drill-down's own search comes first: it is what is in front.
+        const field =
+          document.querySelector<HTMLInputElement>("aside[role=dialog] [data-search-field]") ??
+          document.querySelector<HTMLInputElement>("main [data-search-field]");
         if (field) {
           event.preventDefault();
           field.focus();

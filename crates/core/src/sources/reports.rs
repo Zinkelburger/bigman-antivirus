@@ -43,6 +43,7 @@ pub fn report_sentence(r: &Report) -> String {
         "Monitor event loss" => "The canary monitor missed some events".to_string(),
         "YARA-X scan" => format!("Ran YARA rules on {}", r.subject),
         "Restricted installer rehearsal" => format!("Rehearsed {} in a sandbox", r.subject),
+        "Stop and watch" => format!("Stopped {} and watched what started it again", r.subject),
         kind => format!("{kind}: {}", r.subject),
     };
     if r.kind == "Canary triggered" {

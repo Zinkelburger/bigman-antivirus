@@ -9,6 +9,9 @@ import {
   type Live,
   type NotificationSettings,
   type Preferences,
+  type Program,
+  type Stops,
+  type Watching,
   type Quarantined,
   type Report,
   type Request,
@@ -23,7 +26,7 @@ import {
 import rules from "@/ipc/generated/rules.json";
 import { checkup, history, NOW, report, scanWithFinding, statusScenarios } from "./fixtures";
 import { MockHardening } from "./hardening";
-import { runningReport, seedRunning } from "./running";
+import { runningReport, seedPrograms, seedRunning, stopWatchReport } from "./running";
 import { seedSkills, skillsReport } from "./skills";
 import { INTERFACES, networkSnapshot, RECEIPTS, securityUpdates, reportEvent, sampleAt, samplesFor, seedEvents, sourceStatuses } from "./live";
 
@@ -57,6 +60,11 @@ class MockDaemon {
   skillItems = new Map<string, SkillItem[]>();
   runningRows: RunningItem[] = [];
   runningItems = new Map<string, RunningItem[]>();
+  programs: Program[] = seedPrograms();
+  /** Programs stopped by Stop and watch, by report, until started again. */
+  stopped = new Map<string, Program>();
+  /** Watches in progress; each ends after a few seconds here instead of a minute. */
+  watching: Watching[] = [];
 
   constructor(
     readonly scenario: string,
@@ -172,10 +180,38 @@ class MockDaemon {
       case "revoke_skill_approval": return plan("Take back the approval", "Take back", `Stop treating ${this.skills.find((i) => i.key === action.key)?.name ?? "this skill or plugin"} as reviewed. An earlier approval comes back if there was one; otherwise it is listed as not reviewed.`, action.key);
       case "mark_known": {
         const item = this.runningItems.get(action.report)?.find((i) => i.key === action.key);
+        if (item?.section === "disagreements") throw new Error("Rows where two views disagree cannot be marked as known.");
         return {
           ...plan("Mark as known", "Mark as known", `Record "${item?.title ?? "this row"}" as something you recognise, as it is now. It stays in the list and stops counting as something to review. If one of the details below changes, it counts again and says what changed.`, (item?.facts ?? []).filter((f) => f.pinned).map((f) => `${f.label}: ${f.value}`).join("\n"), "Take the mark back at any time; an earlier mark is restored."),
           note: item && item.severity !== "info" ? "Marking does not change its rating or make it harmless. It records that you recognise it." : null,
           details_label: "What the mark records",
+        };
+      }
+      case "stop_and_watch": {
+        const p = this.programs.find((x) => x.pid === action.pid && x.start === action.start);
+        if (!p) throw new Error("That program is no longer running, or its process ID now belongs to another program. Choose it again from the list.");
+        if (p.refused) throw new Error(p.refused);
+        return {
+          ...plan("Stop and watch", "Stop and watch", `Ask ${p.name} to stop, then watch for 60 seconds for anything that starts it again. Bigman records what started it; the result appears under Stopped recently and in Activity.`, `kill -TERM ${String(p.pid)}    # ${p.name}, started at clock tick ${String(p.start)}`, "If nothing starts it again, Start it again appears under Stopped recently when the minute is up."),
+          facts: [
+            { label: "Program", value: p.exe ?? p.name },
+            { label: "Process ID", value: String(p.pid) },
+            { label: "Command line", value: p.command },
+            { label: "Started by", value: `${p.parent} (process ${String(p.parent_pid)})` },
+            ...(p.unit ? [{ label: "Runs in", value: p.unit }] : []),
+          ],
+          note: `Unsaved work in it may be lost. Bigman sends the request a task manager sends when you end a program, and never forces it.${p.exe?.endsWith(" (deleted)") ? ` Its program file was deleted, so Bigman cannot start it again afterwards. To keep a copy first: cp /proc/${String(p.pid)}/exe ~/copy-of-process-${String(p.pid)}` : ""}`,
+          details_label: "Exactly what Bigman sends",
+        };
+      }
+      case "start_again": {
+        const p = this.stopped.get(action.report);
+        if (!p) throw new Error("Bigman no longer has what it needs to start this program again. It keeps that for a week after a stop, and only until the program is started again.");
+        const running = this.programs.find((x) => x.command === p.command);
+        return {
+          ...plan("Start it again", "Start it again", `Start ${p.name} again with the same command line, folder and 38 environment variables it had. It runs on its own, not inside Bigman.`, `systemd-run --user --collect --quiet --working-directory=/home/sam -- ${p.command}`),
+          note: running ? `It is running again already (process ${String(running.pid)}). Starting it again makes another copy.` : null,
+          details_label: "Exactly what runs",
         };
       }
       case "forget_known": return plan("Take back the mark", "Take back", `Stop treating "${this.runningRows.find((i) => i.key === action.key)?.title ?? "this row"}" as something you recognise. An earlier mark comes back if there was one; otherwise it counts as something to review again.`, "");
@@ -264,6 +300,28 @@ class MockDaemon {
         this.runningRows = this.runningRows.map((i) => (i.key === action.key ? { ...i, standing: "known", known_at: now(), changed: [] } : i));
         return done(`Marked as known: ${item.title}`, null, { kind: "forget_known", key: action.key });
       }
+      case "stop_and_watch": {
+        const p = this.programs.find((x) => x.pid === action.pid && x.start === action.start);
+        if (!p) throw new Error("That program is no longer running");
+        this.programs = this.programs.filter((x) => x !== p);
+        const at = now();
+        this.watching = [...this.watching, { pid: p.pid, name: p.name, started: at, ends: at + 60 }];
+        setTimeout(() => {
+          this.watching = this.watching.filter((w) => w.pid !== p.pid);
+          const { report: r, restarted } = stopWatchReport(p, id(), now());
+          this.save(r);
+          if (restarted) this.programs = [...this.programs, { ...p, pid: 31190, start: 3119007, started: now() }];
+          else if (!p.exe?.endsWith(" (deleted)")) this.stopped.set(r.id, p);
+        }, 4000 * this.speed);
+        return done(`${p.name} was asked to stop. Bigman watches for 60 seconds; the result appears under Stopped recently and in Activity.`);
+      }
+      case "start_again": {
+        const p = this.stopped.get(action.report);
+        if (!p) throw new Error("Bigman no longer has what it needs to start this program again.");
+        this.stopped.delete(action.report);
+        this.programs = [...this.programs, { ...p, pid: p.pid + 1000, start: p.start + 1000, started: now() }];
+        return done(`${p.name} is starting again.`);
+      }
       case "forget_known": {
         const item = this.runningRows.find((i) => i.key === action.key);
         this.runningRows = this.runningRows.map((i) => (i.key === action.key ? { ...i, standing: "new", known_at: null } : i));
@@ -282,6 +340,11 @@ class MockDaemon {
       case "package_policy": return done(`Updated ${action.path}/.npmrc. npm and pnpm no longer run lifecycle scripts during install there.`);
       default: return done("Done.");
     }
+  }
+
+  stops(): Stops {
+    const startable = [...this.stopped].map(([report, p]) => ({ report, name: p.name, running: this.programs.filter((x) => x.command === p.command).map((x) => x.pid) }));
+    return { watching: this.watching, startable };
   }
 
   async handle(request: Request, token?: string): Promise<Response> {
@@ -378,6 +441,8 @@ class MockDaemon {
         this.runningItems.set(result.id, this.runningRows);
         return result;
       }, "Running system", "Programs, kernel and network on this computer"));
+      case "programs": return { type: "programs", value: this.programs };
+      case "stops": return { type: "stops", value: this.stops() };
       case "running_items": {
         const found = this.runningItems.get(request.report);
         if (!found) return { type: "error", value: { message: "This report's rows are not available" } };

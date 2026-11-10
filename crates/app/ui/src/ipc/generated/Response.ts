@@ -11,6 +11,7 @@ import type { Live } from "./Live";
 import type { NetworkSnapshot } from "./NetworkSnapshot";
 import type { NotificationSettings } from "./NotificationSettings";
 import type { Preferences } from "./Preferences";
+import type { Program } from "./Program";
 import type { ProtectionStatus } from "./ProtectionStatus";
 import type { Quarantined } from "./Quarantined";
 import type { Receipt } from "./Receipt";
@@ -21,7 +22,8 @@ import type { SampleSeries } from "./SampleSeries";
 import type { ScanItem } from "./ScanItem";
 import type { SkillItem } from "./SkillItem";
 import type { SourceStatus } from "./SourceStatus";
+import type { Stops } from "./Stops";
 import type { ToolGroup } from "./ToolGroup";
 import type { Unread } from "./Unread";
 
-export type Response = { "type": "health", "value": DaemonHealth } | { "type": "status", "value": ProtectionStatus } | { "type": "report", "value": Report } | { "type": "hardening", "value": HardeningReview } | { "type": "history", "value": Array<Report> } | { "type": "scan_items", "value": Array<ScanItem> } | { "type": "skill_items", "value": Array<SkillItem> } | { "type": "running_items", "value": Array<RunningItem> } | { "type": "quarantined", "value": Array<Quarantined> } | { "type": "canaries", "value": CanaryState } | { "type": "tool_groups", "value": Array<ToolGroup> } | { "type": "rules", "value": Array<RuleInfo> } | { "type": "events", "value": Array<Event> } | { "type": "unread", "value": Unread } | { "type": "receipt", "value": Receipt } | { "type": "decision", "value": Decision } | { "type": "samples", "value": SampleSeries } | { "type": "network", "value": NetworkSnapshot } | { "type": "sources", "value": Array<SourceStatus> } | { "type": "notifications", "value": NotificationSettings } | { "type": "preferences", "value": Preferences } | { "type": "live", "value": Live } | { "type": "plan", "value": ActionPlan } | { "type": "done", "value": ActionOutcome } | { "type": "error", "value": ErrorBody };
+export type Response = { "type": "health", "value": DaemonHealth } | { "type": "status", "value": ProtectionStatus } | { "type": "report", "value": Report } | { "type": "hardening", "value": HardeningReview } | { "type": "history", "value": Array<Report> } | { "type": "scan_items", "value": Array<ScanItem> } | { "type": "skill_items", "value": Array<SkillItem> } | { "type": "running_items", "value": Array<RunningItem> } | { "type": "programs", "value": Array<Program> } | { "type": "stops", "value": Stops } | { "type": "quarantined", "value": Array<Quarantined> } | { "type": "canaries", "value": CanaryState } | { "type": "tool_groups", "value": Array<ToolGroup> } | { "type": "rules", "value": Array<RuleInfo> } | { "type": "events", "value": Array<Event> } | { "type": "unread", "value": Unread } | { "type": "receipt", "value": Receipt } | { "type": "decision", "value": Decision } | { "type": "samples", "value": SampleSeries } | { "type": "network", "value": NetworkSnapshot } | { "type": "sources", "value": Array<SourceStatus> } | { "type": "notifications", "value": NotificationSettings } | { "type": "preferences", "value": Preferences } | { "type": "live", "value": Live } | { "type": "plan", "value": ActionPlan } | { "type": "done", "value": ActionOutcome } | { "type": "error", "value": ErrorBody };

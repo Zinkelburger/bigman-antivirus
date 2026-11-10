@@ -32,6 +32,10 @@ bigman running                                  # processes, modules and sockets
 bigman running --rows                           # every row with its number, key and pinned details
 bigman running --known REPORT_ID 3              # mark row 3 as known, pinned to what it is now
 bigman running --forget KEY                     # take the mark back
+bigman stop-watch                               # your programs, and which Bigman will not stop
+bigman stop-watch PID                           # preview: what stopping it sends
+bigman stop-watch PID --apply                   # stop it and watch a minute for what starts it again
+bigman stop-watch --again REPORT_ID --apply     # start it again as it ran
 bigman harden                                   # suggestions, with what each costs
 bigman harden harden.sshd                       # preview: the exact commands and the undo
 bigman harden harden.sshd --apply

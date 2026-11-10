@@ -1,0 +1,8 @@
+{
+  "driver": "respawn",
+  "fires": [
+    "respawn.service-restart"
+  ],
+  "about": "Started again by the user service manager, as the service it ran in.",
+  "input": "input.json"
+}

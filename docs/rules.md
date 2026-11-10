@@ -185,6 +185,11 @@ Every finding Bigman shows comes from one of these rules. Each has a synthetic f
 | `net.raw-socket` | Info | A program sends and receives raw IP packets | MW-17, NE-13 |
 | `watch.credentials` | Review | A program is told when your credential files change | CR-22, CR-18, CR-03 |
 | `watch.own-program` | Review | A program watches its own file | MW-06, MW-02 |
+| `respawn.program-restart` | Review | A program you stopped was started again by another program | MW-02, MW-01, MW-06 |
+| `respawn.orphan-restart` | Review | A program you stopped was started again by something that let go of it | MW-02, MW-01 |
+| `respawn.service-restart` | Info | The service manager started a program you stopped again |  |
+| `respawn.not-restarted` | Info | Nothing started a program you stopped again |  |
+| `respawn.did-not-stop` | Info | A program you asked to stop kept running |  |
 | `bus.name-owner` | Review | An unexpected program answers for your password store or portal | CR-17, DS-20 |
 
 ## `shell.download`
@@ -1618,6 +1623,46 @@ What you can do: If you do not recognise the program, read where it is and what 
 A program holds an inotify watch on the file it runs from, so the kernel tells it when that file is deleted or replaced. Programs that put themselves back after being removed do this; some self-updaters do too.
 
 What you can do: If you tried to remove this program and it came back, stop it first, then delete the file and its startup entry.
+
+## `respawn.program-restart`
+
+**A program you stopped was started again by another program** (Review)
+
+You asked Bigman to stop one of your programs and watch. Within the minute, a new process running the same program appeared, and its parent is an ordinary program rather than the service manager. Software that wants to keep running is often two processes that restart each other; launchers, updaters and development tools restart programs too.
+
+What you can do: If you recognise the program that started it, nothing needs doing. If not, check its file from Inspect and look at Protect › Startup files for what starts it at login.
+
+## `respawn.orphan-restart`
+
+**A program you stopped was started again by something that let go of it** (Review)
+
+You asked Bigman to stop one of your programs and watch. A new process running the same program appeared, and its parent is the service manager although it is not a service: the program that started it exited at once, so the kernel handed it on. Starting a program this way hides who started it.
+
+What you can do: If you know what restarts it, nothing needs doing. If not, look at what else runs in the same unit and at Protect › Startup files.
+
+## `respawn.service-restart`
+
+**The service manager started a program you stopped again** (Info)
+
+You asked Bigman to stop one of your programs and watch. The service manager started it again because its unit says to restart it when it stops. This is ordinary for services; the unit file says what it runs.
+
+What you can do: To stop it until the next login, run the command shown; to keep it from starting at all, use disable --now instead.
+
+## `respawn.not-restarted`
+
+**Nothing started a program you stopped again** (Info)
+
+You asked Bigman to stop one of your programs and watch. No new process running the same program appeared within the minute. Something that starts it at the next login, from a timer or from a scheduled job is not seen in that minute.
+
+What you can do: Start it again from the result if you need it. Protect › Startup files lists what starts programs at login.
+
+## `respawn.did-not-stop`
+
+**A program you asked to stop kept running** (Info)
+
+Bigman asked the program to stop with SIGTERM, the request a task manager sends, and it was still running when the watch ended. A program may take time to save its work, or ignore the request.
+
+What you can do: Close it from its own window, or end it without waiting with kill -KILL after checking the process ID is still the same program.
 
 ## `bus.name-owner`
 

@@ -24,6 +24,7 @@ pub mod pkgfile;
 pub mod preview;
 pub mod receipt;
 pub mod repo;
+pub mod respawn;
 pub mod route;
 pub mod running;
 pub mod scan;

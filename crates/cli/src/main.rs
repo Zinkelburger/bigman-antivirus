@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use bigman_core::{
     checks::{
         self, canary, changes, disposable, doctor, hardening, inspect, integrations, packages, pdf,
@@ -110,6 +110,19 @@ enum Commands {
         /// List every row with its number, key and pinned details.
         #[arg(long)]
         rows: bool,
+    },
+    /// Stop one of your programs and watch for a minute for anything that starts
+    /// it again. Without a process ID, lists your programs. Bigman never stops a
+    /// program unless you ask, and shows what it will do first.
+    StopWatch {
+        /// The process ID from the list.
+        pid: Option<u32>,
+        /// Stop it and watch (asks it to stop with SIGTERM; never forces it).
+        #[arg(long)]
+        apply: bool,
+        /// Start a program stopped earlier again: the Stop and watch report's ID.
+        #[arg(long, value_name = "REPORT_ID", conflicts_with = "pid")]
+        again: Option<String>,
     },
     /// Open a shell in a disposable Podman container that holds a copy of a folder
     /// or file and nothing else from this computer. The container and the copy are
@@ -301,6 +314,26 @@ fn main() {
         std::process::exit(2);
     }
 }
+/// `bigman stop-watch` with no process ID: your programs, and why any is refused.
+fn programs_text(list: &[bigman_core::checks::respawn::Program]) -> String {
+    let mut out = String::from("Your programs. Stop one and watch with: bigman stop-watch PID\n\n");
+    for p in list {
+        let unit = p
+            .unit
+            .as_deref()
+            .map(|u| format!("  [{u}]"))
+            .unwrap_or_default();
+        out.push_str(&format!(
+            "{:>8}  {}{unit}\n          {}\n",
+            p.pid, p.name, p.command
+        ));
+        if let Some(why) = &p.refused {
+            out.push_str(&format!("          Not offered: {why}\n"));
+        }
+    }
+    out
+}
+
 fn run() -> Result<()> {
     // Chromium supplies its validated origin as argv[1], not a CLI subcommand.
     let native = std::env::args()
@@ -506,6 +539,77 @@ fn run() -> Result<()> {
                 Some(r)
             }
         },
+        Some(Commands::StopWatch { pid, apply, again }) => {
+            use bigman_core::{actions::Action, checks::respawn};
+            let action = match (pid, again) {
+                (Some(pid), _) => {
+                    let start = respawn::programs()
+                        .into_iter()
+                        .find(|p| p.pid == pid)
+                        .map(|p| p.start)
+                        .with_context(|| format!("No program of yours has process ID {pid}"))?;
+                    Some(Action::StopAndWatch { pid, start })
+                }
+                (None, Some(report)) => Some(Action::StartAgain { report }),
+                (None, None) => None,
+            };
+            match action {
+                None => {
+                    let list = respawn::programs();
+                    if cli.json {
+                        println!("{}", serde_json::to_string_pretty(&list)?);
+                    } else {
+                        print!("{}", programs_text(&list));
+                    }
+                    None
+                }
+                Some(action) if apply => {
+                    if matches!(action, Action::StopAndWatch { .. }) && !cli.json {
+                        eprintln!(
+                            "Watching for {} seconds; Ctrl+C ends the watch early.",
+                            respawn::WATCH_SECONDS
+                        );
+                    }
+                    // The CLI watches in the foreground; the daemon's watch runs
+                    // in a thread that would end with this process.
+                    if let Action::StopAndWatch { pid, start } = action {
+                        let (report, watch) = respawn::stop_and_watch(&store, pid, start, &stop)?;
+                        eprintln!("{}", respawn::outcome(&watch));
+                        if respawn::can_start_again(&watch) {
+                            eprintln!(
+                                "To start it again: bigman stop-watch --again {} --apply",
+                                report.id
+                            );
+                        }
+                        Some(report)
+                    } else {
+                        let done = bigman_core::actions::apply(&action, &store, &stop)?;
+                        eprintln!("{}", done.message);
+                        None
+                    }
+                }
+                Some(action) => {
+                    let p = bigman_core::actions::preview(&action, &store)?;
+                    println!("{}\n\n{}", p.title, p.summary);
+                    if let Some(n) = &p.note {
+                        println!("{n}");
+                    }
+                    if !p.facts.is_empty() {
+                        println!();
+                    }
+                    for f in &p.facts {
+                        println!("{}: {}", f.label, f.value);
+                    }
+                    println!(
+                        "\n{}:\n{}",
+                        p.details_label.as_deref().unwrap_or("Exactly what changes"),
+                        p.details
+                    );
+                    println!("\nNothing has happened yet. Run again with --apply to do this.");
+                    None
+                }
+            }
+        }
         Some(Commands::RepoCheck { path }) => {
             let r = checks::repo::repo_check(Path::new(&path))?;
             store.save(&r)?;
