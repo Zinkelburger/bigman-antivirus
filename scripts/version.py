@@ -56,7 +56,11 @@ def found() -> list[tuple[str, str | None]]:
             value = data
             for key in path:
                 value = value.get(key) if isinstance(value, dict) else None
-            out.append((f'{rel} {".".join(k or "\"\"" for k in path)}', value))
+            # Joined outside the f-string: before Python 3.12 an f-string
+            # expression cannot hold a backslash, and the release build runs
+            # this on Ubuntu 22.04 (Python 3.10).
+            dotted = '.'.join(k or '""' for k in path)
+            out.append((f'{rel} {dotted}', value))
     return out
 
 
