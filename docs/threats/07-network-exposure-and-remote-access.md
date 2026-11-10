@@ -389,7 +389,7 @@
   - For each process whose `comm` is a shell or interpreter (`sh`, `bash`, `dash`, `zsh`, `python*`, `perl`, `ruby`, `php`, `node`, `lua`), check `readlink /proc/PID/fd/0`, `fd/1` and `fd/2`. A `socket:[inode]` whose inode maps to a TCP or UDP row with a non-loopback remote is suspicious.
   - Parent process lineage: a web server, database or `cron` parent is especially notable.
   - Rootless visibility is limited to the user's own processes, which covers desktop-user compromise but not root or service accounts.
-- **Bigman today:** Partial. The `shell.network-listener` static rule flags `nc`/`socat` in inspected installers, and the `trace.network` sandbox finding flags network syscalls during rehearsal. There's no live-process check.
+- **Bigman today:** Partial. The `shell.network-listener` static rule flags `nc`/`socat` in inspected installers, and the `trace.network` sandbox finding flags network syscalls during rehearsal. Live: `bigman running` and the daemon report a shell or interpreter of yours whose standard input and output are one TCP or UDP socket (`process.shell-socket`: High, Review when the other end is on this computer), with the remote address. Other accounts' programs need the helper.
 - **Proposed mitigation / detection:**
   - `net.shell-socket-stdio` (Critical) in the monitor's 5-minute pass and in `bigman doctor`. Report the PID, the exe, the parent chain and the remote endpoint. Never kill the process; offer "copy details" and guidance.
   - An optional root mode (a one-shot polkit helper with a fixed argument list) widens coverage to all UIDs.

@@ -19,8 +19,9 @@ use std::{
 };
 
 /// The format snapshots are written in. Format 3 added your own bin folders,
-/// format 4 developer tool folders and editor extensions.
-pub const FORMAT: u32 = 4;
+/// format 4 developer tool folders and editor extensions, format 5 the places
+/// that start a program on an event rather than at startup.
+pub const FORMAT: u32 = 5;
 /// Baselines written before this format are treated as absent (plan Part K, decision 2).
 const OLDEST_FORMAT: u32 = 2;
 /// System folders whose commands a file in your own bin folder can hide.
@@ -63,6 +64,10 @@ pub enum Category {
     Tools,
     /// Editor extensions, one entry per extension: its version and its code.
     Extensions,
+    /// Files that start a program when something happens, not at startup: a
+    /// D-Bus name being asked for, systemd working out its units, the network
+    /// coming up, the desktop session starting or ending.
+    Activation,
 }
 
 impl Category {
@@ -84,6 +89,7 @@ impl Category {
             Category::Commands => "command in your own bin folder",
             Category::Tools => "program in a developer tool folder",
             Category::Extensions => "editor extension",
+            Category::Activation => "program started on an event",
         }
     }
     /// Where a package-owned file that differs from its package is High, not Review.
@@ -188,6 +194,40 @@ fn roots() -> Vec<(PathBuf, Category)> {
         (h.join("bin"), Commands),
     ];
     roots.extend(tool_roots().into_iter().map(|d| (d, Tools)));
+    // Started on demand: easy to miss, because nothing here runs at boot or login.
+    for dir in [
+        // A service file here starts its program when any application asks the
+        // session bus for the name it declares.
+        ".local/share/dbus-1/services",
+        // Generators run at every start of your systemd instance and write units.
+        ".config/systemd/user-generators",
+        ".config/systemd/user-environment-generators",
+        // Units in the data folder are found like those in ~/.config/systemd/user.
+        ".local/share/systemd/user",
+        // Scripts the Plasma session runs when it starts and ends.
+        ".config/plasma-workspace/env",
+        ".config/plasma-workspace/shutdown",
+        ".config/autostart-scripts",
+    ] {
+        roots.push((h.join(dir), Activation));
+    }
+    for dir in [
+        "/usr/local/share/dbus-1/services",
+        "/usr/local/share/dbus-1/system-services",
+        "/etc/systemd/system-generators",
+        "/etc/systemd/user-generators",
+        "/etc/systemd/system-environment-generators",
+        "/etc/systemd/user-environment-generators",
+        "/usr/local/lib/systemd/system-generators",
+        "/usr/local/lib/systemd/user-generators",
+        "/usr/local/lib/systemd/system",
+        "/usr/local/lib/systemd/user",
+        "/etc/xdg/systemd/user",
+        // Run as root each time a network connection comes up or goes down.
+        "/etc/NetworkManager/dispatcher.d",
+    ] {
+        roots.push((PathBuf::from(dir), Activation));
+    }
     for dir in [
         "cron.d",
         "cron.hourly",
@@ -884,6 +924,7 @@ pub fn compare(
     let unrecorded = |c: Category| {
         (old.format < 3 && c == Category::Commands)
             || (old.format < 4 && matches!(c, Category::Tools | Category::Extensions))
+            || (old.format < 5 && c == Category::Activation)
     };
     for (p, e) in &current.entries {
         let before = old.entries.get(p);
@@ -1144,5 +1185,56 @@ mod tests {
         fs::copy(&large, &copy).unwrap();
         fs::rename(&copy, &large).unwrap();
         assert_ne!(fingerprint(&large).unwrap(), before);
+    }
+}
+
+#[cfg(test)]
+mod activation {
+    use super::*;
+
+    fn rules(old: &Baseline, current: &Baseline) -> Vec<(String, Severity)> {
+        let mut r = Report::new("Persistence changes", "fixture");
+        compare(&mut r, Some(old), current, &BTreeMap::new());
+        r.findings
+            .into_iter()
+            .map(|f| (f.rule, f.severity))
+            .collect()
+    }
+
+    #[test]
+    fn event_started_files_are_recorded_first_and_compared_afterwards() {
+        let service =
+            PathBuf::from("/home/u/.local/share/dbus-1/services/org.example.Helper.service");
+        let entry = Entry {
+            hash: Some("a".repeat(64)),
+            bytes: 64,
+            mode: 0o100644,
+            uid: 1000,
+            gid: 1000,
+            caps: None,
+            category: Category::Activation,
+            shadows: None,
+            version: None,
+        };
+        let baseline = |format: u32, entries: BTreeMap<PathBuf, Entry>| Baseline {
+            format,
+            created: 1,
+            entries,
+            errors: vec![],
+        };
+        let current = baseline(FORMAT, [(service.clone(), entry.clone())].into());
+        // A baseline from before these places were read has nothing to compare with.
+        assert_eq!(
+            rules(&baseline(4, BTreeMap::new()), &current),
+            vec![("persistence.initial".to_string(), Severity::Info)]
+        );
+        // Once they are in the baseline, a new one is a change like any other.
+        assert_eq!(
+            rules(&baseline(FORMAT, BTreeMap::new()), &current),
+            vec![("persistence.change".to_string(), Severity::Review)]
+        );
+        assert!(roots().iter().any(
+            |(p, c)| *c == Category::Activation && p.ends_with(".local/share/dbus-1/services")
+        ));
     }
 }

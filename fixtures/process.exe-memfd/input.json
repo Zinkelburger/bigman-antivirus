@@ -1,0 +1,16 @@
+{
+  "uid": 1000,
+  "home": "/home/user",
+  "processes": [
+    {
+      "pid": 4242,
+      "uid": 1000,
+      "mine": true,
+      "comm": "fixture",
+      "args": [
+        "fixture"
+      ],
+      "exe": "/memfd:fixture (deleted)"
+    }
+  ]
+}

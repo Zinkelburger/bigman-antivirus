@@ -3,6 +3,7 @@
 import {
   BellRing,
   Box,
+  Cpu,
   Download,
   FolderDown,
   FolderGit2,
@@ -47,6 +48,7 @@ const SOURCE_LABEL: Partial<Record<SourceId, string>> = {
   import: "Imported",
   ssh: "SSH",
   skill: "AI skills",
+  running: "Running system",
 };
 
 const SOURCE_ICON: Partial<Record<SourceId, LucideIcon>> = {
@@ -66,6 +68,7 @@ const SOURCE_ICON: Partial<Record<SourceId, LucideIcon>> = {
   import: Download,
   ssh: KeyRound,
   skill: Sparkles,
+  running: Cpu,
 };
 
 export function sourceLabel(source: SourceId): string {

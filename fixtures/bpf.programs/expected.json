@@ -1,0 +1,8 @@
+{
+  "driver": "running",
+  "fires": [
+    "bpf.programs"
+  ],
+  "about": "The BPF program names systemd loads, as the kernel's symbol list shows them.",
+  "input": "input.json"
+}

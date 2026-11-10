@@ -1,0 +1,10 @@
+{
+  "uid": 1000,
+  "packet_sockets": [
+    {
+      "protocol": 3,
+      "iface": "any interface",
+      "uid": 0
+    }
+  ]
+}

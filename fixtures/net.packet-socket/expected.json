@@ -1,0 +1,8 @@
+{
+  "driver": "running",
+  "fires": [
+    "net.packet-socket"
+  ],
+  "about": "A packet socket for every frame type, held by a program the administrator runs.",
+  "input": "input.json"
+}

@@ -1,0 +1,14 @@
+{
+  "uid": 1000,
+  "pids": {
+    "listed": 412,
+    "probed": 413,
+    "unlisted": [
+      {
+        "pid": 4242,
+        "name": "fixture-worker",
+        "uid": 1000
+      }
+    ]
+  }
+}

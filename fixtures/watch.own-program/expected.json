@@ -1,0 +1,8 @@
+{
+  "driver": "running",
+  "fires": [
+    "watch.own-program"
+  ],
+  "about": "A program holding an inotify watch on the file it runs from.",
+  "input": "input.json"
+}

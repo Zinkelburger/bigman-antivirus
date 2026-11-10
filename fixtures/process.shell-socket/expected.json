@@ -1,0 +1,8 @@
+{
+  "driver": "running",
+  "fires": [
+    "process.shell-socket"
+  ],
+  "about": "A shell running only sleep, with standard input and output on one TCP socket to a documentation address (the NE-14 test case).",
+  "input": "input.json"
+}

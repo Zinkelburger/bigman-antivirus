@@ -1,0 +1,7 @@
+{
+  "bpf": [
+    "sd_devices",
+    "sd_fw_egress",
+    "sd_fw_ingress"
+  ]
+}

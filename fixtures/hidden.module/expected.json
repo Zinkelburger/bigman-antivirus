@@ -1,0 +1,8 @@
+{
+  "driver": "running",
+  "fires": [
+    "hidden.module"
+  ],
+  "about": "A module with a folder in /sys/module that /proc/modules does not name.",
+  "input": "input.json"
+}

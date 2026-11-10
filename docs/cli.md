@@ -28,6 +28,10 @@ bigman package-policy ./project                 # preview
 bigman package-policy ./project --apply
 bigman changes
 bigman changes --accept-baseline REVIEWED_REPORT_ID
+bigman running                                  # processes, modules and sockets, looked at two ways
+bigman running --rows                           # every row with its number, key and pinned details
+bigman running --known REPORT_ID 3              # mark row 3 as known, pinned to what it is now
+bigman running --forget KEY                     # take the mark back
 bigman harden                                   # suggestions, with what each costs
 bigman harden harden.sshd                       # preview: the exact commands and the undo
 bigman harden harden.sshd --apply

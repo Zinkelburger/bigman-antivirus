@@ -42,7 +42,7 @@ export function SegmentedTabs<T extends string>({ label, tabs, active, onSelect 
             tabIndex={selected ? 0 : -1}
             onClick={() => onSelect(tab.id)}
             onKeyDown={(e) => onKeyDown(e, i)}
-            className={`-mb-px inline-flex h-10 cursor-pointer items-center gap-1.5 border-b-2 px-3 text-body transition-colors duration-150 ${selected ? "border-ink font-semibold text-ink" : "border-transparent text-ink-muted hover:text-ink"}`}
+            className={`-mb-px inline-flex h-10 cursor-pointer items-center gap-1.5 whitespace-nowrap border-b-2 px-2 text-body min-[1100px]:px-3 transition-colors duration-150 ${selected ? "border-ink font-semibold text-ink" : "border-transparent text-ink-muted hover:text-ink"}`}
           >
             {tab.label}
             {tab.count ? <span className="text-small text-ink-muted">{tab.count}</span> : null}

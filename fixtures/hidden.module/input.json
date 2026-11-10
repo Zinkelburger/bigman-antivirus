@@ -1,0 +1,16 @@
+{
+  "modules": {
+    "listed": 120,
+    "mismatched": [
+      {
+        "name": "fixture_mod",
+        "seen_in": [
+          "/sys/module"
+        ],
+        "missing_from": [
+          "/proc/modules"
+        ]
+      }
+    ]
+  }
+}

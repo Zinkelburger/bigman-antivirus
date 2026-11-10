@@ -55,6 +55,17 @@ export function useScanItems(report: string | null) {
   });
 }
 
+/** The rows a Running system report listed, with what you marked as known. */
+export function useRunningItems(report: string | null) {
+  return useQuery({
+    queryKey: ["running-items", report],
+    queryFn: () => call({ type: "running_items", report: report ?? "" }, "running_items"),
+    enabled: report !== null,
+    // A re-check makes a new report; its rows replace the old ones without a gap.
+    placeholderData: (previous) => previous,
+  });
+}
+
 /** The skills and plugins an inventory report listed, with their files. */
 export function useSkillItems(report: string | null) {
   return useQuery({
@@ -106,7 +117,7 @@ function useRefreshAll() {
 
 type CheckRequest = Extract<
   Request,
-  { type: "doctor" | "scan" | "update_signatures" | "pdf" | "inspect" | "inspect_any" | "packages" | "lockfile" | "repo_check" | "package_sources" | "changes" | "skills" | "audit" | "yara" | "canary_test" | "advisories" }
+  { type: "doctor" | "scan" | "update_signatures" | "pdf" | "inspect" | "inspect_any" | "packages" | "lockfile" | "repo_check" | "package_sources" | "changes" | "skills" | "running" | "audit" | "yara" | "canary_test" | "advisories" }
 >;
 
 /**

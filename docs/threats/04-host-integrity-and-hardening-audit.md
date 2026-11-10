@@ -29,7 +29,7 @@
 | HI-17 | SUID/SGID files not owned by a package or with changed mode | Medium | Partial | Bounded `find -perm` inventory plus package ownership and mode verification |
 | HI-18 | File capabilities on unexpected binaries | Medium | Partial | `security.capability` xattr inventory compared with the package DB (`rpm -V` P flag) |
 | HI-19 | World-writable files and dirs, writable PATH entries, unowned files | Medium | Partial | `persistence.shadowed-command` watches `~/.local/bin` and `~/bin` for files that hide system commands; still to do: root `secure_path`, world-writable without sticky, nosuid mounts |
-| HI-20 | Loaded kernel modules not owned by a package, unsigned or tainting | High | Gap | `/proc/modules` to `modinfo` to package owner; decode taint bits; signer inventory |
+| HI-20 | Loaded kernel modules not owned by a package, unsigned or tainting | High | Partial | `/proc/modules` to `modinfo` to package owner; decode taint bits; signer inventory |
 | HI-21 | Secure Boot, lockdown, signature enforcement and boot chain state | Medium | Partial (Secure Boot state) | Read SB/lockdown/cmdline; MOK list diff; `/boot` package verify; fwupd HSI if present |
 | HI-22 | Package-file verification (modified or unowned system files) | High | Partial | Scheduled `rpm -Va` / `dpkg --verify` / `pacman -Qkk` with the diff noise explained |
 | HI-23 | Kernel and userspace patch status; well-known Linux LPE CVEs | High | Partial | Distro advisory query, running vs installed kernel, reboot-needed, KEV-driven checklist |
@@ -306,7 +306,7 @@ Each entry adds two fields to the standard template. **Normal state** describes 
   - auditd (Neo23x0): `-w /etc/ld.so.preload -k systemwide_preloads`, `-w /etc/ld.so.conf(.d) -k libpath`
   - Tracee detector: `ld_preload`
   - rkhunter and chkrootkit check for known preload rootkit artifacts.
-- **Bigman today:** Partial. `/etc/ld.so.preload` is hashed, and its appearance is reported. `ld.so.conf.d`, environment files and process environments are not.
+- **Bigman today:** Partial. `/etc/ld.so.preload` is hashed, and `bigman running` reports it whenever it names a library, independent of the baseline (`linker.preload-present`). The same check compares what the C library returns for the preload file, the process list, `/proc/modules` and `/proc/net` with direct system calls (`hidden.libc-view`), without a separate static helper, and lists `LD_PRELOAD`/`LD_AUDIT` in your own programs' environments (`process.preload`). `ld.so.conf.d` and environment files are not checked.
 - **Proposed mitigation / detection:**
   - Add `/etc/ld.so.conf` and `ld.so.conf.d`.
   - Rule `linker.preload-present` (High) when `/etc/ld.so.preload` is non-empty, independent of baseline state, because the normal state is "absent".
@@ -609,7 +609,7 @@ Each entry adds two fields to the standard template. **Normal state** describes 
   - Tracee detectors: `kernel_module_loading`, `hidden_kernel_module`, `syscall_table_hooking`, `hooked_syscall`
   - Falco: "Linux Kernel Module Injection Detected"
   - chkrootkit: `lkm`, `chkproc`/`chkdirs`; rkhunter: LKM checks
-- **Bigman today:** Gap.
+- **Bigman today:** Partial. `bigman running` compares `/proc/modules` with `/sys/module` and the kernel's symbol list (`hidden.module`), decodes the taint mask and the per-module marks (`module.taint`), and reports loaded modules with no file in the running kernel's module index (`module.no-file`). Coverage says a kernel that filters every view defeats them. Not done: package owner and signer of each module file, a module baseline (`kernel.module-new`).
 - **Proposed mitigation / detection:** Rootless CLI and monitor check `kernel.modules`:
   - Baseline module names, file path, package owner, signer and taint mask, and decode the taint bits into words using the kernel's table.
   - Rules: `kernel.module-unowned` (High), `kernel.module-new` (Review), `kernel.taint-changed` (Review, with decoded bits), `kernel.module-crossview-mismatch` (High).

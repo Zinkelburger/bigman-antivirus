@@ -114,3 +114,80 @@ describe("Protect AI skills", () => {
     expect(within(dialog).getByRole("button", { name: "Undo" })).toBeInTheDocument();
   });
 });
+
+describe("Protect Running system", () => {
+  it("lists what the two views disagree about first, and marks a row as known after a preview", async () => {
+    useShell.setState({ protectView: "running" });
+    const { user } = renderWithDaemon(<ProtectPage />);
+    // Before the first check: what it does, in words that need no glossary.
+    expect(await screen.findByText(/asks your system three questions in two different ways/)).toBeInTheDocument();
+    await user.click(await screen.findByRole("button", { name: "Check the running system" }));
+    const heading = await screen.findByRole("heading", { name: "4 to review · 2 listed for information · 1 marked as known" });
+    expect(heading).toHaveFocus();
+    const grid = screen.getByRole("grid", { name: "Running system" });
+    const rows = within(grid).getAllByRole("row").slice(1);
+    // The most severe leads; a row that changed since your mark comes before
+    // new ones of its severity; rows you marked as known come last.
+    expect(rows[0]).toHaveTextContent("Two views disagree");
+    expect(rows[2]).toHaveTextContent("5 BPF program names are loaded in the kernel");
+    expect(rows[2]).toHaveTextContent("Changed since you marked it 3 days ago");
+    expect(rows[rows.length - 1]).toHaveTextContent("Marked 9 days ago");
+
+    await user.click(within(grid).getByRole("row", { name: /agent is told whenever/ }));
+    const panel = await screen.findByRole("dialog", { name: "agent is told whenever /home/sam/.ssh changes" });
+    expect(within(panel).getByText("Not marked as known")).toBeInTheDocument();
+    const pinned = within(panel).getByRole("region", { name: "A mark holds while these stay the same" });
+    expect(within(pinned).getByText("/home/sam/.cache/sync-agent/agent")).toBeInTheDocument();
+    expect(within(pinned).queryByText("5120")).not.toBeInTheDocument();
+
+    await user.click(within(panel).getByRole("button", { name: "Mark as known…" }));
+    const dialog = await screen.findByRole("dialog", { name: "Mark as known" });
+    expect(await within(dialog).findByText(/stops counting as something to review/)).toBeInTheDocument();
+    // A row rated Review says what a mark is not, not only High ones.
+    expect(within(dialog).getByText(/does not change its rating or make it harmless/)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Mark as known" }));
+    expect(await within(dialog).findByText("Marked as known: agent is told whenever /home/sam/.ssh changes")).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Undo" })).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Close dialog" }));
+    // The panel follows the mark without losing its place, and focus stays in it.
+    const taken = await within(panel).findByRole("button", { name: "Take back the mark…" });
+    expect(await screen.findByRole("heading", { name: "3 to review · 2 listed for information · 2 marked as known" })).toBeInTheDocument();
+    expect(taken).toHaveFocus();
+  });
+
+  it("gives a command to copy instead of one written into a sentence", async () => {
+    useShell.setState({ protectView: "running" });
+    const { user } = renderWithDaemon(<ProtectPage />);
+    await user.click(await screen.findByRole("button", { name: "Check the running system" }));
+    const grid = await screen.findByRole("grid", { name: "Running system" });
+    await user.click(within(grid).getByRole("row", { name: /updater is running/ }));
+    const panel = await screen.findByRole("dialog", { name: "updater is running and its file was deleted" });
+    expect(within(panel).getByText(/cp \/proc\/88213\/exe/)).toBeInTheDocument();
+  });
+
+  it("shows the one calm result on a quiet computer, and still lists what it saw", async () => {
+    useShell.setState({ protectView: "running" });
+    const { user } = renderWithDaemon(<ProtectPage />, "calm");
+    await user.click(await screen.findByRole("button", { name: "Check the running system" }));
+    expect(await screen.findByRole("heading", { name: "2 listed for information · 1 marked as known" })).toBeInTheDocument();
+    expect(screen.getByText(/^No findings from these checks\. Ran at/)).toBeInTheDocument();
+    expect(within(screen.getByRole("grid", { name: "Running system" })).getAllByRole("row")).toHaveLength(4);
+  });
+
+  it("leads with Incomplete when part of the system could not be read", async () => {
+    useShell.setState({ protectView: "running" });
+    const { user } = renderWithDaemon(<ProtectPage />, "incomplete");
+    await user.click(await screen.findByRole("button", { name: "Check the running system" }));
+    expect(await screen.findByText("Some of the running system could not be read")).toBeInTheDocument();
+    expect(screen.queryByText(/^No findings from these checks/)).not.toBeInTheDocument();
+  });
+
+  it("says so plainly when nothing is listed", async () => {
+    useShell.setState({ protectView: "running" });
+    const { user } = renderWithDaemon(<ProtectPage />, "empty");
+    await user.click(await screen.findByRole("button", { name: "Check the running system" }));
+    expect(await screen.findByRole("heading", { name: "Nothing is listed from the parts that were read" })).toBeInTheDocument();
+    expect(screen.getByText(/^No findings from these checks\. Ran at/)).toBeInTheDocument();
+    expect(screen.queryByRole("grid", { name: "Running system" })).not.toBeInTheDocument();
+  });
+});

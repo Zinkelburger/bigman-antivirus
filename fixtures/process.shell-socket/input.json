@@ -1,0 +1,23 @@
+{
+  "uid": 1000,
+  "home": "/home/user",
+  "processes": [
+    {
+      "pid": 4242,
+      "uid": 1000,
+      "mine": true,
+      "comm": "sh",
+      "args": [
+        "sh",
+        "-c",
+        "sleep 30"
+      ],
+      "exe": "/usr/bin/dash",
+      "stdio_socket": {
+        "protocol": "TCP",
+        "remote": "192.0.2.10:4444",
+        "loopback": false
+      }
+    }
+  ]
+}

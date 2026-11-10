@@ -1,0 +1,8 @@
+{
+  "driver": "running",
+  "fires": [
+    "process.daemon-name"
+  ],
+  "about": "A program named sshd running from a build folder in the home directory.",
+  "input": "input.json"
+}

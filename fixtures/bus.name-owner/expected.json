@@ -1,0 +1,8 @@
+{
+  "driver": "running",
+  "fires": [
+    "bus.name-owner"
+  ],
+  "about": "org.freedesktop.secrets owned by a program in the home folder.",
+  "input": "input.json"
+}

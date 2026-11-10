@@ -1,0 +1,8 @@
+{
+  "driver": "running",
+  "fires": [
+    "process.exe-deleted"
+  ],
+  "about": "A copy of sleep started from a temporary folder, then deleted (the MW-22 test case).",
+  "input": "input.json"
+}

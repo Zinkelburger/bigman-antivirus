@@ -15,6 +15,7 @@ import {
   type RuleInfo,
   type Response,
   type ScanItem,
+  type RunningItem,
   type SkillItem,
   type Transport,
   type Unread,
@@ -22,6 +23,7 @@ import {
 import rules from "@/ipc/generated/rules.json";
 import { checkup, history, NOW, report, scanWithFinding, statusScenarios } from "./fixtures";
 import { MockHardening } from "./hardening";
+import { runningReport, seedRunning } from "./running";
 import { seedSkills, skillsReport } from "./skills";
 import { INTERFACES, networkSnapshot, RECEIPTS, securityUpdates, reportEvent, sampleAt, samplesFor, seedEvents, sourceStatuses } from "./live";
 
@@ -53,6 +55,8 @@ class MockDaemon {
   hardening: MockHardening;
   skills: SkillItem[] = seedSkills();
   skillItems = new Map<string, SkillItem[]>();
+  runningRows: RunningItem[] = [];
+  runningItems = new Map<string, RunningItem[]>();
 
   constructor(
     readonly scenario: string,
@@ -60,6 +64,7 @@ class MockDaemon {
     readonly speed = 1,
   ) {
     this.hardening = new MockHardening(scenario);
+    this.runningRows = seedRunning(scenario);
     this.monitor = (statusScenarios[scenario] ?? statusScenarios.findings)?.monitor != null && scenario !== "empty";
     this.reports = scenario === "empty" ? [] : history(scenario);
     // A calm machine has its daily security-updates check on record.
@@ -165,6 +170,15 @@ class MockDaemon {
         return plan("Approve this version", "Approve", `Record this exact version of ${item?.name ?? "it"} as reviewed by you. Bigman reports it if any of its files change afterwards.${note}`, `${item?.root ?? ""}\nSHA-256 of its files: ${item?.hash ?? ""}\n\nFiles:\n${(item?.files ?? []).map((f) => `  ${f.path}  ${String(f.bytes)} bytes`).join("\n")}`, "Undo takes the approval back, restoring any earlier one.");
       }
       case "revoke_skill_approval": return plan("Take back the approval", "Take back", `Stop treating ${this.skills.find((i) => i.key === action.key)?.name ?? "this skill or plugin"} as reviewed. An earlier approval comes back if there was one; otherwise it is listed as not reviewed.`, action.key);
+      case "mark_known": {
+        const item = this.runningItems.get(action.report)?.find((i) => i.key === action.key);
+        return {
+          ...plan("Mark as known", "Mark as known", `Record "${item?.title ?? "this row"}" as something you recognise, as it is now. It stays in the list and stops counting as something to review. If one of the details below changes, it counts again and says what changed.`, (item?.facts ?? []).filter((f) => f.pinned).map((f) => `${f.label}: ${f.value}`).join("\n"), "Take the mark back at any time; an earlier mark is restored."),
+          note: item && item.severity !== "info" ? "Marking does not change its rating or make it harmless. It records that you recognise it." : null,
+          details_label: "What the mark records",
+        };
+      }
+      case "forget_known": return plan("Take back the mark", "Take back", `Stop treating "${this.runningRows.find((i) => i.key === action.key)?.title ?? "this row"}" as something you recognise. An earlier mark comes back if there was one; otherwise it counts as something to review again.`, "");
       case "quarantine": {
         const item = this.items.get(action.report)?.[action.index];
         return plan("Quarantine a file", "Quarantine", "Save a private recovery copy, check the file is unchanged since the scan, then remove it from its folder. No other file is touched.", `${item?.path ?? ""}\nSignature ${item?.signature ?? ""}\nSHA-256 ${item?.hash ?? ""}`, "Undo restores it, as long as nothing new has taken its path.");
@@ -243,6 +257,17 @@ class MockDaemon {
         if (!item) throw new Error("That skill or plugin is not in this report");
         this.skills = this.skills.map((i) => (i.key === action.key ? { ...i, status: "approved", approved_at: now(), changed: [] } : i));
         return done(`${item.name} is approved as it is now.`, null, { kind: "revoke_skill_approval", key: action.key });
+      }
+      case "mark_known": {
+        const item = this.runningRows.find((i) => i.key === action.key);
+        if (!item) throw new Error("That row is not in this report");
+        this.runningRows = this.runningRows.map((i) => (i.key === action.key ? { ...i, standing: "known", known_at: now(), changed: [] } : i));
+        return done(`Marked as known: ${item.title}`, null, { kind: "forget_known", key: action.key });
+      }
+      case "forget_known": {
+        const item = this.runningRows.find((i) => i.key === action.key);
+        this.runningRows = this.runningRows.map((i) => (i.key === action.key ? { ...i, standing: "new", known_at: null } : i));
+        return done(`No longer marked as known: ${item?.title ?? "this row"}`);
       }
       case "revoke_skill_approval": {
         const item = this.skills.find((i) => i.key === action.key);
@@ -348,6 +373,16 @@ class MockDaemon {
         this.skillItems.set(inventory.id, this.skills);
         return inventory;
       }, "AI skills and plugins", "Installed skills and plugins"));
+      case "running": return r(await this.check(token, 900, () => {
+        const result = runningReport(this.runningRows, id(), now(), this.scenario);
+        this.runningItems.set(result.id, this.runningRows);
+        return result;
+      }, "Running system", "Programs, kernel and network on this computer"));
+      case "running_items": {
+        const found = this.runningItems.get(request.report);
+        if (!found) return { type: "error", value: { message: "This report's rows are not available" } };
+        return { type: "running_items", value: found };
+      }
       case "skill_items": {
         const found = this.skillItems.get(request.report);
         if (!found) return { type: "error", value: { message: "This report's skill list is not available" } };

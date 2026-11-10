@@ -1,0 +1,8 @@
+{
+  "driver": "running",
+  "fires": [
+    "hidden.net-socket"
+  ],
+  "about": "A listening TCP port in the socket-diagnostics answer that /proc/net/tcp leaves out.",
+  "input": "input.json"
+}

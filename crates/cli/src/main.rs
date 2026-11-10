@@ -95,6 +95,22 @@ enum Commands {
         #[arg(long, value_name = "KEY")]
         revoke: Option<String>,
     },
+    /// The running system looked at more than one way: processes, kernel modules
+    /// and sockets that one view shows and another does not, programs running from
+    /// memory or deleted files, packet access, BPF programs, and who watches your
+    /// credential folders.
+    Running {
+        /// Mark a row as known, pinned to what it is now: the report ID and the
+        /// row's number (from the list) or key.
+        #[arg(long, num_args = 2, value_names = ["REPORT_ID", "ROW"])]
+        known: Option<Vec<String>>,
+        /// Take a mark back by the row's key, restoring the one it replaced.
+        #[arg(long, value_name = "KEY")]
+        forget: Option<String>,
+        /// List every row with its number, key and pinned details.
+        #[arg(long)]
+        rows: bool,
+    },
     /// Open a shell in a disposable Podman container that holds a copy of a folder
     /// or file and nothing else from this computer. The container and the copy are
     /// deleted when the shell exits.
@@ -467,6 +483,28 @@ fn run() -> Result<()> {
                 None
             }
             (None, None) => Some(checks::skills::inventory(&store)?),
+        },
+        Some(Commands::Running {
+            known,
+            forget,
+            rows,
+        }) => match (known, forget) {
+            (Some(args), _) => {
+                let key = checks::running::key_for(&store, &args[0], &args[1])?;
+                println!("{}", checks::running::mark(&store, &args[0], &key, &stop)?);
+                None
+            }
+            (None, Some(key)) => {
+                println!("{}", checks::running::forget(&store, &key)?);
+                None
+            }
+            (None, None) => {
+                let (r, items) = checks::running::check(&store, &stop)?;
+                if rows && !cli.json {
+                    print!("{}", checks::running::rows_text(&items));
+                }
+                Some(r)
+            }
         },
         Some(Commands::RepoCheck { path }) => {
             let r = checks::repo::repo_check(Path::new(&path))?;
