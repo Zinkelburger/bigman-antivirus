@@ -63,7 +63,12 @@ fn main() {
             }
         })
         .setup(move |app| {
-            tray::install(app.handle())?;
+            // A desktop with nothing to show tray icons (GNOME without an
+            // extension for them, a bare window manager) refuses the icon.
+            // Bigman still starts: closing its window then quits it.
+            if let Err(e) = tray::install(app.handle()) {
+                eprintln!("bigman-app: no tray icon on this desktop: {e}");
+            }
             if let Some(listener) = later_launches {
                 let handle = app.handle().clone();
                 instance::serve(listener, move || show_window(&handle));

@@ -40,7 +40,7 @@ jobs:
           apt-get update && apt-get install -y --no-install-recommends
           build-essential ca-certificates curl git file pkg-config python3
           libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
-          librsvg2-dev libssl-dev
+          librsvg2-dev libssl-dev libayatana-appindicator3-dev
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # The container runs as root over a workspace the runner owns.
       - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
