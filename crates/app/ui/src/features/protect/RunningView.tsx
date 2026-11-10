@@ -101,12 +101,21 @@ const columns = (now: number): ColumnDef<RunningItem>[] => [
   },
 ];
 
-/** The newest Running system report, from this session's check or history. */
+/**
+ * The newest Running system report, from this session's check or history.
+ * History lists reports newest first, to finer than the second a report's
+ * `created` holds, so once it lists this session's check its order decides:
+ * a re-check from a row's panel can land in the same second as the check that
+ * filled the list, and the list must follow it. Until history has caught up,
+ * the check just made is the newest.
+ */
 function useLatest(check: ReturnType<typeof useCheck>): Report | undefined {
-  const last = useHistory().data?.find((r) => r.kind === RUNNING);
+  const history = useHistory().data;
+  const last = history?.find((r) => r.kind === RUNNING);
   const fresh = check.data?.kind === RUNNING ? check.data : undefined;
-  if (fresh && (!last || fresh.created >= last.created)) return fresh;
-  return last;
+  const listed = fresh !== undefined && history?.some((r) => r.id === fresh.id);
+  if (fresh && !listed && (!last || fresh.created >= last.created)) return fresh;
+  return last ?? fresh;
 }
 
 /** Values that are paths, commands, identifiers or lists of names read as machine text. */
