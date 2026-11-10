@@ -107,8 +107,8 @@ export function CanariesView() {
           Add a local canary
         </h2>
         <p className="m-0 max-w-[56ch] text-ink-muted">
-          No account or network needed. Bigman creates the decoy, starts monitoring at login, then reads it once to
-          prove detection works. Existing files are never overwritten.
+          No account or network needed. Bigman creates the decoy, watches it whenever its background checks run, starts
+          those at login, then reads it once to prove detection works. Existing files are never overwritten.
         </p>
         <PathPicker label="Decoy file" value={target} onChange={setPath} onBrowse={() => void browse()} />
         <div>

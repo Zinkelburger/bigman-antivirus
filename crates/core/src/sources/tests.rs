@@ -893,6 +893,7 @@ fn a_canary_monitor_that_stops_shows_up_as_a_gap() {
     let w = world();
     let decoy = tempfile::tempdir().unwrap();
     crate::checks::canary::create(&w.store, &decoy.path().join("passwords.txt"), None).unwrap();
+    crate::checks::canary::setup::keep_on(&w.store).unwrap();
     let mut source = Heartbeat::new(Box::new(FixedClock {
         boot: "b1",
         asleep: 0,

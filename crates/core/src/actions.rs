@@ -414,9 +414,9 @@ pub fn preview(action: &Action, store: &Store) -> Result<ActionPlan> {
                 if *remove { "Remove background services" } else { "Install background services" },
                 if *remove { "Remove" } else { "Install" },
                 if *remove {
-                    "Stop and remove Bigman's per-user collector, monitor and daily update units. Reports, the timeline and canary files stay."
+                    "Stop and remove Bigman's per-user collector and daily update units; the canary monitor runs inside the collector and stops with it. Reports, the timeline and canary files stay."
                 } else {
-                    "Write and enable per-user units so these start when you log in, not only when you open Bigman: the collector daemon (Activity, Network history and the Downloads and project watches), the canary and startup monitor, and a daily ClamAV signature download. Nothing system-wide."
+                    "Write and enable per-user units so these start when you log in, not only when you open Bigman: the collector daemon (Activity, Network history, the Downloads and project watches, and the canary and startup monitor if it is on), and a daily ClamAV signature download. Nothing system-wide."
                 },
                 setup::services(store, false, *remove, &crate::runner::cancel())?,
             )
@@ -565,9 +565,9 @@ pub fn preview(action: &Action, store: &Store) -> Result<ActionPlan> {
                 "Set up a canary file",
                 "Create and test",
                 if *session_only {
-                    "Create a decoy file (or reuse a registered one), start monitoring until you log out, and read it once to prove detection works."
+                    "Create a decoy file (or reuse a registered one), start monitoring with Bigman's background checks until you restart, and read it once to prove detection works."
                 } else {
-                    "Create a decoy file (or reuse a registered one), start monitoring now and at each login, and read it once to prove detection works."
+                    "Create a decoy file (or reuse a registered one), start monitoring now, start Bigman's background checks at each login so it keeps running, and read it once to prove detection works."
                 },
                 format!(
                     "{}\nThe file contains a synthetic token, not a working credential. Existing files are never overwritten.",
@@ -579,9 +579,9 @@ pub fn preview(action: &Action, store: &Store) -> Result<ActionPlan> {
             "Start canary monitoring",
             "Start",
             if *session_only {
-                "Start the monitor for this session for the registered decoys. No files are created."
+                "Start the monitor for the registered decoys until you restart, along with Bigman's background checks. No files are created."
             } else {
-                "Start the monitor for the registered decoys and enable it at login. No files are created."
+                "Start the monitor for the registered decoys and start Bigman's background checks, which run it, at each login. No files are created."
             },
             paths(&canary::list(store)?.into_iter().map(|c| c.path).collect::<Vec<_>>()),
         ),
@@ -591,9 +591,9 @@ pub fn preview(action: &Action, store: &Store) -> Result<ActionPlan> {
                 "Stop canary monitoring",
                 "Stop",
                 if *session_only {
-                    "Stop the running monitor. The login service, if enabled, starts it again at the next login."
+                    "Stop the monitor until you restart. If it was set to run at each login, it comes back after that."
                 } else {
-                    "Stop the monitor and remove its login service. Decoy files and history stay. Reads while stopped are not noticed."
+                    "Stop the monitor; it stays off until you start it again. Decoy files and history stay. Reads while stopped are not noticed."
                 },
                 "",
             )

@@ -1,5 +1,11 @@
 use anyhow::Result;
-use bigman_core::{ipc, model, platform::linux::NotifySend, sources, store::Store};
+use bigman_core::{
+    checks::{canary, setup},
+    ipc, model,
+    platform::linux::NotifySend,
+    sources,
+    store::Store,
+};
 use bigman_daemon::{server, timeline, Daemon};
 use clap::Parser;
 use std::{path::PathBuf, sync::Arc};
@@ -37,12 +43,17 @@ fn run() -> Result<()> {
     let stop = daemon.stop.clone();
     let signal = stop.clone();
     ctrlc::set_handler(move || signal.store(true, std::sync::atomic::Ordering::Relaxed))?;
-    let collectors = timeline::start(
+    if let Err(e) = setup::adopt_monitor_service(&daemon.store, &stop) {
+        eprintln!("bigmand: {}", model::clean(&format!("{e:#}")));
+    }
+    let mut collectors = timeline::start(
         &daemon,
         sources::linux_sources(stop.clone()),
         Box::new(NotifySend),
         &stop,
     );
+    let (store, halt) = (daemon.store.clone(), stop.clone());
+    collectors.push(std::thread::spawn(move || canary::supervise(&store, &halt)));
     eprintln!("bigmand: listening on {}", socket.path.display());
     let served = server::serve(&socket, daemon.clone(), &stop);
     // Removing the socket first tells clients at once that the daemon is gone,

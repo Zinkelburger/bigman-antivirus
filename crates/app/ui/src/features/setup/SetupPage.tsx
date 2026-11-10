@@ -199,13 +199,13 @@ function StopChecks({ services }: { services: boolean }) {
           <div className="flex max-w-[56ch] flex-col gap-3 text-ink">
             <p className="m-0">
               bigmand stops and Bigman quits. Until you open Bigman again{services ? " or log in" : ""}, new downloads
-              and project folders are not checked, Activity and Network record nothing, and the daily security-update
-              check does not run.
+              and project folders are not checked, Activity and Network record nothing, decoy files are not watched, and
+              the daily security-update check does not run.
             </p>
             {services && (
               <p className="m-0">
-                Still running, because background services are installed: the canary and startup monitor and the daily
-                ClamAV signature download. Remove the services to stop those too.
+                Still running, because background services are installed: the daily ClamAV signature download. Remove
+                the services to stop it too.
               </p>
             )}
             <p className="m-0 text-ink-muted">Reports, Activity history and canary files stay as they are.</p>
@@ -295,8 +295,8 @@ export function SetupPage() {
           <Item title="Background services" done={null}>
             <p className="m-0 max-w-[56ch] text-ink-muted">
               {status.data?.services
-                ? "Installed: background checks start when you log in, along with the canary and startup monitor and a daily ClamAV signature download."
-                : "Not installed: background checks run only once you open Bigman. Installing makes them start when you log in, along with the canary and startup monitor and a daily ClamAV signature download."}{" "}
+                ? "Installed: background checks, including the canary and startup monitor if it is on, start when you log in, along with a daily ClamAV signature download."
+                : "Not installed: background checks run only once you open Bigman. Installing makes them, including the canary and startup monitor if it is on, start when you log in, along with a daily ClamAV signature download."}{" "}
               They follow your login session; nothing system-wide is enabled.
             </p>
             <div className="flex gap-2">

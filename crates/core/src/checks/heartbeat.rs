@@ -24,7 +24,7 @@ pub struct Tick {
     pub asleep: u64,
     /// When the canary monitor last wrote its heartbeat.
     pub monitor_updated: Option<u64>,
-    /// Whether the monitor should be running: decoys are registered.
+    /// Whether the monitor should be running: switched on, with decoys registered.
     pub monitor_expected: bool,
     /// When the daemon last shut down cleanly.
     pub daemon_stopped: Option<u64>,
@@ -90,6 +90,11 @@ impl Tracker {
                         .daemon_stopped
                         .is_some_and(|s| s + 15 >= last && s <= t.now),
                 });
+                // The monitor runs inside bigmand, so this gap already covers it.
+                self.monitor_last = None;
+                self.down_since = t.monitor_expected.then_some(t.now);
+                self.down_asleep = t.asleep;
+                self.stopped_reported = false;
             }
         }
         let previous_asleep = self.daemon_asleep;

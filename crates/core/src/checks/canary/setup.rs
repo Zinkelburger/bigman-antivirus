@@ -5,6 +5,7 @@ use crate::{
     store::{home, read_file, Store, MAX_INPUT},
 };
 use anyhow::{bail, Context, Result};
+use serde::{Deserialize, Serialize};
 use std::{
     fs,
     os::unix::fs::OpenOptionsExt,
@@ -29,6 +30,63 @@ pub fn health(store: &Store) -> Option<Health> {
         .ok()
         .filter(|h| now().saturating_sub(h.updated) < 10)
 }
+
+/// Whether bigmand should run the monitor. The monitor has no process or login
+/// service of its own, so this is what survives a restart.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "mode", rename_all = "snake_case")]
+enum Mode {
+    #[default]
+    Off,
+    On,
+    /// On until the computer restarts (`--session-only`).
+    ThisBoot {
+        boot: String,
+    },
+    /// Off until the computer restarts, then on (`stop --session-only`).
+    PausedThisBoot {
+        boot: String,
+    },
+}
+impl Mode {
+    fn wanted(&self, now: &str) -> bool {
+        match self {
+            Mode::Off => false,
+            Mode::On => true,
+            Mode::ThisBoot { boot } => boot == now,
+            Mode::PausedThisBoot { boot } => boot != now,
+        }
+    }
+    fn started(self, session_only: bool, boot: String) -> Mode {
+        match (self, session_only) {
+            (Mode::On | Mode::PausedThisBoot { .. }, true) | (_, false) => Mode::On,
+            (_, true) => Mode::ThisBoot { boot },
+        }
+    }
+    fn stopped(self, session_only: bool, boot: String) -> Mode {
+        match (self, session_only) {
+            (Mode::On | Mode::PausedThisBoot { .. }, true) => Mode::PausedThisBoot { boot },
+            _ => Mode::Off,
+        }
+    }
+}
+const MODE: &str = "monitor-mode.json";
+fn boot() -> String {
+    fs::read_to_string("/proc/sys/kernel/random/boot_id")
+        .map(|s| s.trim().to_string())
+        .unwrap_or_default()
+}
+fn mode(store: &Store) -> Mode {
+    store.read(MODE).unwrap_or_default()
+}
+/// Whether the monitor is switched on, which bigmand follows within a second.
+pub fn wanted(store: &Store) -> bool {
+    mode(store).wanted(&boot())
+}
+/// Switches the monitor on for good, for a login service from an earlier version.
+pub fn keep_on(store: &Store) -> Result<()> {
+    store.write(MODE, &Mode::On)
+}
 fn pause(stop: &Cancel) -> Result<()> {
     if stop.load(Ordering::Relaxed) {
         bail!("Cancelled; any created decoy and started monitor remain available");
@@ -36,18 +94,21 @@ fn pause(stop: &Cancel) -> Result<()> {
     std::thread::sleep(Duration::from_millis(100));
     Ok(())
 }
+/// Starts bigmand if it is not running; the monitor runs inside it.
 fn launch(store: &Store) -> Result<()> {
+    if crate::ipc::client::Client::connect().is_ok() {
+        return Ok(());
+    }
     let log = fs::OpenOptions::new()
         .create(true)
         .append(true)
         .mode(0o600)
         .custom_flags(libc::O_NOFOLLOW)
         .open(store.root.join("monitor.log"))?;
-    let mut command = Command::new(runner::bigman_executable()?);
+    let mut command = Command::new(runner::sibling_executable("bigmand")?);
     command
         .arg("--state")
         .arg(&store.root)
-        .arg("watch")
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(log);
@@ -165,25 +226,19 @@ fn start_inner(
     stop: &Cancel,
     report: &mut Report,
 ) -> Result<()> {
-    let mut service_enabled = false;
+    store.write(MODE, &mode(store).started(session_only, boot()))?;
     if !session_only {
-        match crate::checks::setup::monitor_service(store, false, health(store).is_some(), stop) {
-            Ok(()) => {
-                service_enabled = true;
-                report.coverage.push("Monitor enabled for future user logins using the current binary path. Keep that binary installed; logout/reboot gaps are not monitored. No other Bigman services were enabled.".into());
-            },
-            Err(error) => report.errors.push(format!("Automatic startup unavailable: {error}. Falling back to a background monitor for this session.")),
+        match crate::checks::setup::daemon_login_service(store, false, stop) {
+            Ok(()) => report.coverage.push("Bigman's background checks, which include the monitor, now start at each login using the current binary path. Keep that binary installed; logout/reboot gaps are not monitored.".into()),
+            Err(error) => report.errors.push(format!("Automatic startup unavailable: {error}. The monitor runs until Bigman's background checks stop.")),
         }
     } else {
-        report.coverage.push("Session-only setup: no login service configured. Monitoring continues after the app closes, but must be restarted after logout/reboot.".into());
+        report.coverage.push("Session-only setup: no login service configured. The monitor runs with Bigman's background checks until the computer restarts.".into());
     }
     if stop.load(Ordering::Relaxed) {
         bail!("Monitor startup cancelled");
     }
-    // A successful service start gets time to publish its heartbeat in verify().
-    if !service_enabled && health(store).is_none() {
-        launch(store)?;
-    }
+    launch(store)?;
     let started = Instant::now();
     while health(store).is_none() {
         if started.elapsed() > Duration::from_secs(8) {
@@ -200,8 +255,9 @@ fn start_inner(
 pub fn stop_monitor(store: &Store, session_only: bool, stop: &Cancel) -> Result<Report> {
     let _lock = store.lock("canary-setup.lock")?;
     let mut report = Report::new("Monitor stop", "Local canary and startup monitoring");
+    store.write(MODE, &mode(store).stopped(session_only, boot()))?;
     if !session_only {
-        if let Err(error) = crate::checks::setup::monitor_service(store, true, false, stop) {
+        if let Err(error) = crate::checks::setup::daemon_login_service(store, true, stop) {
             report
                 .errors
                 .push(format!("Login service removal failed: {error}"));
@@ -214,7 +270,7 @@ pub fn stop_monitor(store: &Store, session_only: bool, stop: &Cancel) -> Result<
     }
     if session_only {
         report.coverage.push(
-            "Login service configuration unchanged; an enabled service may restart the monitor."
+            "The monitor stays off until the computer restarts, if it was set to run at each login."
                 .into(),
         );
     }
@@ -229,22 +285,26 @@ fn stop_process(store: &Store, stop: &Cancel) -> Result<()> {
             fs::remove_file(store.root.join("monitor-health.json"))?;
             return Ok(());
         }
-        // Only signal a process whose argv identifies this profile's Bigman monitor.
+        // A heartbeat this old has no monitor behind it, whatever now has that PID.
+        if now().saturating_sub(h.updated) >= 10 {
+            fs::remove_file(store.root.join("monitor-health.json"))?;
+            return Ok(());
+        }
+        // bigmand follows the switch by itself. Only a foreground `bigman watch`
+        // needs a signal, and only a process whose argv identifies it gets one.
         let argv = read_file(&proc.join("cmdline"), MAX_INPUT)?;
         let args: Vec<_> = argv.split(|b| *b == 0).filter(|b| !b.is_empty()).collect();
         use std::os::unix::ffi::OsStrExt;
         let executable = runner::bigman_executable()?;
-        if h.pid < 2
-            || args.len() != 4
-            || (args[0] != executable.as_os_str().as_bytes()
-                && fs::read_link(proc.join("exe")).ok().as_ref() != Some(&executable))
-            || args[1] != b"--state"
-            || args[2] != store.root.as_os_str().as_bytes()
-            || args[3] != b"watch"
+        if h.pid >= 2
+            && args.len() == 4
+            && (args[0] == executable.as_os_str().as_bytes()
+                || fs::read_link(proc.join("exe")).ok().as_ref() == Some(&executable))
+            && args[1] == b"--state"
+            && args[2] == store.root.as_os_str().as_bytes()
+            && args[3] == b"watch"
+            && unsafe { libc::kill(h.pid as i32, libc::SIGINT) } != 0
         {
-            bail!("Heartbeat PID is not this profile's monitor; refusing to signal it");
-        }
-        if unsafe { libc::kill(h.pid as i32, libc::SIGINT) } != 0 {
             return Err(std::io::Error::last_os_error().into());
         }
         let started = Instant::now();
@@ -256,4 +316,34 @@ fn stop_process(store: &Store, stop: &Cancel) -> Result<()> {
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Mode;
+    fn this(boot: &str) -> Mode {
+        Mode::ThisBoot { boot: boot.into() }
+    }
+    fn paused(boot: &str) -> Mode {
+        Mode::PausedThisBoot { boot: boot.into() }
+    }
+    #[test]
+    fn session_only_lasts_until_a_restart() {
+        let m = Mode::Off.started(true, "a".into());
+        assert_eq!(m, this("a"));
+        assert!(m.wanted("a") && !m.wanted("b"));
+    }
+    #[test]
+    fn a_session_only_stop_comes_back_after_a_restart() {
+        let m = Mode::On.stopped(true, "a".into());
+        assert_eq!(m, paused("a"));
+        assert!(!m.wanted("a") && m.wanted("b"));
+        assert_eq!(m.started(true, "a".into()), Mode::On);
+    }
+    #[test]
+    fn a_full_stop_stays_off_and_nothing_starts_it_by_default() {
+        assert_eq!(Mode::On.stopped(false, "a".into()), Mode::Off);
+        assert_eq!(this("a").stopped(true, "a".into()), Mode::Off);
+        assert!(!Mode::default().wanted("a"));
+    }
 }
