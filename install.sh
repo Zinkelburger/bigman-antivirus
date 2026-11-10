@@ -18,8 +18,8 @@ if ! pkg-config --exists webkit2gtk-4.1 2>/dev/null; then
 fi
 (cd "$project_dir/crates/app/ui" && npm ci --ignore-scripts --no-audit --no-fund && npm run build)
 "$cargo_bin" build --locked --release --manifest-path "$project_dir/Cargo.toml" --target-dir "$project_dir/target" \
-  -p bigman-cli -p bigman-daemon -p bigman-app
-for bin in bigman bigmand bigman-app; do
+  -p bigman-cli -p bigman-daemon -p bigman-canary-helper -p bigman-app
+for bin in bigman bigmand bigman-canary-helper bigman-app; do
   install -Dm755 "$project_dir/target/release/$bin" "$prefix/bin/$bin"
 done
 mkdir -p "$prefix/share/applications" "$prefix/share/icons/hicolor/128x128/apps"

@@ -322,6 +322,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "bigman-canary-helper"
+version = "0.2.0"
+dependencies = [
+ "anyhow",
+ "libc",
+ "serde",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
 name = "bigman-cli"
 version = "0.2.0"
 dependencies = [
@@ -330,6 +341,7 @@ dependencies = [
  "bigman-native-host",
  "clap",
  "ctrlc",
+ "libc",
  "serde_json",
 ]
 
@@ -338,6 +350,7 @@ name = "bigman-core"
 version = "0.2.0"
 dependencies = [
  "anyhow",
+ "bigman-canary-helper",
  "flate2",
  "fs2",
  "libc",

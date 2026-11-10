@@ -4,6 +4,8 @@ import {
   type ActionOutcome,
   type ActionPlan,
   type Canary,
+  type CanaryAccess,
+  type CanaryResponses,
   type DesktopShell,
   type Event,
   type Live,
@@ -42,11 +44,26 @@ const LOCKFILES = new Set(["package-lock.json", "npm-shrinkwrap.json", "yarn.loc
  * scenario comes from `?scenario=` (findings, calm, incomplete, empty,
  * disconnected, loading, or busy: findings with enough Network rows to scroll).
  */
+const NO_RESPONSES: CanaryResponses = { lock_screen: false, log_out: false, network_off: false, kill_reader: false, lock_account: false, script: null };
+
+/** The facts core puts in a canary plan: what always happens, then the chosen responses in run order. */
+function responseFacts(r: CanaryResponses): ActionPlan["facts"] {
+  const chosen = [r.script && `Run ${r.script}`, r.kill_reader && "Kill the process", r.network_off && "Turn networking off", r.lock_account && "Lock your account", r.lock_screen && "Lock the screen", r.log_out && "Log out"].filter((x): x is string => Boolean(x));
+  return [
+    { label: "Always", value: "Log the access and show a notification" },
+    { label: "Then, in order", value: chosen.length ? chosen.join("\n") : "Nothing else" },
+  ];
+}
+
 class MockDaemon {
   reports: Report[];
   items = new Map<string, ScanItem[]>();
   quarantine: Quarantined[] = [];
   canaries: Canary[] = [];
+  canaryLogs = new Map<string, CanaryAccess[]>();
+  helperInstalled = false;
+  /** An administrator let the helper lock this account: asked for once, when a decoy first chooses it. */
+  lockAllowed = false;
   monitor: boolean;
   running = new Map<string, () => void>();
   events: Event[];
@@ -87,7 +104,12 @@ class MockDaemon {
       { path: "/home/sam/Downloads/notes.txt", hash: "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08", detected: false, signature: "" },
     ]);
     if (scenario !== "empty") {
-      this.canaries = [{ id: "8d0c7e55-0000-4000-8000-000000000002", path: "/home/sam/Documents/backup-access.env", created: NOW - 9 * 86_400, kind: "local-decoy" }];
+      this.canaries = [{ id: "8d0c7e55-0000-4000-8000-000000000002", path: "/home/sam/Documents/backup-access.env", created: NOW - 9 * 86_400, kind: "local-decoy", responses: { ...NO_RESPONSES, lock_screen: true } }];
+      this.canaryLogs.set("8d0c7e55-0000-4000-8000-000000000002", [
+        { id: "a3", time: NOW - 40 * 60, kinds: ["content read"], readers: [{ pid: 48211, uid: 1000, user: "sam", login_uid: 1000, name: "rg", exe: "/usr/bin/rg", cmdline: "rg -l AKIA /home/sam/Documents", start_time: 9118822, parents: ["bash (48102)", "ptyxis-agent (3310)"] }], self_test: false, skipped: null, outcomes: [{ action: "Lock the screen", ok: true, detail: "Sessions 2" }] },
+        { id: "a2", time: NOW - 2 * 3_600, kinds: ["content read"], readers: [], self_test: false, skipped: null, outcomes: [{ action: "Lock the screen", ok: true, detail: "Sessions 2" }] },
+        { id: "a1", time: NOW - 9 * 86_400, kinds: ["content read"], readers: [], self_test: true, skipped: "Bigman's own test read", outcomes: [] },
+      ]);
       this.quarantine = [{ id: "5b1f0000-0000-4000-8000-000000000003", original: "/home/sam/Downloads/old-installer.run", hash: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", created: NOW - 3 * 86_400, restored: false }];
     }
   }
@@ -248,7 +270,11 @@ class MockDaemon {
           details_label: "The commands Bigman runs",
         };
       }
-      case "arm_canary": return plan("Set up a canary file", "Create and test", "Create a decoy file (or reuse a registered one), start monitoring now and at each login, and read it once to prove detection works.", `${action.path}\nThe file contains a synthetic token, not a working credential.`, "Undo stops watching the decoy; the file stays where it is.");
+      case "canary_responses": return { ...plan("Change what happens when a decoy is touched", "Save", "Every access is still logged and notified. The monitor uses the new responses from the next access; Bigman's own Test read never runs them.", this.canaries.find((c) => c.id === action.id)?.path ?? "", "Open the decoy again and change its responses back.", action.responses.log_out || action.responses.lock_account), facts: responseFacts(action.responses) };
+      case "canary_helper": return action.remove
+        ? plan("Turn off reader identification", "Turn off", "Stop and remove the root service. Accesses are still logged, without the process behind them.", "systemctl disable --now bigman-canary-helper.service", "Turn reader identification on again from Protect > Canaries.")
+        : plan("Turn on reader identification", "Turn on", "Install a small root service that uses the kernel's fanotify to name the process and user behind each access to your decoys.", "install -D -m 0755 -o root -g root /dev/stdin /usr/local/libexec/bigman/bigman-canary-helper", "Turn it off from Protect > Canaries.");
+      case "arm_canary": return { ...plan("Set up a canary file", "Create and test", "Create a decoy file (or reuse a registered one), start monitoring now and at each login, and read it once to prove detection works.", `${action.path}\nThe file contains a synthetic token, not a working credential.`, "Undo stops watching the decoy; the file stays where it is.", action.responses.log_out || action.responses.lock_account), facts: responseFacts(action.responses) };
       case "start_monitor": return plan("Start canary monitoring", "Start", "Start the monitor for the registered decoys and enable it at login. No files are created.", this.canaries.map((c) => c.path).join("\n"));
       case "stop_monitor": return plan("Stop canary monitoring", "Stop", "Stop the monitor and remove its login service. Decoy files and history stay. Reads while stopped are not noticed.", "", "Start monitoring again from Protect > Canaries.");
       case "create_hosted_canary": return plan("Save a hosted canary shortcut", "Save shortcut", "Write a shortcut file that points at your provider's token URL. Bigman does not visit the URL.", `${action.path}\n${action.url}`);
@@ -276,7 +302,8 @@ class MockDaemon {
       case "arm_canary": {
         let canary = this.canaries.find((c) => c.path === action.path);
         if (!canary) {
-          canary = { id: id(), path: action.path, created: now(), kind: "local-decoy" };
+          canary = { id: id(), path: action.path, created: now(), kind: "local-decoy", responses: action.responses };
+          this.lockAllowed ||= action.responses.lock_account && this.helperInstalled;
           this.canaries = [...this.canaries, canary];
         }
         this.monitor = true;
@@ -285,7 +312,14 @@ class MockDaemon {
       case "start_monitor": this.monitor = true; return done("Monitor startup finished.");
       case "stop_monitor": this.monitor = false; return done("Monitor stopped.");
       case "disarm_canary": this.canaries = this.canaries.filter((c) => c.id !== action.id); return done("Decoy removed from the list; its file was kept.");
-      case "create_hosted_canary": this.canaries = [...this.canaries, { id: id(), path: action.path, created: now(), kind: "hosted-url" }]; return done(`Shortcut saved at ${action.path}`);
+      case "canary_responses": {
+        const before = this.canaries.find((c) => c.id === action.id)?.responses ?? NO_RESPONSES;
+        this.canaries = this.canaries.map((c) => (c.id === action.id ? { ...c, responses: action.responses } : c));
+        this.lockAllowed ||= action.responses.lock_account && this.helperInstalled;
+        return done("Saved. The monitor uses them from the next access.", null, { kind: "canary_responses", id: action.id, responses: before });
+      }
+      case "canary_helper": this.helperInstalled = !action.remove; this.lockAllowed &&= !action.remove; return done(action.remove ? "Reader identification is off." : "Reader identification is on.");
+      case "create_hosted_canary": this.canaries = [...this.canaries, { id: id(), path: action.path, created: now(), kind: "hosted-url", responses: NO_RESPONSES }]; return done(`Shortcut saved at ${action.path}`);
       case "rehearse": return done("Rehearsal finished.", this.save(report({ id: id(), created: now(), kind: "Restricted installer rehearsal", subject: "install-tool.sh", findings: [{ rule: "trace.network", severity: "review", summary: "Execution attempted a network connection", evidence: 'connect(3, {sa_family=AF_INET, sin_port=htons(443), sin_addr=inet_addr("93.184.215.14")}, 16) = -1 ENETUNREACH', action: "The rehearsal has no external network. Review why the connection was attempted." }], coverage: { checked: ["Offline sandbox run", "strace"], notes: ["A rehearsal shows what the script tried in this one run, not what it would do elsewhere."], skipped: [] } })));
       case "accept_baseline": return done("Baseline saved.", null, { kind: "restore_previous_baseline" });
       case "approve_skill": {
@@ -454,7 +488,8 @@ class MockDaemon {
         return { type: "skill_items", value: found };
       }
       case "quarantined": return { type: "quarantined", value: this.quarantine };
-      case "canaries": return { type: "canaries", value: { canaries: this.canaries, monitor: this.monitor ? { updated: now() - 2, pid: 4121, watched: this.canaries.length, configured: this.canaries.length, errors: [], watched_ids: this.canaries.map((c) => c.id) } : null, default_path: "/home/sam/Documents/backup-access.env" } };
+      case "canaries": return { type: "canaries", value: { canaries: this.canaries, monitor: this.monitor ? { updated: now() - 2, pid: 4121, watched: this.canaries.length, configured: this.canaries.length, errors: [], watched_ids: this.canaries.map((c) => c.id), helper: { connected: this.helperInstalled, watched_ids: this.helperInstalled ? this.canaries.map((c) => c.id) : [], errors: [] } } : null, default_path: "/home/sam/Documents/backup-access.env", helper_installed: this.helperInstalled, lock_unavailable: null, lock_warning: this.helperInstalled ? "You are this computer's only administrator. Unless root has a password of its own, unlocking the account then means starting the computer from a rescue system." : null, lock_allowed: this.lockAllowed } };
+      case "canary_log": return { type: "canary_log", value: this.canaryLogs.get(request.id) ?? [] };
       case "tool_groups": return { type: "tool_groups", value: [
         { id: "clamav", label: "ClamAV", purpose: "Known-malware file scanning and signature updates", installed: this.scenario !== "empty" },
         { id: "shellcheck", label: "ShellCheck", purpose: "Shell correctness checks during installer inspection", installed: this.scenario === "calm" },

@@ -5,6 +5,7 @@ import { FileText, Network as NetworkIcon, Package, Radio } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import type { Coverage, Report } from "@/ipc";
 import { ActionButton } from "../components/ActionButton";
+import { Checkbox } from "../components/Checkbox";
 import { ConfirmDanger } from "../components/ConfirmDanger";
 import { CoverageList } from "../components/CoverageList";
 import { DataTable } from "../components/DataTable";
@@ -298,6 +299,8 @@ export const STORIES: Story[] = [
   story("Feedback", "ProgressRow", "loading", () => <ProgressRow label="Scanning Downloads" detail="1,204 of 2,000 files" progress={0.6} onCancel={() => undefined} />),
   story("Feedback", "ProgressRow", "default", () => <ProgressRow label="Updating definitions" progress={null} onCancel={() => undefined} />),
   story("Input", "PathPicker", "default", () => <PathPicker label="Folder to scan" value="/home/sam/Downloads" onChange={() => undefined} onBrowse={() => undefined} />),
+  story("Input", "Checkbox", "default", () => <Checkbox checked label="Lock the screen" description="Locks every session of yours." onChange={() => undefined} />),
+  story("Input", "Checkbox", "incomplete", () => <Checkbox checked={false} disabled label="Lock your account" description="Turn on reader identification first." onChange={() => undefined} />),
   story("Input", "Toggle", "default", () => <Toggle checked label="New listeners" description="Notify when a program starts listening on the network." onChange={() => undefined} />),
   story("Input", "Select", "default", () => <Select label="Theme" value="system" onChange={() => undefined} options={[{ value: "system", label: "Follow system" }, { value: "light", label: "Light" }, { value: "dark", label: "Dark" }]} />),
   story("Input", "SearchField", "default", () => <SearchField value="" onChange={() => undefined} />),

@@ -97,6 +97,15 @@ export function useQuarantined() {
   return useQuery({ queryKey: ["quarantined"], queryFn: () => call({ type: "quarantined" }, "quarantined") });
 }
 
+/** One decoy's access log, newest first; refreshed often while its panel is open. */
+export function useCanaryLog(id: string) {
+  return useQuery({
+    queryKey: ["canary-log", id],
+    queryFn: () => call({ type: "canary_log", id }, "canary_log"),
+    refetchInterval: (query) => poll(5_000)(query),
+  });
+}
+
 export function useCanaries() {
   return useQuery({
     queryKey: ["canaries"],

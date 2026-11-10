@@ -1,6 +1,7 @@
 // The design system: the B6 component vocabulary and the helpers it shares.
 // Adding a component needs a gallery entry and a reason the existing ones cannot do it.
 export { ActionButton } from "./components/ActionButton";
+export { Checkbox } from "./components/Checkbox";
 export { AppShell, BigmanMark, type ShellTab } from "./components/AppShell";
 export { ConfirmDanger } from "./components/ConfirmDanger";
 export { CoverageList, SKIP_REASON } from "./components/CoverageList";

@@ -143,6 +143,7 @@ impl Daemon {
                 }
                 Request::Quarantined => Response::Quarantined(scan::quarantined(store)?),
                 Request::Canaries => Response::Canaries(Box::new(canary::state(store)?)),
+                Request::CanaryLog { id } => Response::CanaryLog(canary::respond::log(store, &id)?),
                 Request::ToolGroups => Response::ToolGroups(setup::tool_groups()),
                 Request::Rules => Response::Rules(bigman_core::rules::infos()),
                 Request::OpenTool { tool } => {

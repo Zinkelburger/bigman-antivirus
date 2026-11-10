@@ -1,10 +1,11 @@
 import { LoaderCircle, type LucideIcon } from "lucide-react";
-import type { ButtonHTMLAttributes } from "react";
+import type { ButtonHTMLAttributes, Ref } from "react";
 
 interface ActionButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: "primary" | "secondary" | "quiet";
   icon?: LucideIcon | undefined;
   busy?: boolean;
+  ref?: Ref<HTMLButtonElement> | undefined;
 }
 
 const VARIANT = {

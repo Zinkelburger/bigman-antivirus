@@ -1,0 +1,18 @@
+[package]
+name = "bigman-canary-helper"
+description = "Optional root service that names the process and user behind a canary read (fanotify)"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+publish = false
+
+# Runs as root, so it depends on as little as possible: no store, no network.
+[dependencies]
+anyhow.workspace = true
+libc.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

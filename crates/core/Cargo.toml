@@ -8,6 +8,7 @@ license.workspace = true
 publish = false
 
 [dependencies]
+bigman-canary-helper.workspace = true
 anyhow.workspace = true
 flate2.workspace = true
 fs2.workspace = true

@@ -276,6 +276,26 @@ enum CanaryCommands {
         /// Skip login service setup; monitor until logout/reboot or an explicit stop.
         #[arg(long)]
         session_only: bool,
+        #[command(flatten)]
+        responses: ResponseArgs,
+    },
+    /// Replace what happens when a decoy is touched (all flags off: log and notify only).
+    Respond {
+        id: String,
+        #[command(flatten)]
+        responses: ResponseArgs,
+    },
+    /// A decoy's access log, newest first: when, what, which process, what ran.
+    Log {
+        id: String,
+    },
+    /// Show (or with --apply, make) the change that installs the optional root
+    /// helper naming the process behind each access.
+    Helper {
+        #[arg(long)]
+        apply: bool,
+        #[arg(long)]
+        remove: bool,
     },
     /// Start monitoring existing tokens without creating another file.
     Start {
@@ -299,6 +319,57 @@ enum CanaryCommands {
     Disarm {
         id: String,
     },
+}
+/// "2026-11-10 14:03:22" in local time.
+fn local_time(seconds: u64) -> String {
+    let t = seconds as libc::time_t;
+    let mut tm: libc::tm = unsafe { std::mem::zeroed() };
+    if unsafe { libc::localtime_r(&t, &mut tm) }.is_null() {
+        return seconds.to_string();
+    }
+    format!(
+        "{:04}-{:02}-{:02} {:02}:{:02}:{:02}",
+        tm.tm_year + 1900,
+        tm.tm_mon + 1,
+        tm.tm_mday,
+        tm.tm_hour,
+        tm.tm_min,
+        tm.tm_sec
+    )
+}
+/// What happens when a decoy is touched, beyond logging and a notification.
+#[derive(clap::Args)]
+struct ResponseArgs {
+    /// Lock every session of yours.
+    #[arg(long)]
+    lock_screen: bool,
+    /// End every session and program of yours, the monitor included (needs the helper).
+    #[arg(long)]
+    log_out: bool,
+    /// Turn NetworkManager networking off.
+    #[arg(long)]
+    network_off: bool,
+    /// Kill the process that touched the decoy (needs the helper).
+    #[arg(long)]
+    kill_reader: bool,
+    /// Lock your local account when your account touched it (needs the helper).
+    #[arg(long)]
+    lock_account: bool,
+    /// Run this executable with the event in BIGMAN_* environment variables.
+    #[arg(long)]
+    script: Option<PathBuf>,
+}
+impl From<ResponseArgs> for canary::Responses {
+    fn from(a: ResponseArgs) -> Self {
+        Self {
+            lock_screen: a.lock_screen,
+            log_out: a.log_out,
+            network_off: a.network_off,
+            kill_reader: a.kill_reader,
+            lock_account: a.lock_account,
+            script: a.script,
+        }
+    }
 }
 fn output(r: &Report, json: bool) -> Result<()> {
     if json {
@@ -639,12 +710,78 @@ fn run() -> Result<()> {
             None
         }
         Some(Commands::Canary { command }) => match command {
-            CanaryCommands::Arm { path, session_only } => Some(canary::setup::arm(
+            CanaryCommands::Arm {
+                path,
+                session_only,
+                responses,
+            } => Some(canary::setup::arm(
                 &store,
                 &path.unwrap_or_else(canary::setup::default_path),
                 session_only,
+                responses.into(),
                 &stop,
             )?),
+            CanaryCommands::Respond { id, responses } => {
+                let c = canary::set_responses(&store, &id, responses.into())?;
+                let chosen = c.responses.describe();
+                println!(
+                    "Saved. When {} is touched: log and notify{}",
+                    c.path.display(),
+                    chosen
+                        .iter()
+                        .map(|r| format!(", then {}", r.to_lowercase()))
+                        .collect::<String>()
+                );
+                None
+            }
+            CanaryCommands::Log { id } => {
+                let log = canary::respond::log(&store, &id)?;
+                if cli.json {
+                    println!("{}", serde_json::to_string_pretty(&log)?);
+                } else if log.is_empty() {
+                    println!("No accesses recorded.");
+                } else {
+                    for a in &log {
+                        println!("{}  {}", local_time(a.time), a.kinds.join(", "));
+                        for r in &a.readers {
+                            println!("  by {}: {}", r.label(), r.cmdline);
+                        }
+                        if a.self_test {
+                            println!("  Bigman's own test read");
+                        }
+                        if let Some(why) = &a.skipped {
+                            println!("  responses skipped: {why}");
+                        }
+                        for o in &a.outcomes {
+                            println!(
+                                "  {} {}: {}",
+                                if o.ok { "ok  " } else { "FAIL" },
+                                o.action,
+                                o.detail.replace('\n', "\n       ")
+                            );
+                        }
+                    }
+                }
+                None
+            }
+            CanaryCommands::Helper { apply, remove } => {
+                let action = bigman_core::actions::Action::CanaryHelper { remove };
+                if apply {
+                    println!(
+                        "{}",
+                        bigman_core::actions::apply(&action, &store, &stop)?.message
+                    );
+                } else {
+                    let p = bigman_core::actions::preview(&action, &store)?;
+                    println!("{}\n\n{}\n", p.title, p.summary);
+                    for f in &p.facts {
+                        println!("{}: {}", f.label, f.value);
+                    }
+                    println!("\nThe commands run as root:\n{}", p.details);
+                    println!("\nNothing has changed. Run again with --apply to make this change.");
+                }
+                None
+            }
             CanaryCommands::Start { session_only } => {
                 Some(canary::setup::start_monitor(&store, session_only, &stop)?)
             }

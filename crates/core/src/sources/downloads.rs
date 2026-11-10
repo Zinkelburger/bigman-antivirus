@@ -310,9 +310,16 @@ impl Source for Downloads {
             .filter(|(_, seen)| *seen + self.settle <= ctx.now)
             .map(|(p, _)| p.clone())
             .collect();
+        // A decoy set up in this folder is not a download: checking it would
+        // read it, and so set off its own alert. Scans leave decoys out too.
+        let decoys = crate::checks::canary::list(ctx.store).unwrap_or_default();
         for path in settled {
             if self.stop.load(std::sync::atomic::Ordering::Relaxed) {
                 break;
+            }
+            if decoys.iter().any(|c| c.path == path) {
+                self.pending.remove(&path);
+                continue;
             }
             let Ok(meta) = std::fs::symlink_metadata(&path) else {
                 self.pending.remove(&path);
