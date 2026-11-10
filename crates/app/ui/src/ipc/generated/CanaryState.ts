@@ -5,4 +5,22 @@ import type { MonitorHealth } from "./MonitorHealth";
 /**
  * Registered decoys, the monitor heartbeat and the suggested path for a new one.
  */
-export type CanaryState = { canaries: Array<Canary>, monitor: MonitorHealth | null, default_path: string, };
+export type CanaryState = { canaries: Array<Canary>, monitor: MonitorHealth | null, default_path: string, 
+/**
+ * The root helper's system unit is installed.
+ */
+helper_installed: boolean, 
+/**
+ * Why "lock your account" cannot work here, when it cannot.
+ */
+lock_unavailable: string | null, 
+/**
+ * What locking this account costs here beyond what the choice says, when
+ * you are the only one who could unlock it.
+ */
+lock_warning: string | null, 
+/**
+ * An administrator has let the helper lock this account. Saving a decoy
+ * with "lock your account" asks for that once.
+ */
+lock_allowed: boolean, };

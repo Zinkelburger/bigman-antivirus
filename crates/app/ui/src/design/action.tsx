@@ -84,7 +84,8 @@ function Plan({ plan }: { plan: ActionPlan }) {
       ))}
       {plan.note && <p className="m-0 max-w-[56ch] text-ink">{plan.note}</p>}
       {plan.facts.length > 0 && (
-        <KeyValue items={plan.facts.map((f) => ({ label: f.label, value: f.value, mono: f.label === "Copied in" }))} />
+        // A fact can list several things, one per line (a decoy's responses in run order).
+        <KeyValue items={plan.facts.map((f) => ({ label: f.label, value: <span className="whitespace-pre-line">{f.value}</span>, mono: f.label === "Copied in" }))} />
       )}
       {plan.details && <EvidenceBlock text={plan.details} label={plan.details_label ?? "Exactly what changes"} />}
       {plan.undo && (

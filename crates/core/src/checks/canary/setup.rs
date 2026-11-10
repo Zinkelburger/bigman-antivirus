@@ -82,6 +82,8 @@ fn verify_inner(store: &Store, id: &str, stop: &Cancel, report: &mut Report) -> 
     };
     let receipt_path = format!("canaries/{id}.read.json");
     let previous = store.read::<ReadReceipt>(&receipt_path).ok().map(|r| r.id);
+    // The monitor logs this read as a test and runs no responses for it.
+    canary::respond::mark_test(store, id)?;
     canary::self_test(store, id)?;
     let started = Instant::now();
     loop {
@@ -108,7 +110,13 @@ fn verify_inner(store: &Store, id: &str, stop: &Cancel, report: &mut Report) -> 
     }
 }
 
-pub fn arm(store: &Store, path: &Path, session_only: bool, stop: &Cancel) -> Result<Report> {
+pub fn arm(
+    store: &Store,
+    path: &Path,
+    session_only: bool,
+    responses: canary::Responses,
+    stop: &Cancel,
+) -> Result<Report> {
     let _lock = store.lock("canary-setup.lock")?;
     let mut report = Report::new("Local canary setup", path.display());
     let result = (|| -> Result<()> {
@@ -127,9 +135,15 @@ pub fn arm(store: &Store, path: &Path, session_only: bool, stop: &Cancel) -> Res
             if !fs::symlink_metadata(&path)?.is_file() {
                 bail!("Registered decoy is missing or replaced; choose a new path");
             }
-            c
+            // Setting it up again restarts monitoring and tests it. Its
+            // responses change only when some are given; none means keep them.
+            if responses.any() {
+                canary::set_responses(store, &c.id, responses)?
+            } else {
+                c
+            }
         } else {
-            canary::create(store, &path, None)?
+            canary::create_with(store, &path, None, responses)?
         };
         report.details = format!("Canary ID: {}\nPath: {}", token.id, token.path.display());
         report.coverage.push("Token generated locally with random UUIDs and no usable credentials. No account, API key, network request or callback server is required.".into());

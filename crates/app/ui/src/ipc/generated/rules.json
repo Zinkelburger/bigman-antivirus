@@ -1452,8 +1452,8 @@
     "id": "canary.event",
     "severity": "high",
     "title": "A decoy file was opened or changed",
-    "explanation": "A canary decoy was read, changed, moved or removed while the monitor was running. inotify cannot say which program did it.",
-    "remediation": "Check what was running at that time. Backups, indexers and your own tests can also trigger decoys.",
+    "explanation": "A canary decoy was read, changed, moved or removed while the monitor was running. With reader identification on, the evidence names the process, its user and what started it; without it, inotify cannot say which program did it. The decoy's access log records each access and what its chosen responses did.",
+    "remediation": "Check whether you recognize the process. Backups, indexers and your own tests can also trigger decoys.",
     "threats": [
       "CR-22"
     ]

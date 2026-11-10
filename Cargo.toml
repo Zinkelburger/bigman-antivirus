@@ -1,8 +1,8 @@
 [workspace]
 resolver = "2"
-members = ["crates/core", "crates/cli", "crates/daemon", "crates/native-host", "crates/app/src-tauri"]
+members = ["crates/core", "crates/cli", "crates/daemon", "crates/native-host", "crates/canary-helper", "crates/app/src-tauri"]
 # The desktop app needs WebKitGTK development files; build it with `-p bigman-app`.
-default-members = ["crates/core", "crates/cli", "crates/daemon", "crates/native-host"]
+default-members = ["crates/core", "crates/cli", "crates/daemon", "crates/native-host", "crates/canary-helper"]
 
 [workspace.package]
 version = "0.2.0"
@@ -13,6 +13,7 @@ license = "AGPL-3.0-only"
 [workspace.dependencies]
 bigman-core = { path = "crates/core" }
 bigman-native-host = { path = "crates/native-host" }
+bigman-canary-helper = { path = "crates/canary-helper" }
 anyhow = "1.0"
 clap = { version = "4", features = ["derive"] }
 # termination: SIGTERM (systemctl stop, logout) stops cleanly, like Ctrl-C.

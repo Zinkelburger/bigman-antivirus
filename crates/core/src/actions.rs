@@ -90,6 +90,19 @@ pub enum Action {
     ArmCanary {
         path: PathBuf,
         session_only: bool,
+        /// What else happens when the decoy is touched.
+        #[serde(default)]
+        responses: canary::Responses,
+    },
+    /// Change what happens when a decoy is touched.
+    CanaryResponses {
+        id: String,
+        responses: canary::Responses,
+    },
+    /// Install (or remove) the optional root service that names the process and
+    /// user behind each canary access.
+    CanaryHelper {
+        remove: bool,
     },
     StartMonitor {
         session_only: bool,
@@ -240,6 +253,71 @@ fn baseline_entries(report: &Report) -> String {
         })
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+/// The responses a canary action sets, as plan facts.
+fn response_facts(r: &canary::Responses) -> Vec<PlanFact> {
+    let mut chosen = r.describe();
+    if chosen.is_empty() {
+        chosen.push("Nothing else".into());
+    }
+    vec![
+        PlanFact {
+            label: "Always".into(),
+            value: "Log the access and show a notification".into(),
+        },
+        PlanFact {
+            label: "Then, in order".into(),
+            value: chosen.join("\n"),
+        },
+    ]
+}
+
+/// The root commands a canary change needs first, when its responses lock the
+/// account and root has not yet let the helper do that for this account. The
+/// helper refuses until then, whoever asks: without this, any program running
+/// as you could have the installed helper lock you out.
+fn lock_opt_in(r: &canary::Responses) -> Option<String> {
+    (r.lock_account
+        && std::path::Path::new(bigman_canary_helper::UNIT_PATH).exists()
+        && !canary::helper::lock_allowed())
+    .then(|| canary::helper::allow_lock_script(unsafe { libc::getuid() }))
+}
+
+/// Adds that step to a plan, so the password prompt is expected and its exact
+/// commands are on screen before it appears.
+fn with_lock_opt_in(mut p: ActionPlan, r: &canary::Responses) -> ActionPlan {
+    if let Some(script) = lock_opt_in(r) {
+        p.summary.push_str("\n\nPolkit asks for your password once: \"Lock your account\" only works after an administrator allows the reader-identification helper to lock this account. Until then the helper refuses.");
+        p.details.push_str(&format!(
+            "\n\nRun once as administrator, to allow account locking:\n{script}"
+        ));
+    }
+    p
+}
+
+/// What a reader of a canary plan needs to know before agreeing: every cost
+/// of the chosen responses, not only the first.
+fn response_note(r: &canary::Responses) -> Option<String> {
+    response_notes(r, canary::lock_warning_here())
+}
+
+fn response_notes(r: &canary::Responses, lock_warning: Option<String>) -> Option<String> {
+    let mut notes: Vec<String> = vec![];
+    if r.lock_account {
+        notes.push("Locking applies only when your own account touched the decoy. Your password, sudo and SSH logins then stop working until an administrator unlocks the account.".into());
+        notes.extend(lock_warning);
+        if r.lock_screen || r.log_out {
+            notes.push("With Lock the screen or Log out also chosen, you cannot get back into this session either.".into());
+        }
+    }
+    if r.log_out {
+        notes.push("Logging out ends every program you run, Bigman's monitor included, until you log back in. It needs reader identification, and a decoy that logged you out waits ten minutes before it can do so again.".into());
+    }
+    if r.any() {
+        notes.push("A backup tool or anything else that reads the decoy sets these off too. A file manager, file chooser or search indexer that reader identification names does not, and neither does Bigman's own Test read.".into());
+    }
+    (!notes.is_empty()).then(|| notes.join(" "))
 }
 
 fn scan_item(store: &Store, report: &str, index: usize) -> Result<scan::ScanItem> {
@@ -559,8 +637,15 @@ pub fn preview(action: &Action, store: &Store) -> Result<ActionPlan> {
                 )
             }
         }
-        Action::ArmCanary { path, session_only } => ActionPlan {
+        Action::ArmCanary {
+            path,
+            session_only,
+            responses,
+        } => with_lock_opt_in(ActionPlan {
             undo: Some("Undo stops watching the decoy; the file stays where it is.".into()),
+            facts: response_facts(responses),
+            careful: responses.log_out || responses.lock_account,
+            note: response_note(responses),
             ..plan(
                 "Set up a canary file",
                 "Create and test",
@@ -574,7 +659,7 @@ pub fn preview(action: &Action, store: &Store) -> Result<ActionPlan> {
                     path.display()
                 ),
             )
-        },
+        }, responses),
         Action::StartMonitor { session_only } => plan(
             "Start canary monitoring",
             "Start",
@@ -604,6 +689,64 @@ pub fn preview(action: &Action, store: &Store) -> Result<ActionPlan> {
             "Write a shortcut file that points at your provider's token URL. Bigman does not visit the URL.",
             format!("{}\n{url}", path.display()),
         ),
+        Action::CanaryResponses { id, responses } => {
+            let c = canary::list(store)?
+                .into_iter()
+                .find(|c| &c.id == id)
+                .context("Unknown canary ID")?;
+            responses.validate()?;
+            with_lock_opt_in(
+                ActionPlan {
+                    facts: response_facts(responses),
+                    careful: responses.log_out || responses.lock_account,
+                    note: response_note(responses),
+                    undo: Some("Open the decoy again and change its responses back.".into()),
+                    ..plan(
+                        "Change what happens when a decoy is touched",
+                        "Save",
+                        "Every access is still logged and notified. The monitor uses the new responses from the next access; Bigman's own Test read never runs them.",
+                        c.path.display().to_string(),
+                    )
+                },
+                responses,
+            )
+        }
+        Action::CanaryHelper { remove } => {
+            let p = canary::helper::plan(*remove)?;
+            let mut facts = vec![];
+            if let (Some(source), Some(sha)) = (&p.source, &p.sha256) {
+                facts.push(PlanFact {
+                    label: "Copies".into(),
+                    value: source.display().to_string(),
+                });
+                facts.push(PlanFact {
+                    label: "SHA-256".into(),
+                    value: sha.clone(),
+                });
+            }
+            ActionPlan {
+                facts,
+                undo: Some(if *remove {
+                    "Turn reader identification on again from Protect > Canaries.".into()
+                } else {
+                    "Turn it off from Protect > Canaries; that removes the service and its binary.".into()
+                }),
+                details_label: Some("The commands run as root".into()),
+                note: (!*remove).then(|| "It can only watch files your account owns, reports a reader only to the decoy's owner, and only locks the owner's own local account.".into()),
+                ..plan(
+                    if *remove { "Turn off reader identification" } else { "Turn on reader identification" },
+                    if *remove { "Turn off" } else { "Turn on" },
+                    if *remove {
+                        "Stop and remove the root service. Accesses are still logged, without the process behind them."
+                    } else {
+                        "Install a small root service that uses the kernel's fanotify to name the process and user behind each access to your decoys. It also makes \"Kill the process\" and \"Lock your account\" possible. Administrator approval is asked for by polkit."
+                    },
+                    p.script.replace(canary::helper::UNIT, "<the unit file below>")
+                        + if *remove { "" } else { "\n\n" }
+                        + if *remove { "" } else { canary::helper::UNIT },
+                )
+            }
+        }
         Action::DisarmCanary { id } => {
             let c = canary::list(store)?
                 .into_iter()
@@ -726,8 +869,16 @@ pub fn apply(action: &Action, store: &Store, stop: &Cancel) -> Result<ActionOutc
             store,
             &container_plan(path, *offline, *port)?,
         )?),
-        Action::ArmCanary { path, session_only } => {
-            let report = canary::setup::arm(store, path, *session_only, stop)?;
+        Action::ArmCanary {
+            path,
+            session_only,
+            responses,
+        } => {
+            responses.validate()?;
+            if lock_opt_in(responses).is_some() {
+                canary::helper::allow_lock()?;
+            }
+            let report = canary::setup::arm(store, path, *session_only, responses.clone(), stop)?;
             let armed = canary::list(store)?
                 .into_iter()
                 .find(|c| report.subject == c.path.display().to_string());
@@ -749,6 +900,33 @@ pub fn apply(action: &Action, store: &Store, stop: &Cancel) -> Result<ActionOutc
             let c = canary::create(store, path, Some(url))?;
             message(format!("Shortcut saved at {}", c.path.display()))
         }
+        Action::CanaryResponses { id, responses } => {
+            let previous = canary::list(store)?
+                .into_iter()
+                .find(|c| &c.id == id)
+                .context("Unknown canary ID")?
+                .responses;
+            responses.validate()?;
+            if lock_opt_in(responses).is_some() {
+                canary::helper::allow_lock()?;
+            }
+            canary::set_responses(store, id, responses.clone())?;
+            undoable(
+                message("Saved. The monitor uses them from the next access."),
+                Action::CanaryResponses {
+                    id: id.clone(),
+                    responses: previous,
+                },
+            )
+        }
+        Action::CanaryHelper { remove } => {
+            let done = message(canary::helper::apply(*remove, stop)?);
+            if *remove {
+                done
+            } else {
+                undoable(done, Action::CanaryHelper { remove: true })
+            }
+        }
         Action::DisarmCanary { id } => {
             canary::disarm(store, id)?;
             message("Decoy removed from the list; its file was kept.")
@@ -769,6 +947,33 @@ pub fn apply(action: &Action, store: &Store, stop: &Cancel) -> Result<ActionOutc
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_canary_plan_names_every_cost_of_its_responses() {
+        let all = canary::Responses {
+            lock_account: true,
+            log_out: true,
+            ..Default::default()
+        };
+        let warning = "You are this computer's only administrator.".to_string();
+        let note = response_notes(&all, Some(warning)).unwrap();
+        for part in [
+            "only administrator",
+            "cannot get back into this session",
+            "Logging out ends every program",
+            "file manager",
+        ] {
+            assert!(note.contains(part), "{part} is missing from: {note}");
+        }
+        let quiet = canary::Responses {
+            lock_screen: true,
+            ..Default::default()
+        };
+        assert!(!response_notes(&quiet, None)
+            .unwrap()
+            .contains("administrator"));
+        assert_eq!(response_notes(&canary::Responses::default(), None), None);
+    }
     #[test]
     fn previews_change_nothing() {
         let d = tempfile::tempdir().unwrap();

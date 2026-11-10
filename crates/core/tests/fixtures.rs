@@ -173,7 +173,7 @@ fn run(dir: &Path, expected: &Expected) -> BTreeSet<String> {
                     other => panic!("unknown inotify mask {other}"),
                 })
                 .fold(0, |a, b| a | b);
-            canary::event_finding(&mut r, "fixture", &canary::event_kinds(mask));
+            canary::event_finding(&mut r, "fixture", &canary::event_kinds(mask), &[]);
         }
         "listener" => {
             for (socket, _) in parse_proc_net(&text(), Protocol::Tcp) {

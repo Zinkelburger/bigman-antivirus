@@ -1247,9 +1247,9 @@ What you can do: Do not open it.
 
 **A decoy file was opened or changed** (High)
 
-A canary decoy was read, changed, moved or removed while the monitor was running. inotify cannot say which program did it.
+A canary decoy was read, changed, moved or removed while the monitor was running. With reader identification on, the evidence names the process, its user and what started it; without it, inotify cannot say which program did it. The decoy's access log records each access and what its chosen responses did.
 
-What you can do: Check what was running at that time. Backups, indexers and your own tests can also trigger decoys.
+What you can do: Check whether you recognize the process. Backups, indexers and your own tests can also trigger decoys.
 
 ## `canary.verified`
 

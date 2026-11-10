@@ -1,5 +1,5 @@
 import { screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { renderWithDaemon } from "@/test-utils";
 import { ProtectPage } from "./ProtectPage";
 import { useShell } from "@/shell/store";
@@ -54,6 +54,133 @@ describe("Protect", () => {
     await user.click(await screen.findByRole("row", { name: /backup-access\.env/ }));
     await user.click(await screen.findByRole("button", { name: "Test detection" }));
     expect(await screen.findByText("Local read detection verified")).toBeInTheDocument();
+  });
+
+  it("explains inotify, keeps the responses folded, and holds reader-dependent ones off until identification is on", async () => {
+    useShell.setState({ protectView: "canaries" });
+    const { user } = renderWithDaemon(<ProtectPage />);
+    expect(await screen.findByText(/inotify watches its folder/)).toBeInTheDocument();
+    // Decoys exist, so the list comes before the form for another one.
+    const headings = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent);
+    expect(headings.indexOf("Your canaries")).toBeLessThan(headings.indexOf("Add a local canary"));
+    const folded = screen.getByText("When it is touched", { selector: "summary span" });
+    expect(folded).toHaveTextContent("When it is touched Log and notify only");
+    await user.click(folded);
+    const choices = screen.getByRole("group", { name: "When it is touched" });
+    // Unavailable, yet still reachable, so the reason is read out with the box.
+    const kill = within(choices).getByRole("checkbox", { name: "Kill the process that touched it" });
+    expect(kill).toHaveAttribute("aria-disabled", "true");
+    expect(kill).toHaveAccessibleDescription("Needs reader identification, under Monitor.");
+    await user.click(kill);
+    expect(kill).not.toBeChecked();
+    expect(within(choices).getByRole("checkbox", { name: "Lock your account" })).toHaveAttribute("aria-disabled", "true");
+    // Logging out waits for a named reader too: a file manager showing the folder reads the decoy.
+    expect(within(choices).getByRole("checkbox", { name: "Log out" })).toHaveAttribute("aria-disabled", "true");
+    const locking = within(choices).getByRole("group", { name: "Lock yourself out" });
+    await user.click(within(locking).getByRole("checkbox", { name: "Lock the screen" }));
+    expect(folded).toHaveTextContent("Log and notify, then Lock the screen");
+
+    await user.click(screen.getByRole("button", { name: "Turn on reader identification…" }));
+    const dialog = await screen.findByRole("dialog", { name: "Turn on reader identification" });
+    await user.click(within(dialog).getByRole("button", { name: "Turn on" }));
+    expect(await within(dialog).findByText("Reader identification is on.")).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    await vi.waitFor(() => expect(kill).not.toHaveAttribute("aria-disabled"));
+    // Locking the account says what it costs here, and what it adds up to with a locked screen.
+    const lock = within(choices).getByRole("checkbox", { name: "Lock your account" });
+    expect(lock).toHaveAccessibleDescription(/only administrator/);
+    expect(lock).toHaveAccessibleDescription(/asks for your password once/);
+    await user.click(lock);
+    expect(lock).toHaveAccessibleDescription(/you cannot get back into this session either/);
+  });
+
+  it("does not create a decoy while Run a script is ticked without a path", async () => {
+    useShell.setState({ protectView: "canaries" });
+    const { user } = renderWithDaemon(<ProtectPage />);
+    const create = await screen.findByRole("button", { name: "Create, monitor and test…" });
+    expect(create).toBeEnabled();
+    await user.click(screen.getByText("When it is touched", { selector: "summary span" }));
+    const runScript = screen.getByRole("checkbox", { name: "Run a script" });
+    await user.click(runScript);
+    const script = screen.getByRole("textbox", { name: "Script" });
+    expect(script).toHaveAccessibleDescription(/The full path, starting with \//);
+    expect(create).toBeDisabled();
+    await user.type(script, "bin/on-canary.sh");
+    expect(script).toBeInvalid();
+    expect(create).toBeDisabled();
+    await user.clear(script);
+    await user.type(script, "/home/sam/bin/on-canary.sh");
+    expect(script).not.toBeInvalid();
+    expect(create).toBeEnabled();
+    await user.click(runScript);
+    expect(screen.queryByRole("textbox", { name: "Script" })).not.toBeInTheDocument();
+    expect(create).toBeEnabled();
+  });
+
+  it("shows a decoy's access log and changes its responses with Undo", async () => {
+    useShell.setState({ protectView: "canaries" });
+    const { user } = renderWithDaemon(<ProtectPage />);
+    await user.click(await screen.findByRole("row", { name: /backup-access\.env/ }));
+    const log = await screen.findByRole("region", { name: "Access log" });
+    expect(await within(log).findByText("Bigman's own test read.")).toBeInTheDocument();
+    expect(within(log).getAllByText("Lock the screen").length).toBeGreaterThan(0);
+    expect(within(log).getByText("Started by bash (48102), started by ptyxis-agent (3310)")).toBeInTheDocument();
+    const panel = screen.getByRole("dialog", { name: "Canary" });
+    await user.click(within(panel).getByRole("button", { name: "Change responses" }));
+    // Focus follows the swap of buttons: into the choices, and back out on Cancel.
+    expect(within(panel).getByRole("checkbox", { name: "Run a script" })).toHaveFocus();
+    await user.click(within(panel).getByRole("button", { name: "Cancel" }));
+    expect(within(panel).getByRole("button", { name: "Change responses" })).toHaveFocus();
+    await user.click(within(panel).getByRole("button", { name: "Change responses" }));
+    const save = within(panel).getByRole("button", { name: "Save…" });
+    expect(save).toBeDisabled();
+    await user.click(within(panel).getByRole("checkbox", { name: "Turn networking off" }));
+    await user.click(save);
+    const dialog = await screen.findByRole("dialog", { name: "Change what happens when a decoy is touched" });
+    expect(within(dialog).getByText("Turn networking off Lock the screen", { collapseWhitespace: true })).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Save" }));
+    expect(await within(dialog).findByText(/uses them from the next access/)).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    const steps = (await within(panel).findByText("Log and notify")).closest("ol") as HTMLElement;
+    expect(within(steps).getAllByRole("listitem").map((li) => li.textContent)).toEqual(["Log and notify", "Turn networking off", "Lock the screen"]);
+  });
+
+  it("lets a response chosen earlier be cleared after reader identification was turned off", async () => {
+    useShell.setState({ protectView: "canaries" });
+    const { user } = renderWithDaemon(<ProtectPage />);
+    const readerIdentification = async (label: string, verb: string) => {
+      await user.click(await screen.findByRole("button", { name: `${label} reader identification…` }));
+      const dialog = await screen.findByRole("dialog", { name: `${label} reader identification` });
+      await user.click(within(dialog).getByRole("button", { name: verb }));
+      await within(dialog).findByText(/Reader identification is/);
+      await user.keyboard("{Escape}");
+    };
+    // Choose "Kill the process" while it can run.
+    await readerIdentification("Turn on", "Turn on");
+    await user.click(await screen.findByRole("row", { name: /backup-access\.env/ }));
+    const panel = await screen.findByRole("dialog", { name: "Canary" });
+    await user.click(await within(panel).findByRole("button", { name: "Change responses" }));
+    await user.click(within(panel).getByRole("checkbox", { name: "Kill the process that touched it" }));
+    await user.click(within(panel).getByRole("button", { name: "Save…" }));
+    const saved = await screen.findByRole("dialog", { name: "Change what happens when a decoy is touched" });
+    await user.click(within(saved).getByRole("button", { name: "Save" }));
+    await within(saved).findByText(/uses them from the next access/);
+    await user.keyboard("{Escape}");
+    await user.keyboard("{Escape}");
+    // Then take reader identification away: the choice stays visible, says it cannot run, and can be cleared.
+    await readerIdentification("Turn off", "Turn off");
+    expect(await screen.findByRole("row", { name: /Kill the process \(cannot run now\)/ })).toBeInTheDocument();
+    await user.click(screen.getByRole("row", { name: /backup-access\.env/ }));
+    const again = await screen.findByRole("dialog", { name: "Canary" });
+    await user.click(await within(again).findByRole("button", { name: "Change responses" }));
+    const kill = within(again).getByRole("checkbox", { name: "Kill the process that touched it" });
+    expect(kill).toBeChecked();
+    expect(kill).not.toHaveAttribute("aria-disabled");
+    expect(kill).toHaveAccessibleDescription(/Chosen, but cannot run: reader identification is off/);
+    await user.click(kill);
+    expect(kill).not.toBeChecked();
+    expect(kill).toHaveAttribute("aria-disabled", "true");
+    expect(within(again).getByRole("button", { name: "Save…" })).toBeEnabled();
   });
 });
 

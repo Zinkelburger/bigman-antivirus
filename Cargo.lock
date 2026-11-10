@@ -153,9 +153,9 @@ dependencies = [
 
 [[package]]
 name = "async-executor"
-version = "1.14.0"
+version = "1.14.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c96bf972d85afc50bf5ab8fe2d54d1586b4e0b46c97c50a0c9e71e2f7bcd812a"
+checksum = "f426a31126c735126297bc5ea7a521263c9faff4f63ca415267ee625651c4f37"
 dependencies = [
  "async-task",
  "concurrent-queue",
@@ -322,6 +322,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "bigman-canary-helper"
+version = "0.2.0"
+dependencies = [
+ "anyhow",
+ "libc",
+ "serde",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
 name = "bigman-cli"
 version = "0.2.0"
 dependencies = [
@@ -330,6 +341,7 @@ dependencies = [
  "bigman-native-host",
  "clap",
  "ctrlc",
+ "libc",
  "serde_json",
 ]
 
@@ -338,6 +350,7 @@ name = "bigman-core"
 version = "0.2.0"
 dependencies = [
  "anyhow",
+ "bigman-canary-helper",
  "flate2",
  "fs2",
  "libc",

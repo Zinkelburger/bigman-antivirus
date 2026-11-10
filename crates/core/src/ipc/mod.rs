@@ -128,6 +128,10 @@ pub enum Request {
     },
     Quarantined,
     Canaries,
+    /// One decoy's access log, newest first.
+    CanaryLog {
+        id: String,
+    },
     ToolGroups,
     /// The rule registry: what each finding's rule means and what to do.
     Rules,
@@ -209,6 +213,7 @@ pub enum Response {
     RunningItems(Vec<RunningItem>),
     Quarantined(Vec<Quarantined>),
     Canaries(Box<CanaryState>),
+    CanaryLog(Vec<crate::checks::canary::Access>),
     ToolGroups(Vec<ToolGroup>),
     Rules(Vec<RuleInfo>),
     Events(Vec<Event>),
