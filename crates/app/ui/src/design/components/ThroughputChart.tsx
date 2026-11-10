@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import uPlot from "uplot";
 import "uplot/dist/uPlot.min.css";
-import { formatBytes, formatClock, formatDate, formatTime } from "../format";
+import { formatBytes, formatTime } from "../format";
+import { BYTE_STEPS, tickLabel } from "./chart-axis";
 import { subscribeTheme, token } from "../theme";
 
 export interface ThroughputSeries {
@@ -20,9 +21,6 @@ interface ThroughputChartProps {
 
 const rate = (v: number | null | undefined) => (v == null ? "–" : `${formatBytes(v)}/s`);
 const peak = (values: (number | null)[]) => values.reduce<number>((m, v) => (v != null && v > m ? v : m), 0);
-
-/** Round axis steps in the units the labels use: 1, 2, 5, 10, 20, 50 … B, KiB, MiB, GiB. */
-const BYTE_STEPS = [1, 1024, 1024 ** 2, 1024 ** 3].flatMap((base) => [1, 2, 5, 10, 20, 50, 100, 200, 500].map((n) => n * base));
 
 /** Last recorded point, so the caption never reports a gap as a current value. */
 function lastRecorded(series: ThroughputSeries): number {
@@ -51,14 +49,6 @@ function gapSentence(list: string[]): string {
   if (list.length === 0) return "";
   const shown = list.slice(0, 3).join(", ");
   return `Not recorded ${shown}${list.length > 3 ? ` and ${String(list.length - 3)} more times` : ""}`;
-}
-
-/** Axis label for a tick: dates once ticks are a day or more apart, else the time. */
-function tickLabel(at: number, step: number): string {
-  if (step >= 86_400) return formatDate(at);
-  const d = new Date(at * 1000);
-  if (step >= 3_600 && d.getHours() === 0 && d.getMinutes() === 0) return formatDate(at);
-  return formatClock(at, step < 60);
 }
 
 function canDraw(): boolean {
@@ -153,7 +143,7 @@ export function ThroughputChart({ label, series, height = 220 }: ThroughputChart
           Sent {rate(series.tx[latest])}
         </span>
         <span>
-          Peak {rate(peak(series.rx))} in, {rate(peak(series.tx))} out
+          Peak {rate(peak(series.rx))} received, {rate(peak(series.tx))} sent
         </span>
         {missing && <span>{missing}</span>}
       </figcaption>

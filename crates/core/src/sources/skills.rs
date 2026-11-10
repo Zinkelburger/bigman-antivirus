@@ -174,7 +174,7 @@ impl Source for Skills {
             .collect();
         Ok(Collected {
             observations,
-            samples: vec![],
+            ..Default::default()
         })
     }
 }

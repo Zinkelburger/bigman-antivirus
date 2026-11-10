@@ -22,7 +22,7 @@ import rules from "@/ipc/generated/rules.json";
 import { checkup, history, NOW, report, scanWithFinding, statusScenarios } from "./fixtures";
 import { MockHardening } from "./hardening";
 import { seedSkills, skillsReport } from "./skills";
-import { INTERFACES, networkSnapshot, RECEIPTS, securityUpdates, reportEvent, sampleAt, samplesFor, seedEvents, sourceStatuses } from "./live";
+import { INTERFACES, networkSnapshot, RECEIPTS, securityUpdates, reportEvent, sampleAt, samplesFor, seedEvents, sourceStatuses, trafficFor } from "./live";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const id = () => crypto.randomUUID();
@@ -381,6 +381,7 @@ class MockDaemon {
         return { type: "unread", value: unread };
       }
       case "samples": return { type: "samples", value: this.scenario === "empty" ? { bucket: 1, samples: [] } : samplesFor(request.since, request.until, request.points) };
+      case "traffic": return { type: "traffic", value: trafficFor(this.scenario, request.since, request.until, request.points) };
       case "network": {
         const snapshot = networkSnapshot(this.scenario);
         return { type: "network", value: this.scenario === "empty" ? { ...snapshot, connections: [], listeners: [] } : snapshot };

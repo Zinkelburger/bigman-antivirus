@@ -184,6 +184,33 @@ impl Daemon {
                             .samples(since, until, u64::from(points.clamp(1, 2000)))?;
                     Response::Samples(SampleSeries { bucket, samples })
                 }
+                Request::Traffic {
+                    since,
+                    until,
+                    points,
+                } => {
+                    let mut report = bigman_core::sources::traffic_report(
+                        &self.timeline.db,
+                        since,
+                        until,
+                        u64::from(points),
+                    )?;
+                    // A collector that cannot read the counters is a gap, not quiet.
+                    if let Some(status) = self
+                        .timeline
+                        .statuses()
+                        .into_iter()
+                        .find(|s| s.name == "traffic" && !s.ok)
+                    {
+                        report.coverage.checked.clear();
+                        report.coverage.skip(
+                            status.label,
+                            status.why.unwrap_or(bigman_core::model::SkipReason::Failed),
+                            status.detail,
+                        );
+                    }
+                    Response::Traffic(Box::new(report))
+                }
                 Request::Network => Response::Network(Box::new(network_snapshot(
                     self.sockets.as_ref(),
                     &self.timeline.db,

@@ -16,17 +16,12 @@ import {
   PageHeader,
   plural,
   SEVERITY_RANK,
-  Select,
   SeverityBadge,
   Skeleton,
-  ThroughputChart,
   useDrilldown,
 } from "@/design";
-import { useLiveSamples, useNetwork, useSamples, type ConnectionRow, type ListenerRow } from "@/ipc";
-import { useShell, type Range } from "@/shell/store";
-import { buildSeries, byTraffic, RANGES } from "./throughput";
+import { useNetwork, type ConnectionRow, type ListenerRow } from "@/ipc";
 
-const RANGE_OPTIONS = (Object.keys(RANGES) as Range[]).map((value) => ({ value, label: RANGES[value].label }));
 /** Table wording for the daemon's reach sentence; the drill-down keeps the full one. */
 const REACH_SHORT: Partial<Record<string, string>> = {
   "this computer only": "This computer",
@@ -172,35 +167,7 @@ function ConnectionPanel({ connection, now }: { connection: ConnectionRow; now: 
   );
 }
 
-function Throughput({ range }: { range: Range }) {
-  const r = RANGES[range];
-  const now = nowSeconds();
-  // Stored history reloads on a fixed step; between reloads the 5-minute view adds live samples.
-  const stored = useSamples(r.seconds, r.points, r.reload * 1_000);
-  const live = useLiveSamples((s) => s.samples);
-  const series = useMemo(
-    () => byTraffic(buildSeries(stored.data, range === "5m" ? live : [], now - r.seconds, now)),
-    // `now` moves every render; recompute with the data that drives it.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [stored.data, live, range],
-  );
-  if (stored.isError) return <IncompleteNotice title="Throughput history could not be loaded" errors={[stored.error.message]} />;
-  if (stored.isPending) return <Skeleton shape="block" />;
-  if (series.length === 0) {
-    return <EmptyState>No throughput was recorded in this range. Bigman records it while background checks run.</EmptyState>;
-  }
-  return (
-    <div className="flex flex-col gap-5">
-      {series.map(([iface, s]) => (
-        <ThroughputChart key={iface} label={iface} series={s} height={series.length > 1 ? 160 : 220} />
-      ))}
-      <p className="m-0 text-small text-ink-muted">A break in a line is time Bigman was not running.</p>
-    </div>
-  );
-}
-
 export function NetworkPage() {
-  const { range, setRange } = useShell();
   const network = useNetwork();
   const open = useDrilldown((s) => s.open);
   const now = nowSeconds();
@@ -210,7 +177,7 @@ export function NetworkPage() {
 
   return (
     <>
-      <PageHeader title="Network" controls={<Select label="Time range" hideLabel value={range} options={RANGE_OPTIONS} onChange={setRange} />} />
+      <PageHeader title="Network" />
       <div className="flex flex-col gap-6 px-6 py-5">
         <DaemonGate>
           {data && <ExposureLine listeners={data.listeners} onOpen={(l) => open({ title: `${program(l)} on port ${l.socket.local.split(":").at(-1) ?? ""}`, content: <ListenerPanel listener={l} now={now} /> })} />}
@@ -260,14 +227,6 @@ export function NetworkPage() {
               <CoverageList coverage={data.coverage} />
             </>
           )}
-
-          <section aria-labelledby="throughput" className="flex flex-col gap-3">
-            <h2 id="throughput" className="m-0 text-body font-semibold text-ink">
-              Throughput
-            </h2>
-            <Throughput range={range} />
-          </section>
-
         </DaemonGate>
       </div>
     </>

@@ -10,7 +10,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 
 const app = resolve(process.argv[2] ?? "target/debug/bigman-app");
-const TABS = ["Overview", "Network", "Activity", "Inspect", "Sandboxes", "Protect", "Setup"];
+const TABS = ["Overview", "Network", "Traffic", "Activity", "Inspect", "Sandboxes", "Protect", "Setup"];
 const DRIVER = "http://127.0.0.1:4444";
 const ELEMENT = "element-6066-11e4-a52e-4f735466cecf"; // W3C WebDriver element reference key
 

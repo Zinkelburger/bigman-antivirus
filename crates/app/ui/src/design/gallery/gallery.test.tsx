@@ -12,7 +12,7 @@ const withQuery = (node: ReactNode) => <QueryClientProvider client={new QueryCli
 const COMPONENTS = [
   "PageHeader", "TrayMenu", "StatusTile", "StatusLine", "SeverityBadge", "FirstSeenMarker", "CoverageList",
   "IncompleteNotice", "DataTable", "Timeline", "KeyValue", "Drilldown", "EvidenceBlock", "DiffView", "FileTree",
-  "ThroughputChart", "Sparkline", "ActionButton", "PreviewDialog", "ConfirmDanger", "EmptyState", "Skeleton",
+  "ThroughputChart", "StackedAreaChart", "ShareList", "Sparkline", "ActionButton", "PreviewDialog", "ConfirmDanger", "EmptyState", "Skeleton",
   "Toast", "ProgressRow", "PathPicker", "Toggle", "Select", "SearchField", "TextField", "FilterChips",
   "SegmentedTabs", "ActionDialog", "CheckStatus",
 ];

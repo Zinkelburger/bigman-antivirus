@@ -253,6 +253,11 @@ impl Timeline {
             }
             self.publish(Live::Samples(collected.samples));
         }
+        if !collected.traffic.is_empty() {
+            if let Err(e) = self.db.add_traffic(&collected.traffic) {
+                problem = Some((SkipReason::Failed, format!("Could not save traffic: {e:#}")));
+            }
+        }
         self.set_status(source.name(), Some(now), problem);
         if !events.is_empty() {
             let settings = self.notifications();

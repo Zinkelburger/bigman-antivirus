@@ -27,13 +27,6 @@ describe("Network", () => {
     if (!(firefox instanceof HTMLElement)) throw new Error("firefox row missing");
     expect(within(firefox).queryByText("First seen")).toBeNull();
   });
-
-  it("charts each interface and says what a gap means", async () => {
-    renderWithDaemon(<NetworkPage />);
-    expect(await screen.findByRole("img", { name: /^wlp2s0: received .*peak/ })).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: /^tun0:/ })).toBeInTheDocument();
-    expect(screen.getByText("A break in a line is time Bigman was not running.")).toBeInTheDocument();
-  });
 });
 
 describe("Network connections", () => {

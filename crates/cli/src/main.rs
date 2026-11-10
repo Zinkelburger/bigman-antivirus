@@ -231,6 +231,12 @@ enum DaemonCommands {
     Follow,
     /// Current connections of your programs, and every listening program.
     Network,
+    /// Bytes each program moved over TCP, most first.
+    Traffic {
+        /// Only the last N minutes.
+        #[arg(long, default_value_t = 60)]
+        minutes: u64,
+    },
     /// What each live source can and cannot read.
     Sources,
     /// One install receipt: what a package transaction installed and ran.
@@ -870,6 +876,49 @@ fn daemon_live(command: DaemonCommands, json: bool) -> Result<()> {
             }
             Ok(())
         }
+        DaemonCommands::Traffic { minutes } => {
+            let until = model::now();
+            let ipc::Response::Traffic(t) = daemon_request(ipc::Request::Traffic {
+                since: until.saturating_sub(minutes * 60),
+                until,
+                points: 60,
+            })?
+            else {
+                bail!("Unexpected daemon response");
+            };
+            if json {
+                println!("{}", serde_json::to_string_pretty(&t)?);
+                return Ok(());
+            }
+            if t.programs.is_empty() {
+                println!("No TCP traffic was recorded in the last {minutes} minutes.");
+            } else {
+                println!("{:<28} {:>12} {:>12}", "Program", "Received", "Sent");
+            }
+            for p in &t.programs {
+                let name = p.program.clone().unwrap_or_else(|| {
+                    if p.uid == t.own_uid {
+                        "(your programs, not named)".into()
+                    } else if p.uid == 0 {
+                        "(system programs, root)".into()
+                    } else {
+                        format!("(another account, uid {})", p.uid)
+                    }
+                });
+                println!(
+                    "{name:<28} {:>12} {:>12}",
+                    human_bytes(p.rx),
+                    human_bytes(p.tx)
+                );
+            }
+            for skipped in &t.coverage.skipped {
+                println!("Not counted: {} ({})", skipped.what, skipped.detail);
+            }
+            for note in &t.coverage.notes {
+                println!("{note}");
+            }
+            Ok(())
+        }
         DaemonCommands::Receipt { id } => {
             let ipc::Response::Receipt(r) = daemon_request(ipc::Request::Receipt { id })? else {
                 bail!("Unexpected daemon response");
@@ -1127,4 +1176,22 @@ fn receipt_preview_inner(manager: bigman_core::checks::preview::Manager) -> Resu
         }
     }
     Ok(true)
+}
+
+/// 1536 → "1.50 KiB": the unit that keeps the number under four digits.
+fn human_bytes(bytes: f64) -> String {
+    let units = ["B", "KiB", "MiB", "GiB", "TiB"];
+    let (mut value, mut unit) = (bytes, 0);
+    while value >= 1000.0 && unit < units.len() - 1 {
+        value /= 1024.0;
+        unit += 1;
+    }
+    let digits = if unit == 0 || value >= 100.0 {
+        0
+    } else if value >= 10.0 {
+        1
+    } else {
+        2
+    };
+    format!("{value:.digits$} {}", units[unit])
 }

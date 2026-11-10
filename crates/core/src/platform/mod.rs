@@ -3,6 +3,7 @@
 //! substitute fakes. Only a Linux implementation exists (plan C4).
 pub mod linux;
 pub mod packagedb;
+pub mod sockdiag;
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
@@ -60,6 +61,33 @@ impl Socket {
 
 pub trait ProcessSockets: Send + Sync {
     fn sockets(&self) -> Result<Vec<Socket>>;
+}
+
+/// One connected TCP socket and the bytes it has carried since it opened.
+#[derive(Debug, Clone, PartialEq)]
+pub struct TcpCounters {
+    /// The kernel's socket cookie: unique to this socket until the next boot.
+    pub id: u64,
+    pub local: SocketAddr,
+    pub remote: SocketAddr,
+    pub uid: u32,
+    /// Bytes the other side has acknowledged.
+    pub sent: u64,
+    pub received: u64,
+    pub process: Option<ProcessInfo>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct TcpTable {
+    pub sockets: Vec<TcpCounters>,
+    /// Ports a program is listening on. A connection to one of them came in.
+    pub listening: Vec<u16>,
+}
+
+/// Per-connection byte counters. Readable without privileges for every
+/// account's sockets; the program is known only for your own.
+pub trait SocketCounters: Send + Sync {
+    fn tcp(&self) -> Result<TcpTable>;
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]

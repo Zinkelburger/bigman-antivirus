@@ -210,6 +210,19 @@ export function useSamples(seconds: number, points: number, refetchMs: number) {
   });
 }
 
+/** TCP traffic by program over the last `seconds`, in about `points` intervals. */
+export function useTraffic(seconds: number, points: number, refetchMs: number) {
+  return useQuery({
+    queryKey: ["traffic", seconds, points],
+    queryFn: () => {
+      const until = Math.floor(Date.now() / 1000);
+      return call({ type: "traffic", since: until - seconds, until, points }, "traffic");
+    },
+    refetchInterval: (query) => poll(refetchMs)(query),
+    placeholderData: (previous) => previous,
+  });
+}
+
 /** Connections and listeners right now. */
 export function useNetwork() {
   return useQuery({

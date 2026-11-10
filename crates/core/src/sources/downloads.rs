@@ -334,7 +334,7 @@ impl Source for Downloads {
         }
         Ok(Collected {
             observations,
-            samples: vec![],
+            ..Default::default()
         })
     }
 }

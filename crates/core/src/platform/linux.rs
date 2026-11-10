@@ -111,11 +111,16 @@ pub fn parse_proc_net(text: &str, protocol: Protocol) -> Vec<(Socket, u64)> {
     out
 }
 
+/// The account Bigman runs as.
+pub fn own_uid() -> u32 {
+    unsafe { libc::getuid() }
+}
+
 /// Sockets from /proc/net, matched to your own processes through their file
 /// descriptors. Other users' sockets are listed without a process (rootless).
 pub struct ProcSockets;
 
-fn own_socket_owners() -> HashMap<u64, ProcessInfo> {
+pub(super) fn own_socket_owners() -> HashMap<u64, ProcessInfo> {
     let uid = unsafe { libc::getuid() };
     let mut owners = HashMap::new();
     let Ok(procs) = fs::read_dir("/proc") else {

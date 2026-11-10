@@ -1,7 +1,7 @@
 // Synthetic live data for browser dev mode and tests: timeline events, throughput
 // with one collection gap, the current sockets and source health. Invented, and
 // shaped like what bigmand's sources produce.
-import type { Event, Finding, ListenerRow, NetworkSnapshot, Receipt, Report, Sample, SampleSeries, Socket, SourceStatus } from "@/ipc";
+import type { Event, Finding, Flow, ListenerRow, NetworkSnapshot, ProgramSeries, ProgramTotal, Receipt, Report, Sample, SampleSeries, Socket, SourceStatus, TrafficReport } from "@/ipc";
 import rules from "@/ipc/generated/rules.json";
 import { NOW } from "./fixtures";
 
@@ -186,6 +186,117 @@ export function samplesFor(since: number, until: number, points: number): Sample
   return { bucket, samples };
 }
 
+/** One program's invented traffic: where it goes and how its rate moves. */
+interface MockProgram {
+  program: string | null;
+  uid: number;
+  /** Bytes per second received at its busiest, and the share of that it sends. */
+  scale: number;
+  up: number;
+  /** Seconds per swell; a burst program is silent most of the time. */
+  period: number;
+  burst?: boolean;
+  /** Address, service port, share of the program's traffic, and whether it came in. */
+  hosts: readonly (readonly [string, number, number, boolean?])[];
+}
+
+const TRAFFIC: readonly MockProgram[] = [
+  { program: "firefox", uid: 1000, scale: 150_000, up: 0.05, period: 700, hosts: [["142.250.80.46", 443, 0.5], ["151.101.1.69", 443, 0.3], ["2606:4700::6810:84e5", 443, 0.15], ["93.184.215.14", 80, 0.05]] },
+  { program: "spotify", uid: 1000, scale: 40_000, up: 0.03, period: 240, hosts: [["35.186.224.24", 443, 0.8], ["104.199.65.124", 4070, 0.2]] },
+  { program: "slack", uid: 1000, scale: 9_000, up: 0.4, period: 1_300, hosts: [["35.82.187.142", 443, 1]] },
+  { program: "syncthing", uid: 1000, scale: 12_000, up: 2.5, period: 2_900, hosts: [["192.168.1.42", 22000, 0.9], ["192.168.1.42", 22000, 0.1, true]] },
+  { program: "curl", uid: 1000, scale: 900_000, up: 0.01, period: 5_400, burst: true, hosts: [["93.184.215.14", 443, 1]] },
+  { program: "code", uid: 1000, scale: 2_500, up: 0.6, period: 900, hosts: [["13.107.42.18", 443, 0.7], ["140.82.113.21", 443, 0.3]] },
+  { program: "thunderbird", uid: 1000, scale: 1_800, up: 0.2, period: 1_700, hosts: [["142.251.16.108", 993, 0.9], ["142.251.16.108", 465, 0.1]] },
+  { program: "obsidian", uid: 1000, scale: 600, up: 0.5, period: 2_300, hosts: [["104.26.0.147", 443, 1]] },
+  { program: null, uid: 0, scale: 1_200, up: 1.2, period: 3_100, hosts: [["192.168.1.30", 22, 0.7, true], ["209.132.181.16", 443, 0.3]] },
+  { program: "ssh", uid: 1000, scale: 300, up: 0.8, period: 400, hosts: [["192.168.1.9", 22, 1]] },
+];
+
+/** Bytes per second one program receives at a moment; nothing while the daemon was down. */
+function programRate(p: MockProgram, index: number, at: number): number {
+  if (at > GAP[0] && at < GAP[1]) return 0;
+  const hour = new Date(at * 1000).getHours();
+  const day = hour >= 8 && hour < 23 ? 1 : 0.2;
+  if (p.burst) return at % p.period < 90 ? p.scale * (0.7 + 0.3 * noise(Math.floor(at / 5))) : 0;
+  const swell = 0.25 + 0.75 * Math.abs(Math.sin(at / p.period + index));
+  return p.scale * day * swell * (0.8 + 0.4 * noise(Math.floor(at / 5) + index * 977));
+}
+
+export const TRAFFIC_NOTES = [
+  "UDP is not counted per program: video calls, most streaming over QUIC, VPN tunnels and DNS. The interface graph includes it.",
+  "A connection that opens and closes within two seconds can be missed.",
+  "Other accounts' programs are counted but not named, and so are your own when they run in a sandbox that hides them. Traffic between programs on this computer is left out.",
+];
+
+/** What the store returns for a range: sums per interval, per program and per flow. */
+export function trafficFor(scenario: string, since: number, until: number, points: number): TrafficReport {
+  const bucket = Math.max(5, Math.ceil((until - since) / Math.max(1, points) / 5) * 5);
+  const at: number[] = [];
+  for (let b = Math.floor(since / bucket) * bucket; b <= until; b += bucket) at.push(b);
+  const coverage = {
+    checked: scenario === "incomplete" ? [] : ["TCP connections of every program, from the kernel's per-connection byte counters"],
+    notes: TRAFFIC_NOTES,
+    skipped: scenario === "incomplete" ? [{ what: "Traffic by program", why: "unreadable" as const, detail: "Cannot open a netlink socket: Operation not permitted (os error 1)" }] : [],
+  };
+  const quiet = scenario === "empty" || scenario === "incomplete";
+  const zeros = () => at.map(() => 0);
+  const recorded = at.map((b) => !(b >= GAP[0] && b + bucket <= GAP[1]));
+  if (quiet) return { since, until, own_uid: 1000, bucket, at, recorded, series: [], rest_rx: zeros(), rest_tx: zeros(), programs: [], flows: [], flows_omitted: 0, coverage };
+  const step = Math.max(5, Math.floor(bucket / 12));
+  const all = TRAFFIC.map((p, index): ProgramSeries => {
+    const rx = at.map((start) => {
+      let sum = 0;
+      for (let t = start; t < Math.min(start + bucket, until); t += step) sum += programRate(p, index, t) * step;
+      return Math.round(sum);
+    });
+    return { program: p.program, uid: p.uid, rx, tx: rx.map((v) => Math.round(v * p.up)) };
+  });
+  const sum = (values: number[]) => values.reduce((a, b) => a + b, 0);
+  const ranked = all
+    .map((s, index) => ({ s, index, total: sum(s.rx) + sum(s.tx) }))
+    .filter((r) => r.total > 0)
+    .sort((a, b) => b.total - a.total);
+  // curl and obsidian match their "first network connection" entries in the timeline.
+  const firstSeen: Partial<Record<string, number>> = { curl: minutes(9), obsidian: days(2) };
+  const programs: ProgramTotal[] = ranked.map(({ s }) => ({
+    program: s.program,
+    uid: s.uid,
+    rx: sum(s.rx),
+    tx: sum(s.tx),
+    first_at: s.program === null ? null : (firstSeen[s.program] ?? days(40)),
+  }));
+  const flows: Flow[] = ranked
+    .flatMap(({ s, index }) =>
+      (TRAFFIC[index]?.hosts ?? []).map(([remote, port, share, inbound = false]) => ({
+        program: s.program,
+        uid: s.uid,
+        remote,
+        port,
+        inbound,
+        rx: Math.round(sum(s.rx) * share),
+        tx: Math.round(sum(s.tx) * share),
+      })),
+    )
+    .sort((a, b) => b.rx + b.tx - (a.rx + a.tx));
+  const rest = ranked.slice(8);
+  return {
+    since,
+    until,
+    own_uid: 1000,
+    bucket,
+    at,
+    recorded,
+    series: ranked.slice(0, 8).map((r) => r.s),
+    rest_rx: at.map((_, i) => sum(rest.map((r) => r.s.rx[i] ?? 0))),
+    rest_tx: at.map((_, i) => sum(rest.map((r) => r.s.tx[i] ?? 0))),
+    programs,
+    flows,
+    flows_omitted: 0,
+    coverage,
+  };
+}
+
 const listener = (name: string | null, pid: number, local: string, exe: string): Socket => ({
   protocol: "tcp",
   local,
@@ -259,6 +370,7 @@ export function sourceStatuses(scenario: string): SourceStatus[] {
     ok("packages", "Package installs and updates"),
     ok("reports", "Checks you run"),
     ok("throughput", "Network throughput"),
+    ok("traffic", "Traffic by program"),
   ];
 }
 
