@@ -1,0 +1,8 @@
+{
+  "driver": "running",
+  "fires": [
+    "hidden.libc-view"
+  ],
+  "about": "A process the kernel lists in /proc and the C library's listing leaves out.",
+  "input": "input.json"
+}

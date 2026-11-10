@@ -12,6 +12,7 @@ use crate::{
         doctor::{SignatureState, ToolState},
         hardening::HardeningReview,
         receipt::Receipt,
+        running::RunningItem,
         scan::{Quarantined, ScanItem},
         setup::ToolGroup,
         skills::SkillItem,
@@ -87,6 +88,15 @@ pub enum Request {
     Skills,
     /// The skills and plugins an inventory report listed, with their files.
     SkillItems {
+        report: String,
+    },
+    /// The running system looked at more than one way: processes, kernel modules
+    /// and sockets that one view shows and another does not, programs running
+    /// from memory or deleted files, packet access, BPF programs and watchers of
+    /// credential folders.
+    Running,
+    /// The rows a Running system report listed, with what you marked as known.
+    RunningItems {
         report: String,
     },
     /// Where packages come from: signatures, transport, key scope, priority
@@ -193,6 +203,7 @@ pub enum Response {
     History(Vec<Report>),
     ScanItems(Vec<ScanItem>),
     SkillItems(Vec<SkillItem>),
+    RunningItems(Vec<RunningItem>),
     Quarantined(Vec<Quarantined>),
     Canaries(Box<CanaryState>),
     ToolGroups(Vec<ToolGroup>),

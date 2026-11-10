@@ -1,0 +1,8 @@
+{
+  "driver": "running",
+  "fires": [
+    "process.preload"
+  ],
+  "about": "A program with LD_PRELOAD naming a library in the home folder.",
+  "input": "input.json"
+}

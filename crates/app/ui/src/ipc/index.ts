@@ -29,6 +29,7 @@ export type { Receipt } from "./generated/Receipt";
 export type { ReceiptScript } from "./generated/ReceiptScript";
 export type { Report } from "./generated/Report";
 export type { RuleInfo } from "./generated/RuleInfo";
+export type { RunningItem } from "./generated/RunningItem";
 export type { Request } from "./generated/Request";
 export type { Response } from "./generated/Response";
 export type { Sample } from "./generated/Sample";

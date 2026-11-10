@@ -1,0 +1,8 @@
+{
+  "driver": "running",
+  "fires": [
+    "watch.credentials"
+  ],
+  "about": "An inotify watch on ~/.ssh held by a program outside the system folders.",
+  "input": "input.json"
+}

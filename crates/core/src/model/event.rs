@@ -27,6 +27,8 @@ pub enum SourceId {
     Ssh,
     /// AI tool skills and plugins that appeared or changed.
     Skill,
+    /// Running programs, kernel modules and sockets that need a look.
+    Running,
 }
 
 impl SourceId {
@@ -48,6 +50,7 @@ impl SourceId {
             SourceId::Import => "import",
             SourceId::Ssh => "ssh",
             SourceId::Skill => "skill",
+            SourceId::Running => "running",
         }
     }
     pub fn parse(s: &str) -> Option<SourceId> {
@@ -55,7 +58,7 @@ impl SourceId {
     }
 }
 
-pub const ALL_SOURCES: [SourceId; 16] = [
+pub const ALL_SOURCES: [SourceId; 17] = [
     SourceId::Network,
     SourceId::Listener,
     SourceId::Receipt,
@@ -72,6 +75,7 @@ pub const ALL_SOURCES: [SourceId; 16] = [
     SourceId::Import,
     SourceId::Ssh,
     SourceId::Skill,
+    SourceId::Running,
 ];
 
 /// Where an event's evidence lives.

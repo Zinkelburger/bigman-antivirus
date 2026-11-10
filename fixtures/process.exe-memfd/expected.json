@@ -1,0 +1,8 @@
+{
+  "driver": "running",
+  "fires": [
+    "process.exe-memfd"
+  ],
+  "about": "A program whose executable is a memory file, with no AppImage or runc behind it.",
+  "input": "input.json"
+}

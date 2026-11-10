@@ -3,7 +3,8 @@
 //! desktop app all go through these, so a preview can never drift from the change.
 use crate::{
     checks::{
-        canary, changes, disposable, hardening, hooks, inspect, packages, scan, setup, skills,
+        canary, changes, disposable, hardening, hooks, inspect, packages, running, scan, setup,
+        skills,
     },
     model::Report,
     runner::Cancel,
@@ -52,6 +53,16 @@ pub enum Action {
     },
     /// Take back a skill approval, restoring the one it replaced.
     RevokeSkillApproval {
+        key: String,
+    },
+    /// Record a row of a Running system report as known to you, pinned to what
+    /// it is now. Refused when it changed since the report.
+    MarkKnown {
+        report: String,
+        key: String,
+    },
+    /// Take a mark back, restoring the one it replaced.
+    ForgetKnown {
         key: String,
     },
     /// Move a scan finding into private quarantine.
@@ -461,6 +472,24 @@ pub fn preview(action: &Action, store: &Store) -> Result<ActionPlan> {
             ),
             key.clone(),
         ),
+        Action::MarkKnown { report, key } => {
+            let (summary, details, note) = running::mark_plan(store, report, key)?;
+            ActionPlan {
+                undo: Some("Take the mark back at any time; an earlier mark is restored.".into()),
+                note,
+                details_label: Some("What the mark records".into()),
+                ..plan("Mark as known", "Mark as known", summary, details)
+            }
+        }
+        Action::ForgetKnown { key } => plan(
+            "Take back the mark",
+            "Take back",
+            format!(
+                "Stop treating \"{}\" as something you recognise. An earlier mark comes back if there was one; otherwise it counts as something to review again.",
+                crate::checks::known::title(store, key).unwrap_or_else(|| "this row".into())
+            ),
+            "",
+        ),
         Action::RestorePreviousBaseline => plan(
             "Restore the previous baseline",
             "Restore",
@@ -662,6 +691,11 @@ pub fn apply(action: &Action, store: &Store, stop: &Cancel) -> Result<ActionOutc
             Action::RevokeSkillApproval { key: key.clone() },
         ),
         Action::RevokeSkillApproval { key } => message(skills::revoke(store, key)?),
+        Action::MarkKnown { report, key } => undoable(
+            message(running::mark(store, report, key, stop)?),
+            Action::ForgetKnown { key: key.clone() },
+        ),
+        Action::ForgetKnown { key } => message(running::forget(store, key)?),
         Action::RestorePreviousBaseline => {
             changes::restore_previous_baseline(store)?;
             message("The previous baseline is back.")

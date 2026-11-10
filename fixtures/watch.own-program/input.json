@@ -1,0 +1,12 @@
+{
+  "uid": 1000,
+  "watches": [
+    {
+      "pid": 4242,
+      "comm": "fixture",
+      "exe": "/home/user/.cache/fixture",
+      "target": "/home/user/.cache/fixture",
+      "kind": "own_program"
+    }
+  ]
+}

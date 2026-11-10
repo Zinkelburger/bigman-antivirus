@@ -1,0 +1,13 @@
+{
+  "uid": 1000,
+  "sockets": {
+    "compared": 40,
+    "only_diag": [
+      {
+        "protocol": "tcp",
+        "local": "0.0.0.0:4444",
+        "uid": 0
+      }
+    ]
+  }
+}

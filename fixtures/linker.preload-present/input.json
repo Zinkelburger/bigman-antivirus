@@ -1,0 +1,6 @@
+{
+  "preload": {
+    "kernel": "/nonexistent/libbenign.so\n",
+    "libc": "/nonexistent/libbenign.so\n"
+  }
+}

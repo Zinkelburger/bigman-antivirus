@@ -1,0 +1,8 @@
+{
+  "driver": "running",
+  "fires": [
+    "linker.preload-present"
+  ],
+  "about": "An /etc/ld.so.preload naming a library that is never created or loaded.",
+  "input": "input.json"
+}

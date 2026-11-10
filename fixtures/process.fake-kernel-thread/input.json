@@ -1,0 +1,16 @@
+{
+  "uid": 1000,
+  "home": "/home/user",
+  "processes": [
+    {
+      "pid": 4242,
+      "uid": 1000,
+      "mine": true,
+      "comm": "kworker/0:9",
+      "args": [
+        "[kworker/0:9]"
+      ],
+      "exe": "/home/user/.cache/fixture/kworker"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "uid": 1000,
+  "home": "/home/user",
+  "processes": [
+    {
+      "pid": 4242,
+      "uid": 1000,
+      "mine": true,
+      "comm": "fixture-sleep",
+      "args": [
+        "/dev/shm/fixture-sleep",
+        "30"
+      ],
+      "exe": "/dev/shm/fixture-sleep"
+    }
+  ]
+}

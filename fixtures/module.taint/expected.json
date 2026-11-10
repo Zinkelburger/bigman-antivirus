@@ -1,0 +1,8 @@
+{
+  "driver": "running",
+  "fires": [
+    "module.taint"
+  ],
+  "about": "Taint value 12288 (out-of-tree and unsigned) with no loaded module carrying either mark.",
+  "input": "input.json"
+}

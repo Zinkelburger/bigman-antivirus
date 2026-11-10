@@ -1,0 +1,8 @@
+{
+  "driver": "running",
+  "fires": [
+    "module.no-file"
+  ],
+  "about": "A loaded module with no file in the running kernel's module index.",
+  "input": "input.json"
+}

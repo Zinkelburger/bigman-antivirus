@@ -1,0 +1,13 @@
+{
+  "uid": 1000,
+  "pids": {
+    "listed": 300,
+    "libc_missing": [
+      {
+        "pid": 4242,
+        "name": "fixture-worker",
+        "uid": 1000
+      }
+    ]
+  }
+}

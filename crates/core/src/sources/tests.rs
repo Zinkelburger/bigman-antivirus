@@ -991,3 +991,61 @@ fn new_and_changed_skills_enter_the_timeline_once() {
     assert_eq!(events[0].rule.as_deref(), Some("skill.changed"));
     assert_eq!(events[0].severity, Severity::Review);
 }
+
+#[test]
+fn running_rows_to_review_enter_the_timeline_once_and_again_when_a_known_one_changes() {
+    use crate::checks::{known, running};
+    let w = world();
+    let snapshot = |holder: &str| -> running::Snapshot {
+        serde_json::from_value(serde_json::json!({
+            "uid": 1000,
+            "bpf": ["sd_devices"],
+            "packet_sockets": [{"protocol": 3, "iface": "wlan0", "uid": 1000,
+                "holder": {"pid": 5, "comm": "capture", "exe": holder}}]
+        }))
+        .unwrap()
+    };
+    let next = Shared(Arc::new(Mutex::new(snapshot("/home/user/bin/capture"))));
+    let reader = next.clone();
+    let mut source = Running::reading(move || Some(reader.get()));
+    let now = crate::model::now();
+    let (events, _) = run(&w, &mut source, now).unwrap();
+    assert_eq!(
+        events.len(),
+        1,
+        "the Info row stays in the view: {events:?}"
+    );
+    assert_eq!(events[0].source, SourceId::Running);
+    assert_eq!(events[0].summary, "capture receives a copy of every packet");
+    assert_eq!(events[0].rule.as_deref(), Some("net.packet-socket"));
+    assert_eq!(events[0].severity, Severity::Review);
+    let Some(crate::model::Link::Report { id }) = &events[0].link else {
+        panic!("the entry opens its report");
+    };
+    assert!(
+        run(&w, &mut source, now).unwrap().0.is_empty(),
+        "nothing new"
+    );
+
+    // Marked as known, it stays quiet; a different holder under the same name is posted.
+    let rows = running::items(&w.store, id).unwrap();
+    let row = rows.iter().find(|i| i.rule == "net.packet-socket").unwrap();
+    known::mark(&w.store, &row.key, &row.title, &row.facts).unwrap();
+    assert!(run(&w, &mut source, now).unwrap().0.is_empty());
+    next.set(serde_json::from_value(serde_json::json!({
+        "uid": 1000,
+        "packet_sockets": [
+            {"protocol": 3, "iface": "wlan0", "uid": 1000, "holder": {"pid": 5, "comm": "capture", "exe": "/home/user/bin/capture"}},
+            {"protocol": 2048, "iface": "wlan0", "uid": 1000, "holder": {"pid": 5, "comm": "capture", "exe": "/home/user/bin/capture"}}
+        ]
+    })).unwrap());
+    let (events, _) = run(&w, &mut source, now).unwrap();
+    assert_eq!(events.len(), 1, "{events:?}");
+    assert_eq!(
+        events[0].summary,
+        "capture receives a copy of every packet (changed since you marked it as known)"
+    );
+    assert!(events[0]
+        .evidence
+        .contains("Changed: Frames: added IPv4 (0x0800)"));
+}

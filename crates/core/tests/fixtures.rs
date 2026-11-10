@@ -284,6 +284,13 @@ fn run(dir: &Path, expected: &Expected) -> BTreeSet<String> {
                 .collect();
             r.findings = checks::skills::assess(s.kind, &inputs).findings;
         }
+        "running" => {
+            let snapshot: checks::running::Snapshot = serde_json::from_value(json()).unwrap();
+            return checks::running::assess(&snapshot)
+                .into_iter()
+                .map(|i| i.rule)
+                .collect();
+        }
         "skills-inventory" => {
             let items: Vec<checks::skills::SkillItem> =
                 serde_json::from_value(json()["items"].clone()).unwrap();

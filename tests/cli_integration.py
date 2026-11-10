@@ -3,6 +3,7 @@
 import json
 import os
 from pathlib import Path
+import shutil
 import signal
 import struct
 import subprocess
@@ -260,4 +261,33 @@ if sys.argv[1] == 'start': sys.exit(7)
     assert sorted(f['rule'] for f in changed['findings']) == ['skill.changed', 'skill.download-and-run'], changed['findings']
     # A stale report cannot approve the new version.
     run('skills', '--approve', first['id'], '0', codes=(2,), raw=True)
-    print('PASS: scan mapping, missing scanner, quarantine/restore, nonexecuting inspection, script policy, disposable container, reviewed baseline drift protection, real canary alerts, native boundaries, service preview, private history, hardening preview, apply, refusal and undo, skill approval and change detection')
+    # Running system: a harmless program whose file was deleted is reported, marked
+    # as known by its key, and then no longer counted. The comparisons of this
+    # computer's own views run alongside and must not report it either way.
+    copy = root / 'bigman-fixture-sleep'
+    shutil.copy('/usr/bin/sleep', copy)
+    child = subprocess.Popen([str(copy), '60'])
+    try:
+        for _ in range(200):
+            if os.readlink(f'/proc/{child.pid}/exe') == str(copy): break
+            time.sleep(0.01)
+        copy.unlink()
+        key = f'process.exe-deleted:{copy}'
+        seen = run('running', codes=(0, 1, 2))
+        assert seen['kind'] == 'Running system', seen['kind']
+        assert any('signal probe' in c for c in seen['coverage']['checked']), seen['coverage']
+        mine = [f for f in seen['findings'] if f['rule'] == 'process.exe-deleted' and str(copy) in f['evidence']]
+        assert len(mine) == 1 and mine[0]['severity'] != 'info', seen['findings']
+        assert not [f for f in seen['findings'] if f['rule'].startswith('hidden.')], seen['findings']
+        marked = run('running', '--known', seen['id'], key, raw=True)
+        assert b'Marked as known' in marked.stdout, marked.stdout
+        again = run('running', codes=(0, 1, 2))
+        assert not [f for f in again['findings'] if str(copy) in f['evidence']], again['findings']
+        assert any('marked as known' in n for n in again['coverage']['notes']), again['coverage']
+        forgotten = run('running', '--forget', key, raw=True)
+        assert b'No longer marked as known' in forgotten.stdout, forgotten.stdout
+    finally:
+        child.kill(); child.wait()
+    # A row that is gone cannot be marked from the old report.
+    run('running', '--known', seen['id'], key, codes=(2,), raw=True)
+    print('PASS: scan mapping, missing scanner, quarantine/restore, nonexecuting inspection, script policy, disposable container, reviewed baseline drift protection, real canary alerts, native boundaries, service preview, private history, hardening preview, apply, refusal and undo, skill approval and change detection, running-system rows marked as known')

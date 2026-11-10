@@ -24,7 +24,7 @@ interface ActionStore {
   current: OpenAction | null;
   /** Where focus returns when the dialog closes. */
   opener: HTMLElement | null;
-  /** The opener's neighbouring rows and its panel, for when the change removes the opener. */
+  /** The opener's own group of buttons, its neighbouring rows and its panel, for when the change removes the opener. */
   fallbacks: Element[];
   set: (current: OpenAction | null) => void;
 }
@@ -39,7 +39,9 @@ const useOpenAction = create<ActionStore>((set) => ({
     if (current) {
       const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       const row = opener?.closest("li");
-      const fallbacks = [row?.nextElementSibling, row?.previousElementSibling, opener?.closest("aside, section")];
+      // The opener's parent first: a change often swaps the button for its
+      // counterpart in the same place ("Mark as known…" for "Take back the mark…").
+      const fallbacks = [opener?.parentElement, row?.nextElementSibling, row?.previousElementSibling, opener?.closest("aside, section")];
       set({ current, opener, fallbacks: fallbacks.filter((e): e is Element => e != null) });
       return;
     }
@@ -53,12 +55,16 @@ const useOpenAction = create<ActionStore>((set) => ({
 
 /**
  * Focus after the dialog: the button that opened it, or, when the change removed
- * that button (a fixed suggestion, a restored file), the next row, then the
- * opener's panel, then the page heading.
+ * that button (a fixed suggestion, a restored file, a row now marked), the
+ * button that took its place, then the next row, then the opener's panel, then
+ * the page heading.
  */
 function restoreFocus(): void {
   const { opener, fallbacks } = useOpenAction.getState();
-  const near = fallbacks.find((e) => e.isConnected)?.querySelector<HTMLElement>(FOCUSABLE);
+  const near = fallbacks
+    .filter((e) => e.isConnected)
+    .map((e) => e.querySelector<HTMLElement>(FOCUSABLE))
+    .find((e) => e !== null);
   (opener?.isConnected ? opener : (near ?? document.querySelector<HTMLElement>("main h1")))?.focus();
 }
 

@@ -1,0 +1,11 @@
+{
+  "uid": 1000,
+  "bus_names": [
+    {
+      "name": "org.freedesktop.secrets",
+      "pid": 4242,
+      "comm": "fixture",
+      "exe": "/home/user/.local/share/fixture/agent"
+    }
+  ]
+}

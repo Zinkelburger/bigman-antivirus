@@ -114,6 +114,10 @@ impl Daemon {
                 Request::SkillItems { report } => {
                     Response::SkillItems(bigman_core::checks::skills::items(store, &report)?)
                 }
+                Request::Running => report(bigman_core::checks::running::run(store, stop)),
+                Request::RunningItems { report } => {
+                    Response::RunningItems(bigman_core::checks::running::items(store, &report)?)
+                }
                 Request::Audit { tool, path } => {
                     report(integrations::integration(store, &tool, &path, stop))
                 }

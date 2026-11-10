@@ -166,6 +166,26 @@ Every finding Bigman shows comes from one of these rules. Each has a synthetic f
 | `lynis.finding` | Review | Lynis recommendation | HI-24 |
 | `osv.advisory` | Review | A dependency has a published advisory | SC-05, SC-10 |
 | `yara.output` | Review | YARA-X rules matched | MW-01 |
+| `hidden.process` | High | A running program is missing from the process list | MW-16, MW-02, HI-20 |
+| `hidden.module` | High | A kernel module is in one list and not another | MW-16, HI-20 |
+| `hidden.net-socket` | High | A socket is in one kernel table and not the other | MW-16, MW-15, NE-01, NE-13 |
+| `hidden.libc-view` | High | The C library gives Bigman a different answer than the kernel | MW-15, HI-09, MW-02 |
+| `linker.preload-present` | High | A library is loaded into every program | HI-09, MW-15, MW-02 |
+| `module.taint` | Info | The kernel carries taint marks | HI-20, MW-16 |
+| `module.no-file` | Review | A kernel module was loaded from outside the kernel's module folder | HI-20, MW-16, HI-11 |
+| `bpf.programs` | Info | BPF programs are loaded in the kernel | MW-17, MW-10 |
+| `process.fake-kernel-thread` | High | A program is named like a kernel thread | MW-23, MW-19 |
+| `process.exe-deleted` | Review | A program is running and its file was deleted | MW-22, MW-02 |
+| `process.exe-memfd` | Review | A program runs from memory with no file on disk | MW-22, MW-16 |
+| `process.exe-shm` | Review | A program runs from shared memory | MW-22, MW-01 |
+| `process.daemon-name` | Review | A program has a system service's name and runs from somewhere else | MW-23, MW-09 |
+| `process.shell-socket` | High | A shell or script interpreter is wired to a network connection | NE-14, NE-20 |
+| `process.preload` | Info | Programs run with a library loaded first | HI-09, MW-15 |
+| `net.packet-socket` | Info | A program reads network frames directly | MW-17, MW-21 |
+| `net.raw-socket` | Info | A program sends and receives raw IP packets | MW-17, NE-13 |
+| `watch.credentials` | Review | A program is told when your credential files change | CR-22, CR-18, CR-03 |
+| `watch.own-program` | Review | A program watches its own file | MW-06, MW-02 |
+| `bus.name-owner` | Review | An unexpected program answers for your password store or portal | CR-17, DS-20 |
 
 ## `shell.download`
 
@@ -395,7 +415,7 @@ What you can do: Switch to your desktop keyring's credential helper and revoke t
 
 **A startup file changed** (Review)
 
-A file that starts programs for you (a systemd unit, autostart entry, shell profile, cron file), or a program in a developer tool folder (npm's global prefix, nvm, pnpm, ~/.cargo/bin, ~/go/bin), is new or different from the baseline you accepted.
+A file that starts programs for you (a systemd unit, autostart entry, shell profile, cron file), a file that starts one on an event (a D-Bus service file, a systemd generator, a network dispatcher script), or a program in a developer tool folder (npm's global prefix, nvm, pnpm, ~/.cargo/bin, ~/go/bin), is new or different from the baseline you accepted.
 
 What you can do: Review the file and the package that owns it before accepting it into the baseline.
 
@@ -1446,3 +1466,163 @@ What you can do: Read the advisory's affected and fixed versions and update the 
 Rules you supplied matched the target. A match is the result of those rules, not proof of malware.
 
 What you can do: Check where the rules came from and what they look for.
+
+## `hidden.process`
+
+**A running program is missing from the process list** (High)
+
+A process ID answers a signal probe, and /proc, which ps and top read, does not list it. Both were read twice. A kernel module that hides a process filters the listing and leaves the process running. The check is skipped when /proc is mounted to hide other accounts' processes.
+
+What you can do: Note the process ID and name, then check the disk from other trusted media: a kernel that hides one thing can hide others from every tool run on it.
+
+## `hidden.module`
+
+**A kernel module is in one list and not another** (High)
+
+/proc/modules (what lsmod reads), /sys/module and the kernel's symbol list each name the loaded modules. One of them names a module another leaves out, on two readings. Modules that hide remove themselves from the list tools read.
+
+What you can do: Note the module name and check the disk from other trusted media. If you loaded the module yourself and it is still starting or stopping, check again.
+
+## `hidden.net-socket`
+
+**A socket is in one kernel table and not the other** (High)
+
+/proc/net (what netstat reads) and the kernel's socket diagnostics (what ss reads) both list TCP and UDP sockets. One shows a listening port or a connection the other does not, on two readings. Hiding a port means filtering one of these; filtering both the same way is harder.
+
+What you can do: Note the port and the remote address. Find which program holds it with the view that does show it, and check the disk from other trusted media.
+
+## `hidden.libc-view`
+
+**The C library gives Bigman a different answer than the kernel** (High)
+
+Bigman read the process list, the module list, the socket tables or /etc/ld.so.preload twice: through the C library, as every ordinary tool does, and with direct system calls. The C library's answer leaves something out. A library loaded into every program through /etc/ld.so.preload or LD_PRELOAD filters results this way, so ls, ps and ss do not show it.
+
+What you can do: Read /etc/ld.so.preload and the LD_PRELOAD rows below with a statically linked tool (busybox cat), find which package owns each library named, and remove the ones nothing owns.
+
+## `linker.preload-present`
+
+**A library is loaded into every program** (High)
+
+/etc/ld.so.preload names libraries the dynamic loader puts into every program that starts, before the program's own code. The file does not exist on a standard installation. A few performance and compatibility tools add an entry; so does software that hides files, processes and connections from the tools that would show them.
+
+What you can do: Find which package owns each library (rpm -qf, dpkg -S, pacman -Qo). Remove entries nothing owns, then restart.
+
+## `module.taint`
+
+**The kernel carries taint marks** (Info)
+
+The kernel records, until the next restart, that an out-of-tree, unsigned, proprietary or force-loaded module was loaded, and a few other events. Graphics and virtual-machine drivers leave these marks and are named. It is Review when a module mark is set and no loaded module carries it: the module was unloaded since, or is not in the list.
+
+What you can do: If you did not load and remove a driver since the last restart, read which modules the kernel log names with the command below, and the kernel module rows here.
+
+## `module.no-file`
+
+**A kernel module was loaded from outside the kernel's module folder** (Review)
+
+Every module a distribution or a driver package installs has a file under /lib/modules for the running kernel. This loaded module has none, so it was loaded by hand from a file somewhere else.
+
+What you can do: If you built and loaded it yourself, mark it as known. Otherwise read the kernel log with the command below and check the startup files for module load entries.
+
+## `bpf.programs`
+
+**BPF programs are loaded in the kernel** (Info)
+
+BPF programs run inside the kernel, where they can watch or change system calls and network traffic. systemd, container tools and security agents load them; so do some programs that hide themselves. Their names are read from the kernel's symbol list, which needs no administrator rights; the type of each program does not show there.
+
+What you can do: Mark the list as known once you recognise it; Bigman then reports when a name is added. The command below shows each program's type and what loaded it.
+
+## `process.fake-kernel-thread`
+
+**A program is named like a kernel thread** (High)
+
+A process has the name of a kernel thread (kworker, ksoftirqd, kthreadd), or a title in square brackets the way tools print one, and the kernel does not mark it as a kernel thread. Ordinary programs have no reason to take these names.
+
+What you can do: Find where the program is and what started it with the commands below (as its owner), and keep a copy.
+
+## `process.exe-deleted`
+
+**A program is running and its file was deleted** (Review)
+
+The file a running program started from no longer exists, so a scan of your files cannot read it. It is High when the file was in a temporary folder. Programs whose file was replaced by an update or a rebuild are listed together as Info: restarting them runs the new version.
+
+What you can do: If you do not recognise it, copy the program out before stopping it and check what started it; the commands below do both.
+
+## `process.exe-memfd`
+
+**A program runs from memory with no file on disk** (Review)
+
+The program's code was written into a memory file and run from there, so it never existed as a file a scan could read. AppImage launchers and the container runtime runc do this on purpose and are Info.
+
+What you can do: If you do not recognise it, copy the program out before stopping it and check which program started it; the commands below do both.
+
+## `process.exe-shm`
+
+**A program runs from shared memory** (Review)
+
+The program's file is in /dev/shm, a folder kept in memory and emptied at every restart. Software is not installed there; it is a place to put a program that should leave nothing on disk.
+
+What you can do: If you did not put it there, copy the file for later, stop the program and check what started it; the commands below copy it and show its parent.
+
+## `process.daemon-name`
+
+**A program has a system service's name and runs from somewhere else** (Review)
+
+One of your programs is named like a system service (sshd, systemd, cron, dbus-daemon) and its file is outside the system folders where those are installed. A build of your own does this; so does a program made to pass for the service in a process list.
+
+What you can do: If it is your own build, mark it as known. Otherwise read where it is and what started it.
+
+## `process.shell-socket`
+
+**A shell or script interpreter is wired to a network connection** (High)
+
+The standard input and output of a shell or interpreter are one network socket, so whatever is at the other end types commands and reads the results. It is Review when the other end is on this computer.
+
+What you can do: If you did not set this up, note the remote address, stop the process, and look for what started it (crontab -l, ~/.config/systemd/user, autostart).
+
+## `process.preload`
+
+**Programs run with a library loaded first** (Info)
+
+LD_PRELOAD or LD_AUDIT in a program's environment loads a library into it before its own code. Browsers and Flatpak applications do this for their sandbox helpers. It is Review when the library is in your home folder or a temporary folder, where any program of yours could have put it.
+
+What you can do: For a library in a folder you can write to, find which file sets the variable (shell profile, ~/.config/environment.d, a .desktop launcher) and what put the library there.
+
+## `net.packet-socket`
+
+**A program reads network frames directly** (Info)
+
+A packet socket receives frames below TCP and UDP. No port is open, so nothing shows in a list of listening ports. Wi-Fi sign-in and address discovery hold one for their own frame type. It is Review when the socket receives every packet: packet capture tools do that while they run, and so does a program that waits for one particular packet before acting.
+
+What you can do: If no capture or network-usage tool is running, find the holder with the command below and check what started it.
+
+## `net.raw-socket`
+
+**A program sends and receives raw IP packets** (Info)
+
+A raw socket carries a protocol such as ICMP without a port, so nothing shows in a list of listening ports. Network managers and VPN services run by the administrator hold them. It is Review when the holder is not the administrator, which takes a privilege ordinary programs lack.
+
+What you can do: Find the holder with the command below and check how it got the privilege (getcap on its file).
+
+## `watch.credentials`
+
+**A program is told when your credential files change** (Review)
+
+A program holds an inotify watch on a folder or file that holds keys or tokens (~/.ssh, ~/.gnupg, cloud and registry credentials), so the kernel tells it whenever something there is opened or written. It is Info when the program is installed under a system folder, as key agents and file managers are.
+
+What you can do: If you do not recognise the program, read where it is and what started it before you add or change a key.
+
+## `watch.own-program`
+
+**A program watches its own file** (Review)
+
+A program holds an inotify watch on the file it runs from, so the kernel tells it when that file is deleted or replaced. Programs that put themselves back after being removed do this; some self-updaters do too.
+
+What you can do: If you tried to remove this program and it came back, stop it first, then delete the file and its startup entry.
+
+## `bus.name-owner`
+
+**An unexpected program answers for your password store or portal** (Review)
+
+Programs ask the session bus for saved passwords and for permission prompts by name (org.freedesktop.secrets, org.freedesktop.portal.Desktop). Whichever program claims the name first gets the requests. This owner is not installed under a system folder.
+
+What you can do: If it is a password manager you set up to take this role, mark it as known. Otherwise stop it and log in again so the desktop's own service takes the name.

@@ -303,7 +303,7 @@
     "id": "persistence.change",
     "severity": "review",
     "title": "A startup file changed",
-    "explanation": "A file that starts programs for you (a systemd unit, autostart entry, shell profile, cron file), or a program in a developer tool folder (npm's global prefix, nvm, pnpm, ~/.cargo/bin, ~/go/bin), is new or different from the baseline you accepted.",
+    "explanation": "A file that starts programs for you (a systemd unit, autostart entry, shell profile, cron file), a file that starts one on an event (a D-Bus service file, a systemd generator, a network dispatcher script), or a program in a developer tool folder (npm's global prefix, nvm, pnpm, ~/.cargo/bin, ~/go/bin), is new or different from the baseline you accepted.",
     "remediation": "Review the file and the package that owns it before accepting it into the baseline.",
     "threats": [
       "HI-01",
@@ -1738,6 +1738,233 @@
     "remediation": "Check where the rules came from and what they look for.",
     "threats": [
       "MW-01"
+    ]
+  },
+  {
+    "id": "hidden.process",
+    "severity": "high",
+    "title": "A running program is missing from the process list",
+    "explanation": "A process ID answers a signal probe, and /proc, which ps and top read, does not list it. Both were read twice. A kernel module that hides a process filters the listing and leaves the process running. The check is skipped when /proc is mounted to hide other accounts' processes.",
+    "remediation": "Note the process ID and name, then check the disk from other trusted media: a kernel that hides one thing can hide others from every tool run on it.",
+    "threats": [
+      "MW-16",
+      "MW-02",
+      "HI-20"
+    ]
+  },
+  {
+    "id": "hidden.module",
+    "severity": "high",
+    "title": "A kernel module is in one list and not another",
+    "explanation": "/proc/modules (what lsmod reads), /sys/module and the kernel's symbol list each name the loaded modules. One of them names a module another leaves out, on two readings. Modules that hide remove themselves from the list tools read.",
+    "remediation": "Note the module name and check the disk from other trusted media. If you loaded the module yourself and it is still starting or stopping, check again.",
+    "threats": [
+      "MW-16",
+      "HI-20"
+    ]
+  },
+  {
+    "id": "hidden.net-socket",
+    "severity": "high",
+    "title": "A socket is in one kernel table and not the other",
+    "explanation": "/proc/net (what netstat reads) and the kernel's socket diagnostics (what ss reads) both list TCP and UDP sockets. One shows a listening port or a connection the other does not, on two readings. Hiding a port means filtering one of these; filtering both the same way is harder.",
+    "remediation": "Note the port and the remote address. Find which program holds it with the view that does show it, and check the disk from other trusted media.",
+    "threats": [
+      "MW-16",
+      "MW-15",
+      "NE-01",
+      "NE-13"
+    ]
+  },
+  {
+    "id": "hidden.libc-view",
+    "severity": "high",
+    "title": "The C library gives Bigman a different answer than the kernel",
+    "explanation": "Bigman read the process list, the module list, the socket tables or /etc/ld.so.preload twice: through the C library, as every ordinary tool does, and with direct system calls. The C library's answer leaves something out. A library loaded into every program through /etc/ld.so.preload or LD_PRELOAD filters results this way, so ls, ps and ss do not show it.",
+    "remediation": "Read /etc/ld.so.preload and the LD_PRELOAD rows below with a statically linked tool (busybox cat), find which package owns each library named, and remove the ones nothing owns.",
+    "threats": [
+      "MW-15",
+      "HI-09",
+      "MW-02"
+    ]
+  },
+  {
+    "id": "linker.preload-present",
+    "severity": "high",
+    "title": "A library is loaded into every program",
+    "explanation": "/etc/ld.so.preload names libraries the dynamic loader puts into every program that starts, before the program's own code. The file does not exist on a standard installation. A few performance and compatibility tools add an entry; so does software that hides files, processes and connections from the tools that would show them.",
+    "remediation": "Find which package owns each library (rpm -qf, dpkg -S, pacman -Qo). Remove entries nothing owns, then restart.",
+    "threats": [
+      "HI-09",
+      "MW-15",
+      "MW-02"
+    ]
+  },
+  {
+    "id": "module.taint",
+    "severity": "info",
+    "title": "The kernel carries taint marks",
+    "explanation": "The kernel records, until the next restart, that an out-of-tree, unsigned, proprietary or force-loaded module was loaded, and a few other events. Graphics and virtual-machine drivers leave these marks and are named. It is Review when a module mark is set and no loaded module carries it: the module was unloaded since, or is not in the list.",
+    "remediation": "If you did not load and remove a driver since the last restart, read which modules the kernel log names with the command below, and the kernel module rows here.",
+    "threats": [
+      "HI-20",
+      "MW-16"
+    ]
+  },
+  {
+    "id": "module.no-file",
+    "severity": "review",
+    "title": "A kernel module was loaded from outside the kernel's module folder",
+    "explanation": "Every module a distribution or a driver package installs has a file under /lib/modules for the running kernel. This loaded module has none, so it was loaded by hand from a file somewhere else.",
+    "remediation": "If you built and loaded it yourself, mark it as known. Otherwise read the kernel log with the command below and check the startup files for module load entries.",
+    "threats": [
+      "HI-20",
+      "MW-16",
+      "HI-11"
+    ]
+  },
+  {
+    "id": "bpf.programs",
+    "severity": "info",
+    "title": "BPF programs are loaded in the kernel",
+    "explanation": "BPF programs run inside the kernel, where they can watch or change system calls and network traffic. systemd, container tools and security agents load them; so do some programs that hide themselves. Their names are read from the kernel's symbol list, which needs no administrator rights; the type of each program does not show there.",
+    "remediation": "Mark the list as known once you recognise it; Bigman then reports when a name is added. The command below shows each program's type and what loaded it.",
+    "threats": [
+      "MW-17",
+      "MW-10"
+    ]
+  },
+  {
+    "id": "process.fake-kernel-thread",
+    "severity": "high",
+    "title": "A program is named like a kernel thread",
+    "explanation": "A process has the name of a kernel thread (kworker, ksoftirqd, kthreadd), or a title in square brackets the way tools print one, and the kernel does not mark it as a kernel thread. Ordinary programs have no reason to take these names.",
+    "remediation": "Find where the program is and what started it with the commands below (as its owner), and keep a copy.",
+    "threats": [
+      "MW-23",
+      "MW-19"
+    ]
+  },
+  {
+    "id": "process.exe-deleted",
+    "severity": "review",
+    "title": "A program is running and its file was deleted",
+    "explanation": "The file a running program started from no longer exists, so a scan of your files cannot read it. It is High when the file was in a temporary folder. Programs whose file was replaced by an update or a rebuild are listed together as Info: restarting them runs the new version.",
+    "remediation": "If you do not recognise it, copy the program out before stopping it and check what started it; the commands below do both.",
+    "threats": [
+      "MW-22",
+      "MW-02"
+    ]
+  },
+  {
+    "id": "process.exe-memfd",
+    "severity": "review",
+    "title": "A program runs from memory with no file on disk",
+    "explanation": "The program's code was written into a memory file and run from there, so it never existed as a file a scan could read. AppImage launchers and the container runtime runc do this on purpose and are Info.",
+    "remediation": "If you do not recognise it, copy the program out before stopping it and check which program started it; the commands below do both.",
+    "threats": [
+      "MW-22",
+      "MW-16"
+    ]
+  },
+  {
+    "id": "process.exe-shm",
+    "severity": "review",
+    "title": "A program runs from shared memory",
+    "explanation": "The program's file is in /dev/shm, a folder kept in memory and emptied at every restart. Software is not installed there; it is a place to put a program that should leave nothing on disk.",
+    "remediation": "If you did not put it there, copy the file for later, stop the program and check what started it; the commands below copy it and show its parent.",
+    "threats": [
+      "MW-22",
+      "MW-01"
+    ]
+  },
+  {
+    "id": "process.daemon-name",
+    "severity": "review",
+    "title": "A program has a system service's name and runs from somewhere else",
+    "explanation": "One of your programs is named like a system service (sshd, systemd, cron, dbus-daemon) and its file is outside the system folders where those are installed. A build of your own does this; so does a program made to pass for the service in a process list.",
+    "remediation": "If it is your own build, mark it as known. Otherwise read where it is and what started it.",
+    "threats": [
+      "MW-23",
+      "MW-09"
+    ]
+  },
+  {
+    "id": "process.shell-socket",
+    "severity": "high",
+    "title": "A shell or script interpreter is wired to a network connection",
+    "explanation": "The standard input and output of a shell or interpreter are one network socket, so whatever is at the other end types commands and reads the results. It is Review when the other end is on this computer.",
+    "remediation": "If you did not set this up, note the remote address, stop the process, and look for what started it (crontab -l, ~/.config/systemd/user, autostart).",
+    "threats": [
+      "NE-14",
+      "NE-20"
+    ]
+  },
+  {
+    "id": "process.preload",
+    "severity": "info",
+    "title": "Programs run with a library loaded first",
+    "explanation": "LD_PRELOAD or LD_AUDIT in a program's environment loads a library into it before its own code. Browsers and Flatpak applications do this for their sandbox helpers. It is Review when the library is in your home folder or a temporary folder, where any program of yours could have put it.",
+    "remediation": "For a library in a folder you can write to, find which file sets the variable (shell profile, ~/.config/environment.d, a .desktop launcher) and what put the library there.",
+    "threats": [
+      "HI-09",
+      "MW-15"
+    ]
+  },
+  {
+    "id": "net.packet-socket",
+    "severity": "info",
+    "title": "A program reads network frames directly",
+    "explanation": "A packet socket receives frames below TCP and UDP. No port is open, so nothing shows in a list of listening ports. Wi-Fi sign-in and address discovery hold one for their own frame type. It is Review when the socket receives every packet: packet capture tools do that while they run, and so does a program that waits for one particular packet before acting.",
+    "remediation": "If no capture or network-usage tool is running, find the holder with the command below and check what started it.",
+    "threats": [
+      "MW-17",
+      "MW-21"
+    ]
+  },
+  {
+    "id": "net.raw-socket",
+    "severity": "info",
+    "title": "A program sends and receives raw IP packets",
+    "explanation": "A raw socket carries a protocol such as ICMP without a port, so nothing shows in a list of listening ports. Network managers and VPN services run by the administrator hold them. It is Review when the holder is not the administrator, which takes a privilege ordinary programs lack.",
+    "remediation": "Find the holder with the command below and check how it got the privilege (getcap on its file).",
+    "threats": [
+      "MW-17",
+      "NE-13"
+    ]
+  },
+  {
+    "id": "watch.credentials",
+    "severity": "review",
+    "title": "A program is told when your credential files change",
+    "explanation": "A program holds an inotify watch on a folder or file that holds keys or tokens (~/.ssh, ~/.gnupg, cloud and registry credentials), so the kernel tells it whenever something there is opened or written. It is Info when the program is installed under a system folder, as key agents and file managers are.",
+    "remediation": "If you do not recognise the program, read where it is and what started it before you add or change a key.",
+    "threats": [
+      "CR-22",
+      "CR-18",
+      "CR-03"
+    ]
+  },
+  {
+    "id": "watch.own-program",
+    "severity": "review",
+    "title": "A program watches its own file",
+    "explanation": "A program holds an inotify watch on the file it runs from, so the kernel tells it when that file is deleted or replaced. Programs that put themselves back after being removed do this; some self-updaters do too.",
+    "remediation": "If you tried to remove this program and it came back, stop it first, then delete the file and its startup entry.",
+    "threats": [
+      "MW-06",
+      "MW-02"
+    ]
+  },
+  {
+    "id": "bus.name-owner",
+    "severity": "review",
+    "title": "An unexpected program answers for your password store or portal",
+    "explanation": "Programs ask the session bus for saved passwords and for permission prompts by name (org.freedesktop.secrets, org.freedesktop.portal.Desktop). Whichever program claims the name first gets the requests. This owner is not installed under a system folder.",
+    "remediation": "If it is a password manager you set up to take this role, mark it as known. Otherwise stop it and log in again so the desktop's own service takes the name.",
+    "threats": [
+      "CR-17",
+      "DS-20"
     ]
   }
 ]

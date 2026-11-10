@@ -1,0 +1,8 @@
+{
+  "driver": "running",
+  "fires": [
+    "net.raw-socket"
+  ],
+  "about": "A raw ICMP socket held by a program in the home folder.",
+  "input": "input.json"
+}

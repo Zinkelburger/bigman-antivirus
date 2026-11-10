@@ -1,0 +1,8 @@
+{
+  "driver": "running",
+  "fires": [
+    "hidden.process"
+  ],
+  "about": "A process that answers a signal probe and is in no /proc listing, on two readings.",
+  "input": "input.json"
+}

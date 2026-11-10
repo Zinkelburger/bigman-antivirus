@@ -1,0 +1,14 @@
+{
+  "uid": 1000,
+  "raw_sockets": [
+    {
+      "protocol": 1,
+      "uid": 1000,
+      "holder": {
+        "pid": 4242,
+        "comm": "fixture",
+        "exe": "/home/user/bin/fixture"
+      }
+    }
+  ]
+}
