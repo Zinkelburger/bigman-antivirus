@@ -24,6 +24,8 @@ declare module "@tanstack/react-table" {
 }
 
 const DEFAULT_ROW_HEIGHT = 36;
+/** The sticky header: `h-8` cells plus the rule under them. Rows start below it. */
+const HEADER_HEIGHT = 33;
 
 interface DataTableProps<T> {
   label: string;
@@ -80,10 +82,14 @@ export function DataTable<T>({
     estimateSize: () => rowHeight,
     overscan: 12,
     initialRect: { width: 800, height },
+    // Rows sit below the header inside the scroller, and the header covers the top
+    // of it. Without both, a row reached with the keyboard stops under an edge.
+    scrollMargin: HEADER_HEIGHT,
+    scrollPaddingStart: HEADER_HEIGHT,
   });
   const items = virtual.getVirtualItems();
-  const before = items[0]?.start ?? 0;
-  const after = virtual.getTotalSize() - (items[items.length - 1]?.end ?? 0);
+  const before = (items[0]?.start ?? HEADER_HEIGHT) - HEADER_HEIGHT;
+  const after = virtual.getTotalSize() - ((items[items.length - 1]?.end ?? HEADER_HEIGHT) - HEADER_HEIGHT);
   const current = Math.min(active, Math.max(0, rows.length - 1));
   const rowId = (index: number) => `${base}-row-${index}`;
 
@@ -114,7 +120,7 @@ export function DataTable<T>({
   return (
     <div
       ref={scroller}
-      className="overflow-auto rounded-panel border border-rule bg-surface"
+      className="relative overflow-auto rounded-panel border border-rule bg-surface"
       style={{ maxHeight: height }}
     >
       <table

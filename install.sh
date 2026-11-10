@@ -24,7 +24,10 @@ for bin in bigman bigmand bigman-app; do
 done
 mkdir -p "$prefix/share/applications" "$prefix/share/icons/hicolor/128x128/apps"
 install -m644 "$project_dir/browser-extension/icons/128.png" "$prefix/share/icons/hicolor/128x128/apps/bigman.png"
-cat > "$prefix/share/applications/bigman.desktop" <<DESKTOP
+# Named after the window's application ID (the program name), so Wayland desktops
+# give the window and its taskbar entry this icon. Earlier versions wrote bigman.desktop.
+rm -f "$prefix/share/applications/bigman.desktop"
+cat > "$prefix/share/applications/bigman-app.desktop" <<DESKTOP
 [Desktop Entry]
 Type=Application
 Name=Bigman

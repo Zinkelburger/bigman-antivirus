@@ -230,9 +230,17 @@ export function networkSnapshot(scenario: string): NetworkSnapshot {
     range,
     first_at: firstAt,
   });
+  // A browser-heavy desktop: enough rows that both tables scroll inside the page.
+  const busy = scenario === "busy";
+  if (busy) {
+    for (let i = 0; i < 40; i++) listeners.push(listenerRow(listener(`service-${String(i)}`, 5000 + i, `127.0.0.1:${String(9000 + i)}`, `/usr/bin/service-${String(i)}`), "this computer only", [], i % 7 === 0 ? minutes(30 + i) : days(1 + i)));
+  }
   return {
     at: NOW,
     connections: [
+      ...(busy
+        ? Array.from({ length: 180 }, (_, i) => connection(i % 3 === 0 ? "firefox" : `worker-${String(i % 9)}`, 6000 + i, `151.101.${String(i % 250)}.${String(1 + (i % 200))}:443`, `151.101.${String(i % 250)}.x`, i % 11 === 0 ? minutes(5 + i) : days(1 + (i % 30))))
+        : []),
       connection("curl", 4021, "93.184.215.14:443", "93.184.215.x", minutes(9)),
       connection("firefox", 4242, "142.250.80.46:443", "142.250.80.x", days(30)),
       connection("firefox", 4242, "151.101.1.69:443", "151.101.1.x", days(12)),

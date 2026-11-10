@@ -952,6 +952,12 @@ fn new_and_changed_skills_enter_the_timeline_once() {
         "nothing moved"
     );
 
+    // A restarted daemon finds the same folders and saves no second inventory.
+    let saved = w.store.history().unwrap().len();
+    let mut source = Skills::new(places());
+    assert!(run(&w, &mut source, now).unwrap().0.is_empty());
+    assert_eq!(w.store.history().unwrap().len(), saved);
+
     let added = home.join(".agents/skills/setup");
     std::fs::create_dir_all(&added).unwrap();
     std::fs::write(

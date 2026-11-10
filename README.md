@@ -41,6 +41,8 @@ Opening the app starts `bigmand` if it isn't already running. It runs as you, wi
 
 The first three can be turned off in **Setup → Checks that run on their own**, which the first-open note also offers. **Setup → What is collected** lists every source and whether it can read.
 
+On a desktop that shows tray icons (KDE Plasma, or GNOME with the AppIndicator extension), closing the window also leaves the app itself in the tray; clicking the tray icon, or opening Bigman again, brings the same window back, and a right click shows its menu. On other desktops, closing the window quits the app. `bigman-app --background` starts it in the tray without opening a window, which is what a login autostart entry should run.
+
 To stop it, click **Stop background checks…** in **Setup → Background checks** (Bigman quits too, since the open app would start it again), choose **Quit and stop background checks** from the tray menu, or run `bigman daemon stop`. It starts again the next time you open Bigman. If you installed the background services, it also starts at your next login, and the canary monitor and the daily ClamAV signature download keep running; remove the services in **Setup → Background services** or with `bigman services --remove --apply`.
 
 ## What it checks

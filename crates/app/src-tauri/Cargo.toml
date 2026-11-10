@@ -21,6 +21,10 @@ serde.workspace = true
 serde_json.workspace = true
 rfd = { version = "0.15", default-features = false, features = ["xdg-portal", "tokio"] }
 tauri = { version = "2.12", features = ["tray-icon", "image-png"] }
+# The same tray-icon Tauri uses, with its StatusNotifierItem backend switched on. The
+# default AppIndicator backend cannot report a click, so a left click could only open
+# the menu; this one reports it, and the click opens the window.
+tray-icon = { version = "0.25", default-features = false, features = ["ksni"] }
 tauri-plugin-opener = "2.7"
 tauri-plugin-window-state = "2.5"
 

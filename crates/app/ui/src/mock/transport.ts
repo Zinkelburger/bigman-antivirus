@@ -35,7 +35,7 @@ const LOCKFILES = new Set(["package-lock.json", "npm-shrinkwrap.json", "yarn.loc
  * A small in-memory bigmand for `npm run dev:browser` and tests. Checks return
  * synthetic reports, actions change the in-memory state, and cancel works. The
  * scenario comes from `?scenario=` (findings, calm, incomplete, empty,
- * disconnected, loading).
+ * disconnected, loading, or busy: findings with enough Network rows to scroll).
  */
 class MockDaemon {
   reports: Report[];

@@ -1,17 +1,23 @@
 //! Tray icon: quiet; attention when Activity has unread entries; problem when the
-//! daemon is down or signatures are older than seven days. Menu: Open, Pause
-//! notifications (a daemon setting, since the daemon raises them), and two ways
-//! to quit, because bigmand outlives the window unless asked to stop.
+//! daemon is down or signatures are older than seven days. A left click opens the
+//! window. The right-click menu: Open, Pause notifications (a daemon setting, since
+//! the daemon raises them), and two ways to quit, because bigmand outlives the
+//! window unless asked to stop. Closing the window leaves the app here when the
+//! desktop shows tray icons.
 use crate::daemon::Launcher;
 use bigman_core::{
     ipc::{Request, Response},
     model::now,
 };
-use std::{sync::Arc, time::Duration};
+use std::{
+    process::{Command, Stdio},
+    sync::Arc,
+    time::Duration,
+};
 use tauri::{
     image::Image,
     menu::{Menu, MenuItem},
-    tray::TrayIconBuilder,
+    tray::{MouseButton, TrayIconBuilder, TrayIconEvent},
     AppHandle, Manager,
 };
 
@@ -35,11 +41,12 @@ fn icon(state: TrayState) -> tauri::Result<Image<'static>> {
     })
 }
 
+/// The line under the name "Bigman" (the tray item's title) when the pointer rests on it.
 fn tooltip(state: TrayState) -> &'static str {
     match state {
-        TrayState::Quiet => "Bigman",
-        TrayState::Attention => "Bigman: new entries in Activity",
-        TrayState::Problem => "Bigman: background collection needs attention",
+        TrayState::Quiet => "Nothing new in Activity",
+        TrayState::Attention => "New entries in Activity",
+        TrayState::Problem => "Background collection needs attention",
     }
 }
 
@@ -69,16 +76,22 @@ pub fn install(app: &AppHandle) -> tauri::Result<()> {
     let menu = Menu::with_items(app, &[&open, &pause, &quit, &quit_all])?;
     let tray = TrayIconBuilder::with_id("bigman")
         .icon(icon(TrayState::Quiet)?)
+        // The name the desktop lists this icon under, and the tooltip's first line.
+        .title("Bigman")
         .tooltip(tooltip(TrayState::Quiet))
         .menu(&menu)
-        .show_menu_on_left_click(true)
-        .on_menu_event(|app, event| match event.id().as_ref() {
-            "open" => {
-                if let Some(window) = app.get_webview_window("main") {
-                    let _ = window.show();
-                    let _ = window.set_focus();
-                }
+        .show_menu_on_left_click(false)
+        .on_tray_icon_event(|tray, event| {
+            if let TrayIconEvent::Click {
+                button: MouseButton::Left,
+                ..
+            } = event
+            {
+                crate::show_window(tray.app_handle());
             }
+        })
+        .on_menu_event(|app, event| match event.id().as_ref() {
+            "open" => crate::show_window(app),
             "pause" => {
                 let launcher = app.state::<Arc<Launcher>>().inner().clone();
                 std::thread::spawn(move || pause_notifications(&launcher));
@@ -110,6 +123,31 @@ pub fn install(app: &AppHandle) -> tauri::Result<()> {
         }
     });
     Ok(())
+}
+
+/// Whether this desktop shows tray icons: something owns the StatusNotifierItem
+/// watcher name, as KDE Plasma does and GNOME does with the AppIndicator extension.
+/// Asked through `gdbus`, which ships with GLib. No answer counts as no tray, so a
+/// closed window is never left running where nothing on screen leads back to it.
+pub fn desktop_has_tray() -> bool {
+    Command::new("gdbus")
+        .args([
+            "call",
+            "--session",
+            "--timeout",
+            "2",
+            "--dest",
+            "org.freedesktop.DBus",
+            "--object-path",
+            "/org/freedesktop/DBus",
+            "--method",
+            "org.freedesktop.DBus.NameHasOwner",
+            "org.kde.StatusNotifierWatcher",
+        ])
+        .stdin(Stdio::null())
+        .stderr(Stdio::null())
+        .output()
+        .is_ok_and(|out| out.status.success() && out.stdout.starts_with(b"(true"))
 }
 
 fn pause_notifications(launcher: &Launcher) {

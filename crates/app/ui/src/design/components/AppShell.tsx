@@ -85,7 +85,7 @@ export function AppShell<T extends string>({ tabs, active, onSelect, statusStrip
         <div className="relative min-h-0">
           {/* While the panel is open the page behind it is inert; clicking it closes the panel. */}
           <div className="h-full" onClick={panelOpen ? closePanel : undefined}>
-            <main id="content" tabIndex={-1} inert={panelOpen} className="h-full overflow-y-auto outline-none">
+            <main id="content" tabIndex={-1} inert={panelOpen} className="relative h-full overflow-y-auto outline-none">
               {children}
             </main>
           </div>

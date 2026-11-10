@@ -25,7 +25,7 @@ export function DiffView({ hunks, label = "Changes" }: { hunks: DiffHunk[]; labe
   return (
     <figure className="m-0 overflow-hidden rounded-panel border border-rule bg-surface">
       <figcaption className="border-b border-rule px-3 py-1 text-small font-semibold text-ink-muted">{label}</figcaption>
-      <div className="overflow-x-auto font-mono text-small leading-5">
+      <div className="relative overflow-x-auto font-mono text-small leading-5">
         {hunks.map((hunk, h) => {
           let oldLine = hunk.oldStart;
           let newLine = hunk.newStart;

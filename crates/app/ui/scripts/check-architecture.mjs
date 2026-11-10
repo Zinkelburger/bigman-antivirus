@@ -1,4 +1,5 @@
-// Enforces the folder rules from docs/plan/implementation-plan.md, part C3.
+// Enforces the folder rules from docs/plan/implementation-plan.md, part C3, and one
+// layout rule that no test in jsdom can see.
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
 
@@ -42,6 +43,15 @@ for (const file of files(root)) {
     }
     if ((top === "design" || top === "ipc") && (toTop === "features" || toTop === "shell")) {
       problems.push(`${at}: ${top}/ must not depend on ${toTop}/`);
+    }
+  }
+  // A scrolling box must be positioned. Visually hidden text (`sr-only`) is absolutely
+  // positioned, so inside an unpositioned scroller it stays put while the content
+  // scrolls and stretches whatever does contain it: the window scrolled past the end
+  // of the Network tab this way.
+  for (const [, classes] of source.matchAll(/["'`]([^"'`\n]*\boverflow-(?:[xy]-)?(?:auto|scroll)\b[^"'`\n]*)["'`]/g)) {
+    if (!/(?:^|\s)(?:relative|absolute|fixed|sticky)(?:\s|$)/.test(classes)) {
+      problems.push(`${at}: scroll container "${classes.trim()}" needs "relative" so hidden labels scroll with it`);
     }
   }
   // Declarations only (`type X =`, `interface X`), not `type X` inside an import list.
