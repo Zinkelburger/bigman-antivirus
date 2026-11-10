@@ -132,7 +132,8 @@ pub fn self_test(store: &Store, id: &str) -> Result<()> {
     Ok(())
 }
 pub fn notify(summary: &str, body: &str) {
-    if runner::available("notify-send") {
+    // Tests run the real monitor; they must not pop up on the developer's desktop.
+    if !cfg!(test) && runner::available("notify-send") {
         let _ = runner::run(
             std::process::Command::new("notify-send").args([
                 "--app-name=Bigman",
@@ -305,7 +306,51 @@ pub fn event_finding(r: &mut Report, canary_id: &str, kinds: &[&str]) {
     r.add("canary.event",Severity::High,"A decoy file was accessed or changed",format!("Canary {}: {}",canary_id,kinds.join(", ")),"Check recent activity. Backup/indexing tools and the Test button can also trigger decoys. inotify cannot identify the responsible process.");
 }
 
+/// True when an inotify event on `path` concerns decoy `c`. Events on the
+/// folder itself only count when the folder is moved or deleted: listing a
+/// folder (ls, a file manager) reports a read of the folder, not of the decoy.
+fn concerns(c: &Canary, path: &Path, mask: u32) -> bool {
+    c.path == path
+        || (c.path.parent() == Some(path)
+            && mask & (libc::IN_DELETE_SELF | libc::IN_MOVE_SELF) != 0)
+}
+
+/// The decoy no longer exists, in a folder that still does. A missing folder may
+/// be an unmounted drive that comes back, so that decoy stays registered.
+fn decoy_gone(path: &Path) -> bool {
+    path.parent().is_some_and(Path::is_dir)
+        && matches!(fs::symlink_metadata(path), Err(e) if e.kind() == std::io::ErrorKind::NotFound)
+}
+
+/// Runs the monitor in the foreground until `stop`, for `bigman watch`.
 pub fn watch(store: &Store, stop: &Cancel) -> Result<()> {
+    monitor(store, stop, &|| true)
+}
+
+/// bigmand's monitor thread: runs the monitor while it is switched on. Living in
+/// bigmand's process, it ends however bigmand ends, even when bigmand is killed.
+pub fn supervise(store: &Store, stop: &Cancel) {
+    let mut reported = None;
+    while !stop.load(Ordering::Relaxed) {
+        let mut pause = Duration::from_millis(500);
+        if setup::wanted(store) {
+            if let Err(e) = monitor(store, stop, &|| setup::wanted(store)) {
+                let message = format!("{e:#}");
+                if reported.as_ref() != Some(&message) {
+                    eprintln!("bigmand: canary monitor: {}", crate::model::clean(&message));
+                    reported = Some(message);
+                }
+                pause = Duration::from_secs(5);
+            }
+        }
+        let started = Instant::now();
+        while started.elapsed() < pause && !stop.load(Ordering::Relaxed) {
+            std::thread::sleep(Duration::from_millis(100));
+        }
+    }
+}
+
+fn monitor(store: &Store, stop: &Cancel, wanted: &dyn Fn() -> bool) -> Result<()> {
     let lock = fs::OpenOptions::new()
         .read(true)
         .write(true)
@@ -321,7 +366,7 @@ pub fn watch(store: &Store, stop: &Cancel) -> Result<()> {
     let startup = Report::new("Monitor started", "Canary and persistence monitoring");
     store.save(&startup)?;
     let result = (|| -> Result<()> {
-        while !stop.load(Ordering::Relaxed) {
+        while !stop.load(Ordering::Relaxed) && wanted() {
             let entries = list(store)?;
             let mut errors = watcher.configure(&entries);
             for c in &entries {
@@ -375,10 +420,7 @@ pub fn watch(store: &Store, stop: &Cancel) -> Result<()> {
                 let Some(path) = path else {
                     continue;
                 };
-                for c in entries
-                    .iter()
-                    .filter(|c| c.path == path || c.path.parent() == Some(path.as_path()))
-                {
+                for c in entries.iter().filter(|c| concerns(c, &path, mask)) {
                     // A receipt proves a new kernel read event, even when notifications are debounced.
                     if c.path == path && mask & libc::IN_ACCESS != 0 {
                         store.write(
@@ -390,6 +432,13 @@ pub fn watch(store: &Store, stop: &Cancel) -> Result<()> {
                                 created: now(),
                             },
                         )?;
+                    }
+                    // The check below reports a decoy's removal, once and undebounced.
+                    if c.path == path
+                        && mask & (libc::IN_DELETE | libc::IN_MOVED_FROM) != 0
+                        && decoy_gone(&c.path)
+                    {
+                        continue;
                     }
                     if last
                         .get(&c.id)
@@ -412,8 +461,32 @@ pub fn watch(store: &Store, stop: &Cancel) -> Result<()> {
                     );
                 }
             }
+            // A deleted decoy alerts once and leaves the list, so nothing about a
+            // file that no longer exists can alert again.
+            for c in entries.iter().filter(|c| decoy_gone(&c.path)) {
+                let mut r = Report::new("Canary triggered", c.path.display());
+                event_finding(&mut r, &c.id, &["removed or moved"]);
+                r.coverage.push(
+                    "The decoy no longer exists, so Bigman stopped watching it. Set up a new one to keep watching this path.".into(),
+                );
+                store.save(&r)?;
+                disarm(store, &c.id)?;
+                notify(
+                    "Bigman canary removed",
+                    &format!(
+                        "{} is gone, so Bigman stopped watching it",
+                        c.path.display()
+                    ),
+                );
+            }
             if persist.elapsed() > Duration::from_secs(300) {
-                let r = crate::checks::changes::changes(store, &crate::runner::cancel())?;
+                let r = match crate::checks::changes::changes(store, stop) {
+                    Err(_) if stop.load(Ordering::Relaxed) => break,
+                    r => r?,
+                };
+                if stop.load(Ordering::Relaxed) {
+                    break;
+                }
                 let fingerprint =
                     crate::store::digest(&serde_json::to_vec(&(&r.findings, &r.errors))?);
                 let previous = store
@@ -442,6 +515,66 @@ pub fn watch(store: &Store, stop: &Cancel) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn listing_the_folder_is_not_a_read_of_the_decoy() {
+        let c = Canary {
+            id: "id".into(),
+            path: PathBuf::from("/home/u/Documents/decoy.env"),
+            created: 0,
+            kind: "local-decoy".into(),
+        };
+        let folder = Path::new("/home/u/Documents");
+        let listing = libc::IN_ACCESS | libc::IN_ISDIR;
+        assert!(!concerns(&c, folder, listing));
+        assert!(!concerns(&c, folder, libc::IN_ATTRIB | libc::IN_ISDIR));
+        assert!(!concerns(&c, &folder.join("other.txt"), libc::IN_ACCESS));
+        assert!(concerns(&c, folder, libc::IN_DELETE_SELF));
+        assert!(concerns(&c, folder, libc::IN_MOVE_SELF));
+        assert!(concerns(&c, &c.path, libc::IN_ACCESS));
+    }
+    #[test]
+    fn only_a_missing_file_in_a_present_folder_is_gone() {
+        let d = tempfile::tempdir().unwrap();
+        let file = d.path().join("decoy.env");
+        assert!(decoy_gone(&file));
+        fs::write(&file, "x").unwrap();
+        assert!(!decoy_gone(&file));
+        assert!(!decoy_gone(&d.path().join("unmounted/decoy.env")));
+    }
+    #[test]
+    fn a_deleted_decoy_alerts_once_and_leaves_the_list() {
+        let d = tempfile::tempdir().unwrap();
+        let store = Store::open(Some(d.path().join("state"))).unwrap();
+        let folder = d.path().join("documents");
+        fs::create_dir(&folder).unwrap();
+        let c = create(&store, &folder.join("decoy.env"), None).unwrap();
+        let stop = runner::cancel();
+        let thread = {
+            let (store, stop) = (store.clone(), stop.clone());
+            std::thread::spawn(move || watch(&store, &stop))
+        };
+        let wait_for = |done: &dyn Fn() -> bool| {
+            let started = Instant::now();
+            while !done() {
+                assert!(started.elapsed() < Duration::from_secs(10));
+                std::thread::sleep(Duration::from_millis(50));
+            }
+        };
+        wait_for(&|| setup::health(&store).is_some_and(|h| h.watched_ids == [c.id.clone()]));
+        fs::remove_file(&c.path).unwrap();
+        wait_for(&|| list(&store).unwrap().is_empty());
+        fs::read_dir(&folder).unwrap().for_each(drop);
+        std::thread::sleep(Duration::from_millis(1200));
+        stop.store(true, Ordering::Relaxed);
+        thread.join().unwrap().unwrap();
+        let alerts: Vec<_> = fs::read_dir(store.root.join("reports"))
+            .unwrap()
+            .map(|e| fs::read_to_string(e.unwrap().path()).unwrap())
+            .filter(|r| r.contains("canary.event"))
+            .collect();
+        assert_eq!(alerts.len(), 1, "{alerts:?}");
+        assert!(alerts[0].contains("removed or moved"));
+    }
     #[test]
     fn reattaches_after_parent_directory_replacement() {
         let d = tempfile::tempdir().unwrap();

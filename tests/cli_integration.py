@@ -174,7 +174,7 @@ if sys.argv[1] == 'start': sys.exit(7)
     podman.unlink()
 
     preview = run('services', raw=True).stdout.decode()
-    assert 'bigman-monitor.service' in preview
+    assert 'bigmand.service' in preview and 'bigman-monitor.service' not in preview
     assert not (home / '.config/systemd/user/bigman-monitor.service').exists()
     assert all((p.stat().st_mode & 0o077) == 0 for p in (state / 'reports').iterdir())
 

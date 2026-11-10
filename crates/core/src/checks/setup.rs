@@ -225,7 +225,6 @@ pub fn service_plan(store: &Store) -> Result<Vec<(String, String)>> {
         quote(&exe.to_string_lossy())?,
         quote(&store.root.to_string_lossy())?
     );
-    let monitor=format!("[Unit]\nDescription=Bigman local canary and persistence monitor\n[Service]\nType=simple\nExecStart={base} watch\nRestart=on-failure\nRestartSec=5\nNoNewPrivileges=true\nUMask=0077\n[Install]\nWantedBy=default.target\n");
     let update=format!("[Unit]\nDescription=Bigman private signature update\n[Service]\nType=oneshot\nExecStart={base} update\nNoNewPrivileges=true\nUMask=0077\n");
     let daemon = format!(
         "[Unit]\nDescription=Bigman collector daemon\n[Service]\nType=simple\nExecStart={} --state {}\nRestart=on-failure\nRestartSec=10\nNoNewPrivileges=true\nUMask=0077\n[Install]\nWantedBy=default.target\n",
@@ -237,7 +236,6 @@ pub fn service_plan(store: &Store) -> Result<Vec<(String, String)>> {
         ("bigmand.service".into(), daemon),
         ("bigman-update.service".into(), update),
         ("bigman-update.timer".into(), update_timer.into()),
-        ("bigman-monitor.service".into(), monitor),
     ])
 }
 
@@ -253,13 +251,17 @@ fn unit_dir() -> PathBuf {
         .join("systemd/user")
 }
 
-/// Whether the background services are installed, so bigmand, the monitor and
-/// the signature update also start at login.
+/// Whether the background services are installed, so bigmand and the signature
+/// update also start at login. The timer tells this from canary setup, which
+/// installs bigmand.service alone.
 pub fn services_installed() -> bool {
-    unit_dir().join("bigmand.service").exists()
+    unit_dir().join("bigman-update.timer").exists()
 }
 
 pub fn services(store: &Store, apply: bool, remove: bool, stop: &Cancel) -> Result<String> {
+    if apply {
+        adopt_monitor_service(store, stop)?;
+    }
     let plan = service_plan(store)?;
     let root = unit_dir();
     let legacy: Vec<&str> = LEGACY
@@ -310,7 +312,6 @@ pub fn services(store: &Store, apply: bool, remove: bool, stop: &Cancel) -> Resu
                 "disable",
                 "--now",
                 "bigmand.service",
-                "bigman-monitor.service",
                 "bigman-update.timer",
             ]),
             30,
@@ -355,7 +356,6 @@ pub fn services(store: &Store, apply: bool, remove: bool, stop: &Cancel) -> Resu
                 "enable",
                 "--now",
                 "bigmand.service",
-                "bigman-monitor.service",
                 "bigman-update.timer",
             ]),
             30,
@@ -365,28 +365,25 @@ pub fn services(store: &Store, apply: bool, remove: bool, stop: &Cancel) -> Resu
             bail!("Units written, but enable failed: {}", o.stderr);
         }
     }
-    Ok(if remove{"User services removed"}else{"The collector daemon, the canary and startup monitor and the daily signature update are enabled. They follow your user session; no system-wide service or lingering was enabled. A daemon the app already started keeps running until you log out, and the service takes over from the next login."}.into())
+    Ok(if remove{"User services removed"}else{"The collector daemon, with the canary and startup monitor inside it, and the daily signature update are enabled. They follow your user session; no system-wide service or lingering was enabled. A daemon the app already started keeps running until you log out, and the service takes over from the next login."}.into())
 }
-/// Configure only the monitor; easy canary setup must not enable the other units.
-pub fn monitor_service(
-    store: &Store,
-    remove: bool,
-    already_running: bool,
-    stop: &Cancel,
-) -> Result<()> {
-    let root = std::env::var_os("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| home().join(".config"))
-        .join("systemd/user");
+/// Configures only bigmand at login, which carries the monitor; canary setup must
+/// not enable the other units. Removing leaves it when the full background
+/// services are installed, and never stops a running bigmand.
+pub fn daemon_login_service(store: &Store, remove: bool, stop: &Cancel) -> Result<()> {
+    let root = unit_dir();
+    if remove && services_installed() {
+        return Ok(());
+    }
     let (name, contents) = service_plan(store)?
         .into_iter()
-        .find(|(name, _)| name == "bigman-monitor.service")
+        .find(|(name, _)| name == "bigmand.service")
         .unwrap();
     let path = root.join(&name);
     if path.symlink_metadata().is_ok() {
         let existing = crate::store::read_file(&path, crate::store::MAX_INPUT)?;
         if existing != contents.as_bytes() {
-            bail!("Existing monitor unit has different settings. Review it in Tools before replacing it: {}", path.display());
+            bail!("Existing bigmand unit has different settings. Review it in Tools before replacing it: {}", path.display());
         }
     } else if remove {
         return Ok(());
@@ -401,12 +398,12 @@ pub fn monitor_service(
     }
     if remove {
         let result = runner::run(
-            Command::new("systemctl").args(["--user", "disable", "--now", &name]),
+            Command::new("systemctl").args(["--user", "disable", &name]),
             10,
             stop,
         )?;
         if !result.ok() {
-            bail!("Could not disable monitor: {}", result.stderr);
+            bail!("Could not disable bigmand at login: {}", result.stderr);
         }
         fs::remove_file(&path)?;
     } else {
@@ -422,21 +419,53 @@ pub fn monitor_service(
         stop,
     )?;
     if !reload.ok() {
-        bail!("Monitor unit changed, but reload failed: {}", reload.stderr);
+        bail!("bigmand unit changed, but reload failed: {}", reload.stderr);
     }
     if !remove {
-        let mut cmd = Command::new("systemctl");
-        cmd.args(["--user", "enable"]);
-        // An existing detached monitor holds the lock until logout; enable its successor at login.
-        if !already_running {
-            cmd.arg("--now");
-        }
-        let result = runner::run(cmd.arg(&name), 10, stop)?;
+        let result = runner::run(
+            Command::new("systemctl").args(["--user", "enable", &name]),
+            10,
+            stop,
+        )?;
         if !result.ok() {
-            bail!("Could not enable monitor: {}", result.stderr);
+            bail!("Could not enable bigmand at login: {}", result.stderr);
         }
     }
     Ok(())
+}
+
+/// Earlier versions ran the monitor as its own login service, which kept running
+/// after Bigman was stopped. Moves one Bigman wrote over to bigmand: the monitor
+/// stays on, and only bigmand starts at login. A unit with other settings is left.
+pub fn adopt_monitor_service(store: &Store, stop: &Cancel) -> Result<()> {
+    let name = "bigman-monitor.service";
+    let path = unit_dir().join(name);
+    if path.symlink_metadata().is_err() {
+        return Ok(());
+    }
+    let base = format!(
+        "{} --state {}",
+        quote(&runner::bigman_executable()?.to_string_lossy())?,
+        quote(&store.root.to_string_lossy())?
+    );
+    let ours = format!("[Unit]\nDescription=Bigman local canary and persistence monitor\n[Service]\nType=simple\nExecStart={base} watch\nRestart=on-failure\nRestartSec=5\nNoNewPrivileges=true\nUMask=0077\n[Install]\nWantedBy=default.target\n");
+    if crate::store::read_file(&path, crate::store::MAX_INPUT)? != ours.as_bytes() {
+        return Ok(());
+    }
+    crate::checks::canary::setup::keep_on(store)?;
+    let result = runner::run(
+        Command::new("systemctl").args(["--user", "disable", "--now", name]),
+        10,
+        stop,
+    )?;
+    if !result.ok() {
+        bail!(
+            "Could not disable the old monitor service: {}",
+            result.stderr
+        );
+    }
+    fs::remove_file(&path)?;
+    daemon_login_service(store, false, stop)
 }
 pub fn open_tool(tool: &str) -> Result<()> {
     match tool {

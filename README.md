@@ -37,13 +37,14 @@ Opening the app starts `bigmand` if it isn't already running. It runs as you, wi
 - **New project folders** cloned or unpacked into `~/Projects`, `~/src`, `~/code` (and similar folders) or Downloads are checked for what they would run when opened in an editor or terminal. Nothing in them is run.
 - **Security updates** are checked once a day and shortly after package changes. This is the only automatic use of the network. It downloads public security data from your distribution and CISA's list of exploited vulnerabilities; no package list is sent.
 - **Activity** records the first time each of your programs connects somewhere new, new listening programs, package installs, SELinux and AppArmor denials, SSH keys and logins, and AI-tool plugins. This only reads your own computer.
+- **Canaries**: once you set up a decoy file, its monitor runs as part of `bigmand`. It stops whenever `bigmand` stops, however that happens.
 - **Notifications**: findings to review appear as a desktop notification, at most one a minute. Other kinds are off until you turn them on in **Setup → Notifications**.
 
 The first three can be turned off in **Setup → Checks that run on their own**, which the first-open note also offers. **Setup → What is collected** lists every source and whether it can read.
 
 On a desktop that shows tray icons (KDE Plasma, or GNOME with the AppIndicator extension), closing the window also leaves the app itself in the tray; clicking the tray icon, or opening Bigman again, brings the same window back, and a right click shows its menu. On other desktops, closing the window quits the app. `bigman-app --background` starts it in the tray without opening a window, which is what a login autostart entry should run.
 
-To stop it, click **Stop background checks…** in **Setup → Background checks** (Bigman quits too, since the open app would start it again), choose **Quit and stop background checks** from the tray menu, or run `bigman daemon stop`. It starts again the next time you open Bigman. If you installed the background services, it also starts at your next login, and the canary monitor and the daily ClamAV signature download keep running; remove the services in **Setup → Background services** or with `bigman services --remove --apply`.
+To stop it, click **Stop background checks…** in **Setup → Background checks** (Bigman quits too, since the open app would start it again), choose **Quit and stop background checks** from the tray menu, or run `bigman daemon stop`. It starts again the next time you open Bigman. The canary monitor stops with it. If you installed the background services, it also starts at your next login, and the daily ClamAV signature download keeps running; remove the services in **Setup → Background services** or with `bigman services --remove --apply`.
 
 ## What it checks
 

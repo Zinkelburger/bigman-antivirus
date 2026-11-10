@@ -44,7 +44,8 @@ impl Source for Heartbeat {
                 .read::<canary::Health>("monitor-health.json")
                 .ok()
                 .map(|h| h.updated),
-            monitor_expected: canary::list(ctx.store).is_ok_and(|c| !c.is_empty()),
+            monitor_expected: canary::setup::wanted(ctx.store)
+                && canary::list(ctx.store).is_ok_and(|c| !c.is_empty()),
             daemon_stopped: setting(DAEMON_STOPPED).and_then(|s| s.parse().ok()),
         };
         let events = tracker.step(&tick);
