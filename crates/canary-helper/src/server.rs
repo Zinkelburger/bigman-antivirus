@@ -439,8 +439,10 @@ pub fn serve(config: &Config, stream: UnixStream, uid: u32) -> Result<()> {
     let events = events
         .join()
         .unwrap_or_else(|_| Err(anyhow!("The events thread panicked")));
-    // A client that left while an event was on its way is not an error.
-    let events = events.or_else(|e| match e.downcast_ref::<std::io::Error>() {
+    // A client that left is not an error, whichever side notices. One that
+    // left with events it never read still queued shows up as a reset, on the
+    // write of the next event or on the read for its next request.
+    let left = |e: anyhow::Error| match e.downcast_ref::<std::io::Error>() {
         Some(io)
             if matches!(
                 io.kind(),
@@ -450,8 +452,8 @@ pub fn serve(config: &Config, stream: UnixStream, uid: u32) -> Result<()> {
             Ok(())
         }
         _ => Err(e),
-    });
-    result.and(events)
+    };
+    result.or_else(left).and(events.or_else(left))
 }
 
 #[cfg(test)]
@@ -983,6 +985,24 @@ mod tests {
         assert!(seen
             .iter()
             .any(|m| matches!(m, HelperMessage::Event { id, .. } if id == "decoy")));
+        drop(client);
+        handle.join().unwrap().unwrap();
+    }
+
+    #[test]
+    fn a_client_that_leaves_with_events_unread_is_not_an_error() {
+        let d = tempfile::tempdir().unwrap();
+        let decoy = d.path().join("decoy.env");
+        std::fs::write(&decoy, "fake").unwrap();
+        let (client, server) = UnixStream::pair().unwrap();
+        let c = config(d.path());
+        let handle = std::thread::spawn(move || serve(&c, server, me()));
+        let mut client = connect(client);
+        let (ids, _) = watching(&mut client, vec![file("decoy", &decoy)]);
+        assert_eq!(ids, ["decoy"]);
+        std::fs::read(&decoy).unwrap();
+        // Long enough for the event to be written to the socket, and never read.
+        std::thread::sleep(Duration::from_millis(800));
         drop(client);
         handle.join().unwrap().unwrap();
     }
