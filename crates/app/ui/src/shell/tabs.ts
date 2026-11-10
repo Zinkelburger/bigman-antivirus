@@ -1,10 +1,11 @@
-import { Binoculars, Fence, Network, NotebookTabs, ScanSearch, Wrench } from "lucide-react";
+import { ArrowDownUp, Binoculars, Fence, Network, NotebookTabs, ScanSearch, Wrench } from "lucide-react";
 import type { ShellTab } from "@/design";
 import type { TabId } from "./store";
 
 export const TABS: readonly ShellTab<TabId>[] = [
   { id: "overview", label: "Overview", icon: NotebookTabs },
   { id: "network", label: "Network", icon: Network },
+  { id: "traffic", label: "Traffic", icon: ArrowDownUp },
   { id: "activity", label: "Activity", icon: Binoculars },
   { id: "inspect", label: "Inspect", icon: ScanSearch },
   { id: "protect", label: "Protect", icon: Fence },

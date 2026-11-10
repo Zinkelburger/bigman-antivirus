@@ -66,7 +66,7 @@ To stop it, click **Stop background checks…** in **Setup → Background checks
 | Before you run something | Installer scripts (`curl … \| sh`), archives, `.desktop` launchers, `.deb`, `.rpm`, Arch and AppImage packages, npm, Python, Rust and VS Code packages, lockfiles, PDFs, cloned projects | **Inspect**, `bigman check FILE-FOLDER-OR-URL` |
 | Files | ClamAV scans, quarantine and restore | **Protect → Scans**, `bigman scan` |
 | Your system | Startup and login files against your baseline, package sources, security updates, hardening suggestions, AI-tool skills and plugins | **Protect** |
-| What happens | Connections, listening programs, package changes with install receipts, denials, SSH access | **Activity**, **Network** |
+| What happens | Connections, listening programs, traffic by program, package changes with install receipts, denials, SSH access | **Activity**, **Network**, **Traffic** |
 | Decoys | Canary files that alert you when read | **Protect → Canaries**, [docs/canaries.md](docs/canaries.md) |
 | Browser | Lookalike links, ClickFix pages, your own blocklists | [docs/browser-extension.md](docs/browser-extension.md) |
 

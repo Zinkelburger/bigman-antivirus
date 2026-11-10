@@ -18,7 +18,7 @@ use crate::{
         setup::ToolGroup,
         skills::SkillItem,
     },
-    model::{Event, Report, Sample, SampleSeries, SourceId, Unread},
+    model::{Event, Report, Sample, SampleSeries, SourceId, TrafficReport, Unread},
     notify::NotificationSettings,
     rules::RuleInfo,
     sources::{NetworkSnapshot, Preferences, SourceStatus},
@@ -178,6 +178,12 @@ pub enum Request {
         until: u64,
         points: u32,
     },
+    /// TCP traffic by program in `[since, until]`, in about `points` intervals.
+    Traffic {
+        since: u64,
+        until: u64,
+        points: u32,
+    },
     /// Current connections and listeners.
     Network,
     /// Each source's health, for Setup and the timeline's coverage.
@@ -229,6 +235,7 @@ pub enum Response {
     Receipt(Box<Receipt>),
     Decision(Decision),
     Samples(SampleSeries),
+    Traffic(Box<TrafficReport>),
     Network(Box<NetworkSnapshot>),
     Sources(Vec<SourceStatus>),
     Notifications(NotificationSettings),

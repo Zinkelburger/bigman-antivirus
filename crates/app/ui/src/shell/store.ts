@@ -3,7 +3,7 @@ import { useDrilldown } from "@/design";
 
 export type ProtectView = "hardening" | "scans" | "updates" | "quarantine" | "startup" | "running" | "skills" | "canaries" | "audits";
 
-export const TAB_IDS = ["overview", "network", "activity", "inspect", "protect", "setup"] as const;
+export const TAB_IDS = ["overview", "network", "traffic", "activity", "inspect", "protect", "setup"] as const;
 export type TabId = (typeof TAB_IDS)[number];
 
 export type Range = "5m" | "1h" | "24h" | "7d";

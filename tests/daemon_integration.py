@@ -199,7 +199,7 @@ sys.exit(1 if detected else 0)
         assert unread['first_seen'] > 0
         assert value({'type': 'mark_seen', 'through': unread['through']}, 'unread')['first_seen'] == 0
         names = {s['name'] for s in value({'type': 'sources'}, 'sources')}
-        assert names >= {'throughput', 'connections', 'listeners', 'denials', 'reports'}, names
+        assert names >= {'throughput', 'traffic', 'connections', 'listeners', 'denials', 'reports'}, names
 
         # The opt-in pre-transaction preview, as dnf's hook runs it: stage a package,
         # preview, and the app (a subscriber here) answers Abort.
@@ -237,6 +237,11 @@ sys.exit(1 if detected else 0)
         assert cli('sources').returncode == 0
         network = cli('network')
         assert network.returncode == 0 and 'listeners' in json.loads(network.stdout), network.stderr
+        traffic = cli('traffic')
+        assert traffic.returncode == 0, traffic.stderr
+        report = json.loads(traffic.stdout)
+        assert report['coverage']['checked'] and any('UDP' in n for n in report['coverage']['notes']), report['coverage']
+        assert len(report['rest_rx']) == len(report['at']) > 0, 'every interval in the range is present, busy or not'
         # The Downloads watch: a new file is checked by the matching inspector and
         # posted once, as a download, not again as a report.
         (downloads / 'Invoice.pdf.desktop').write_text('[Desktop Entry]\nType=Application\nName=Invoice.pdf\nExec=sh -c "echo fixture"\nIcon=application-pdf\n')

@@ -24,6 +24,12 @@ colors:
   high: "oklch(51% 0.18 27)"
   high-soft: "oklch(95.5% 0.025 27)"
   calm: "oklch(50% 0.09 155)"
+  series-1: "oklch(57.5% 0.163 256)"
+  series-2: "oklch(62.2% 0.173 40)"
+  series-3: "oklch(58.4% 0.118 165)"
+  series-4: "oklch(63% 0.134 73)"
+  series-5: "oklch(62.2% 0.171 1)"
+  series-rest: "oklch(61% 0.006 90)"
 typography:
   title:
     fontFamily: "Atkinson Hyperlegible Next Variable, ui-sans-serif, system-ui, sans-serif"
@@ -228,6 +234,10 @@ A neutral, nearly untinted paper-and-graphite palette (hue 90, chroma at most 0.
 ### Tertiary
 - **Lichen Green** (`calm`): an 8 px dot only. It sits beside "Background checks running" in the status strip, beside the one calm StatusLine ("No findings from these checks. Ran at ..."), and beside "Local read detection verified" in a report.
 
+### Data series (program identity, Traffic only)
+- **Plate Colors** (`series-1` to `series-5`: blue, orange, aqua, yellow, magenta): the hues of a field guide's color plate, one per program among the five that moved the most data. They fill that program's band in the StackedAreaChart, its swatch and its bar in a ShareList, and nothing else. The order is fixed because it is what keeps neighbors apart for color-blind readers (checked with the dataviz validator: worst adjacent pair ΔE 8.3 light, 8.4 dark), and every step is at least 3:1 against `ground` in both themes; dark mode has its own steps of the same five hues.
+- **Plate Gray** (`series-rest`): every program outside the five, as one neutral band, swatch or bar.
+
 ### Neutral
 - **Paper Ground** (`ground`): the page and window background; also the hover fill for secondary buttons, chips, table rows and timeline rows.
 - **Sheet** (`surface`): every panel, tile, table, timeline frame, input, the drill-down panel, the dialog and the status strip.
@@ -242,6 +252,8 @@ A neutral, nearly untinted paper-and-graphite palette (hue 90, chroma at most 0.
 **The Reserved Severity Rule.** Info, Review and High hues appear only on severity: the SeverityBadge and severity-matched evidence lines. They are never used for decoration, charts, buttons or status. Severity is always icon plus word (Info, Eye, TriangleAlert icons), never color alone.
 
 **The One Ink Rule.** The violet accent marks interaction and first sightings, nothing else. Diff additions are neutral (`sunken`), not accent; chart lines are ink, not accent.
+
+**The Plate Rule.** A series hue means "this program" and only in traffic marks. It follows the program, not its rank or the range on screen: hues are dealt from the seven-day ranking and remembered between windows, a program keeps its hue while it stays among those five, and a sixth program is gray rather than a sixth hue. A mark wears a hue only when that one program is behind all of it: an address several programs reach is gray. Text never wears a series hue; the name beside the mark is in ink, so identity is never color alone.
 
 **The Quiet Green Rule.** Calm green is an 8 px dot beside a sentence, never a badge, fill or verdict, and never next to the words safe, clean, protected or secure.
 
@@ -270,7 +282,7 @@ Tabular numerals are set on `html` (`font-variant-numeric: tabular-nums`), so ev
 
 A fixed two-column desktop shell: a 12rem (192 px) graphite rail and a fluid content column, with a 32 px status strip at the foot of the content column. Minimum window 960 x 600; nothing scrolls horizontally, the main region scrolls vertically.
 
-- **Rail:** 12 px side padding, 16 px top, B mark and "Bigman" wordmark, then six tabs (36 px tall, 2 px apart) in a fixed order, each with a 16 px icon, label, an optional accent count badge and its digit (1 to 6) right-aligned as the keyboard hint. Sandboxes joins them as the fifth when it is built.
+- **Rail:** 12 px side padding, 16 px top, B mark and "Bigman" wordmark, then seven tabs (36 px tall, 2 px apart) in a fixed order, each with a 16 px icon, label, an optional accent count badge and its digit (1 to 7) right-aligned as the keyboard hint. Sandboxes joins them as the sixth when it is built.
 - **Page:** PageHeader (min 56 px, 24 px gutters, hairline below) holds the h1 left, then page controls (the range Select), then the one primary action at the far right. Content below sits in a 24 px gutter with 20 px between sections.
 - **Overview:** one lead sentence, a row of five tiles (12 px gaps; three columns below 1280 px, five from there), then the life list (Timeline, 420 px max visible, virtualized).
 - **Drill-down:** an absolutely positioned right panel `min(560px, 62%)` over the content; the page behind becomes inert and clicking it closes the panel.
@@ -350,8 +362,12 @@ The single implementation of the three-level rule: a right side panel with two d
 - **FileTree:** disclosure groups by category with counts right-aligned; groups containing Review or High open by default; files in mono small with change word and badge.
 - **KeyValue:** a two-column definition grid, keys small 600 `ink-muted`, values body (mono small when machine text).
 
-### Charts (ThroughputChart, Sparkline)
-Monochrome by rule: received is a solid 1.75 px `ink` line, sent a dashed 1.25 px `ink-muted` line, gridlines `rule`, axis labels `ink-muted` at the small size (13 px). A legend caption above states the current and peak figures as text. Data updates in place without rebuilding; a theme change repaints from tokens. Sparkline is a 96 x 24 px 1.5 px `ink-muted` polyline beside a real figure, never instead of it.
+### Charts (ThroughputChart, Sparkline, StackedAreaChart, ShareList)
+ThroughputChart and Sparkline are monochrome by rule: received is a solid 1.75 px `ink` line, sent a dashed 1.25 px `ink-muted` line, gridlines `rule`, axis labels `ink-muted` at the small size (13 px). A legend caption above states the current and peak figures as text. Data updates in place without rebuilding; a theme change repaints from tokens. Sparkline is a 96 x 24 px 1.5 px `ink-muted` polyline beside a real figure, never instead of it.
+
+StackedAreaChart shows parts of a whole over time (Traffic: bytes per second by program, received and sent together). One filled band per layer in its series hue, in the order of the Programs list with the neutral remainder on top; bands are parted by a 1 px line of the `ground` along their shared edge, never outlined, and the stack's top edge has no line. Time that was not collected is a break in the bands, named in the caption ("Not recorded 13:40-13:55"), never a zero. Hairline `rule` gridlines at round byte steps in one unit per axis, a `rule-strong` baseline, axis labels `ink-muted` at the small size, end labels anchored inward. More intervals than the width can show are averaged to one point per 3 px. The chart is a slider: pointing at a time, or Left, Right, PageUp, PageDown, Home and End while it has focus, moves an `ink` hairline and a floating readout (the float shadow) listing every layer at that time, value in ink 600 first, name after, with the date once the range crosses midnight; the same sentence is the slider's value text, and Esc hides the readout. A legend naming each hue sits in the caption.
+
+ShareList is one column of a breakdown (programs, addresses, traffic types): a small 600 `ink-muted` h3 with its count, then the five largest rows. Each row is three lines: a 10 px swatch (when the list has identities), the name (mono small for addresses, IPv4 never truncated, IPv6 shortened in the middle), the FirstSeenMarker when the program first reached the network in the last day, and the total right-aligned in ink; then received and sent as figures with down and up arrows in small `ink-muted`, with an optional second fact right-aligned; then a 6 px pill bar scaled to the list's largest row, received solid in the hue, a 2 px gap, sent as a 1 px outline in the same hue. ShareKey states that key once above the lists. Rows fill `sunken` on hover and open the Drilldown. A list is one Tab stop: Up, Down, Home and End move within it. A list wider than 38rem runs in two columns. A quiet "Show all N" button opens the full DataTable in the Drilldown.
 
 ### Actions (PreviewDialog, ConfirmDanger, Toast, ProgressRow)
 - **PreviewDialog:** every state-changing action. Title bar (title size), "What will change" plan, footer with Cancel (quiet) and the named confirm (primary); then a "Done" result step with optional Undo, or "This change did not complete" with the system's message verbatim in an EvidenceBlock. Cannot be dismissed while running.
@@ -370,7 +386,7 @@ Monochrome by rule: received is a solid 1.75 px `ink` line, sent a dashed 1.25 p
 All transitions are 150 ms color/filter changes, except: row fade-in 200 ms ease-out, panel slide 180 ms expo-out, progress fill 300 ms, shimmer and indeterminate bar 1.4 s loops, the busy spinner. Under `prefers-reduced-motion: reduce` every animation and transition collapses to 0.01 ms.
 
 ### Keyboard model
-Digits 1 to 6 switch tabs and move focus to the new page's h1 (ignored while typing or while a modal dialog is open); `/` focuses the page's SearchField; Esc closes the drill-down (back one depth first) and clears a non-empty search; arrows, Home, End (and PageUp/PageDown in tables) move the cursor; Enter opens the row. A "Skip to content" link appears on first Tab.
+Digits 1 to 7 switch tabs and move focus to the new page's h1 (ignored while typing or while a modal dialog is open); `/` focuses the page's SearchField; Esc closes the drill-down (back one depth first) and clears a non-empty search; arrows, Home, End (and PageUp/PageDown in tables) move the cursor; Enter opens the row. A "Skip to content" link appears on first Tab.
 
 ## Do's and Don'ts
 
@@ -387,6 +403,7 @@ Digits 1 to 6 switch tabs and move focus to the new page's h1 (ignored while typ
 
 ### Don't:
 - **Don't** use the info, review or high hues for anything but severity, and don't use the accent for anything but interaction and first sightings.
+- **Don't** use a series hue outside traffic marks, as text, or for a sixth program; don't repaint a program because its rank changed.
 - **Don't** use calm green as a badge, fill or verdict; it is an 8 px dot beside a sentence.
 - **Don't** put a shadow on a resting tile, table, timeline or evidence block; shadows belong to the drill-down, dialog and toasts.
 - **Don't** add a fourth type size, uppercase labels, letter-spacing, or a display face.

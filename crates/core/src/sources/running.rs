@@ -127,7 +127,7 @@ impl Source for Running {
             .set_setting(SEEN, &serde_json::to_string(&now).unwrap_or_default());
         Ok(Collected {
             observations,
-            samples: vec![],
+            ..Default::default()
         })
     }
 }

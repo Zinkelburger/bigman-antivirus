@@ -26,8 +26,10 @@ import { SearchField } from "../components/SearchField";
 import { SegmentedTabs } from "../components/SegmentedTabs";
 import { Select } from "../components/Select";
 import { SeverityBadge } from "../components/SeverityBadge";
+import { ShareList } from "../components/ShareList";
 import { Skeleton } from "../components/Skeleton";
 import { Sparkline } from "../components/Sparkline";
+import { StackedAreaChart } from "../components/StackedAreaChart";
 import { StatusLine } from "../components/StatusLine";
 import { StatusTile } from "../components/StatusTile";
 import { ThroughputChart } from "../components/ThroughputChart";
@@ -281,6 +283,49 @@ export const STORIES: Story[] = [
     />
   )),
   story("Charts", "ThroughputChart", "findings", () => <ThroughputChart label="wlp2s0" series={samples} height={180} />),
+  story("Charts", "StackedAreaChart", "findings", () => (
+    <StackedAreaChart
+      label="Traffic by program"
+      at={samples.at.filter((_, i) => i % 5 === 0)}
+      bucket={5}
+      layers={[
+        { id: "firefox", label: "firefox", slot: 1, values: samples.at.filter((_, i) => i % 5 === 0).map((_, i) => 60_000 + Math.abs(Math.sin(i / 7)) * 140_000) },
+        { id: "spotify", label: "spotify", slot: 2, values: samples.at.filter((_, i) => i % 5 === 0).map((_, i) => 30_000 + Math.abs(Math.cos(i / 4)) * 20_000) },
+        { id: "slack", label: "slack", slot: 3, values: samples.at.filter((_, i) => i % 5 === 0).map((_, i) => (i > 20 && i < 32 ? 90_000 : 4_000)) },
+        { id: "rest", label: "Other programs", slot: null, values: samples.at.filter((_, i) => i % 5 === 0).map(() => 6_000) },
+      ]}
+    />
+  )),
+  story("Charts", "StackedAreaChart", "empty", () => <StackedAreaChart label="Traffic by program" at={[]} bucket={5} layers={[]} height={160} />),
+  story("Charts", "ShareList", "findings", () => (
+    <div className="max-w-xs">
+      <ShareList
+        label="Programs"
+        count={9}
+        onOpen={() => undefined}
+        rows={[
+          { id: "firefox", name: "firefox", slot: 1, swatch: true, received: 412 * 1024 ** 2, sent: 21 * 1024 ** 2 },
+          { id: "spotify", name: "spotify", slot: 2, swatch: true, received: 96 * 1024 ** 2, sent: 3 * 1024 ** 2 },
+          { id: "syncthing", name: "syncthing", slot: 3, swatch: true, received: 12 * 1024 ** 2, sent: 64 * 1024 ** 2 },
+          { id: "uid:0", name: "System programs (root)", slot: null, swatch: true, received: 900 * 1024, sent: 1_200 * 1024 },
+        ]}
+        footer={<div><ActionButton variant="quiet">Show all 9 programs</ActionButton></div>}
+      />
+    </div>
+  )),
+  story("Charts", "ShareList", "default", () => (
+    <div className="max-w-xs">
+      <ShareList
+        label="Connected to"
+        count={2}
+        onOpen={() => undefined}
+        rows={[
+          { id: "a", name: "2606:4700::6810:84e5", mono: true, detail: "firefox and 2 more", slot: 1, swatch: true, received: 80 * 1024 ** 2, sent: 2 * 1024 ** 2 },
+          { id: "b", name: "192.168.1.42", mono: true, detail: "syncthing", slot: null, swatch: true, received: 0, sent: 5 * 1024 ** 2 },
+        ]}
+      />
+    </div>
+  )),
   story("Charts", "Sparkline", "default", () => <Sparkline label="Connections per hour, last 24 hours" values={[3, 4, 2, 8, 12, 9, 7, 3, 2, 5, 6, 4]} />),
   story("Actions", "ActionButton", "default", () => (
     <div className="flex flex-wrap gap-2">

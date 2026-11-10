@@ -24,7 +24,7 @@ Deterministic, local and honest. Every finding comes from a rule with a stable I
 
 ## Operating Context
 
-- A desktop app with six tabs (Overview, Network, Activity, Inspect, Protect, Setup; Sandboxes joins them when milestone 8 builds it), a tray icon and batched desktop notifications for first-seen events.
+- A desktop app with seven tabs (Overview, Network, Traffic, Activity, Inspect, Protect, Setup; Sandboxes joins them when milestone 8 builds it), a tray icon and batched desktop notifications for first-seen events.
 - A user-level collector daemon (`bigmand`, systemd `--user`) owns all checks and the store; the app, the `bigman` CLI and the browser native host are thin clients.
 - Typical moments: glancing at Overview after an update, reading an install receipt after the package manager ran, inspecting a `curl | sh` installer or an npm package before running it, checking why a Flatpak can see the home directory, reviewing a denial SELinux just logged.
 - GNOME and KDE, Wayland and X11, light and dark themes, minimum window 960 × 600.

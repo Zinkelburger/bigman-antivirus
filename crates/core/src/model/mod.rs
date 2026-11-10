@@ -1,7 +1,9 @@
 mod coverage;
 mod event;
+mod traffic;
 pub use coverage::{Coverage, SkipReason, Skipped};
 pub use event::{Event, Link, Observation, Sample, SampleSeries, SourceId, Unread, ALL_SOURCES};
+pub use traffic::{Flow, FlowSample, ProgramSeries, ProgramTotal, TrafficReport};
 
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;

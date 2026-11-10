@@ -317,7 +317,7 @@ impl Source for Projects {
         set_cursor(ctx.db, "projects", &resume.saturating_sub(1).to_string());
         Ok(Collected {
             observations,
-            samples: vec![],
+            ..Default::default()
         })
     }
 }

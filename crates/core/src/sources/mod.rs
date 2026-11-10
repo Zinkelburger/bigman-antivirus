@@ -15,6 +15,7 @@ mod skills;
 mod snapshot;
 mod ssh;
 mod throughput;
+mod traffic;
 mod updates;
 
 pub use connections::Connections;
@@ -31,10 +32,11 @@ pub use skills::Skills;
 pub use snapshot::{network_snapshot, ConnectionRow, ListenerRow, NetworkSnapshot};
 pub use ssh::{AuthorizedKeys, RemoteLogins, StrayKeys, Tunnels};
 pub use throughput::Throughput;
+pub use traffic::{traffic_report, Traffic, STEP as TRAFFIC_STEP};
 pub use updates::Updates;
 
 use crate::{
-    model::{Observation, Sample, SkipReason},
+    model::{FlowSample, Observation, Sample, SkipReason},
     store::{db::Db, Store},
 };
 use anyhow::Result;
@@ -53,6 +55,7 @@ pub struct Ctx<'a> {
 pub struct Collected {
     pub observations: Vec<Observation>,
     pub samples: Vec<Sample>,
+    pub traffic: Vec<FlowSample>,
 }
 
 /// Why a source could not see what it is meant to.
@@ -92,6 +95,7 @@ pub struct SourceStatus {
 pub fn label(name: &str) -> &'static str {
     match name {
         "throughput" => "Network throughput",
+        "traffic" => "Traffic by program",
         "connections" => "Your programs' connections",
         "listeners" => "Listening programs",
         "packages" => "Package installs and updates",
@@ -132,6 +136,9 @@ pub fn linux_sources(stop: crate::runner::Cancel) -> Vec<Box<dyn Source>> {
     use crate::platform::linux;
     let mut sources: Vec<Box<dyn Source>> = vec![
         Box::new(Throughput::new(Box::new(linux::SysNetCounters))),
+        Box::new(Traffic::new(
+            Box::<crate::platform::sockdiag::SockDiag>::default(),
+        )),
         Box::new(Connections::new(Box::new(linux::ProcSockets))),
         Box::new(Listeners::new(Box::new(linux::ProcSockets))),
         Box::new(Denials::new(Box::new(linux::Journalctl {

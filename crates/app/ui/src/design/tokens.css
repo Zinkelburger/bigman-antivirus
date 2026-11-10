@@ -2,6 +2,9 @@
  * Bigman design tokens. The only place colors, type sizes and radii are defined.
  * Severity colors (info, review, high) are reserved for severity; calm green only
  * appears in the status strip and tray; the accent marks interaction and first-seen.
+ * The five series hues identify programs in traffic marks (areas, bars, swatches)
+ * and nothing else; they are a validated colorblind-safe order, so keep the order.
+ * Every one is at least 3:1 against the ground in both themes.
  */
 @import "tailwindcss";
 @import "@fontsource-variable/atkinson-hyperlegible-next";
@@ -34,6 +37,12 @@
   --high: oklch(51% 0.18 27);
   --high-soft: oklch(95.5% 0.025 27);
   --calm: oklch(50% 0.09 155);
+  --series-1: oklch(57.5% 0.163 256);
+  --series-2: oklch(62.2% 0.173 40);
+  --series-3: oklch(58.4% 0.118 165);
+  --series-4: oklch(63% 0.134 73);
+  --series-5: oklch(62.2% 0.171 1);
+  --series-rest: oklch(61% 0.006 90);
   --focus: oklch(49% 0.17 293);
   --shadow: 0 8px 28px oklch(20% 0.01 90 / 0.14), 0 1px 3px oklch(20% 0.01 90 / 0.08);
   --scrim: oklch(15% 0 0 / 0.35);
@@ -66,6 +75,12 @@
     --high: oklch(73% 0.15 27);
     --high-soft: oklch(29% 0.06 27);
     --calm: oklch(76% 0.1 155);
+    --series-1: oklch(62.2% 0.161 255);
+    --series-2: oklch(62.2% 0.173 40);
+    --series-3: oklch(62.1% 0.128 163);
+    --series-4: oklch(67% 0.143 73);
+    --series-5: oklch(62.2% 0.171 1);
+    --series-rest: oklch(55% 0.008 90);
     --focus: oklch(76% 0.12 293);
     --shadow: 0 10px 32px oklch(0% 0 0 / 0.5), 0 1px 3px oklch(0% 0 0 / 0.4);
     --scrim: oklch(0% 0 0 / 0.55);
@@ -94,6 +109,12 @@
   --high: oklch(73% 0.15 27);
   --high-soft: oklch(29% 0.06 27);
   --calm: oklch(76% 0.1 155);
+  --series-1: oklch(62.2% 0.161 255);
+  --series-2: oklch(62.2% 0.173 40);
+  --series-3: oklch(62.1% 0.128 163);
+  --series-4: oklch(67% 0.143 73);
+  --series-5: oklch(62.2% 0.171 1);
+  --series-rest: oklch(55% 0.008 90);
   --focus: oklch(76% 0.12 293);
   --shadow: 0 10px 32px oklch(0% 0 0 / 0.5), 0 1px 3px oklch(0% 0 0 / 0.4);
   --scrim: oklch(0% 0 0 / 0.55);
@@ -123,6 +144,12 @@
   --color-high: var(--high);
   --color-high-soft: var(--high-soft);
   --color-calm: var(--calm);
+  --color-series-1: var(--series-1);
+  --color-series-2: var(--series-2);
+  --color-series-3: var(--series-3);
+  --color-series-4: var(--series-4);
+  --color-series-5: var(--series-5);
+  --color-series-rest: var(--series-rest);
   --color-focus: var(--focus);
   --color-scrim: var(--scrim);
   --color-transparent: transparent;
