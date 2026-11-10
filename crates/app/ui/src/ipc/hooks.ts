@@ -66,6 +66,24 @@ export function useRunningItems(report: string | null) {
   });
 }
 
+/** Your programs, for choosing one to stop and watch. Read fresh each time the list opens. */
+export function usePrograms() {
+  return useQuery({
+    queryKey: ["programs"],
+    queryFn: () => call({ type: "programs" }, "programs"),
+    staleTime: 0,
+  });
+}
+
+/** Stop and watch: watches running now (polled each second while any run) and stopped programs that can be started again. */
+export function useStops() {
+  return useQuery({
+    queryKey: ["stops"],
+    queryFn: () => call({ type: "stops" }, "stops"),
+    refetchInterval: (query) => (query.state.data?.watching.length ? 1000 : 30_000),
+  });
+}
+
 /** The skills and plugins an inventory report listed, with their files. */
 export function useSkillItems(report: string | null) {
   return useQuery({

@@ -1,7 +1,7 @@
 // Running-system rows for the mock daemon: one disagreement between two views
 // (findings scenario only), one program to review, one row that changed since
 // it was marked as known, and the informational rows every desktop has.
-import type { Finding, Report, RunningItem } from "@/ipc";
+import type { Finding, Program, Report, RunningItem } from "@/ipc";
 import { NOW, report } from "./fixtures";
 
 const row = (over: Partial<RunningItem> & Pick<RunningItem, "section" | "key" | "rule" | "severity" | "title" | "evidence">): RunningItem => ({
@@ -176,4 +176,78 @@ export function runningReport(items: RunningItem[], id: string, created: number,
           : [],
     },
   });
+}
+
+/** Your programs for Stop and watch: one that keeps coming back, ordinary apps, and ones Bigman will not stop. */
+export function seedPrograms(): Program[] {
+  const p = (pid: number, name: string, command: string, unit: string | null, minutes: number, refused: string | null = null, exe: string | null = null): Program => ({
+    pid,
+    start: pid * 100 + 7,
+    name,
+    exe: exe ?? command.split(" ")[0] ?? null,
+    command,
+    parent_pid: 1820,
+    parent: "systemd",
+    unit,
+    started: NOW - minutes * 60,
+    refused,
+  });
+  return [
+    p(31044, "kworker-update", "/home/sam/.cache/.kworker-update --quiet", "app-update-helper-31002.scope", 42),
+    p(28110, "firefox", "/usr/lib64/firefox/firefox", "app-org.mozilla.firefox-28110.scope", 180),
+    p(27831, "Notes-1.13.7.appimage", "/home/sam/Applications/Notes-1.13.7.appimage", "app-notes-27831.scope", 95),
+    p(5120, "syncthing", "/usr/bin/syncthing serve --no-browser", "syncthing.service", 600),
+    p(88213, "updater", "/home/sam/.local/share/updater/updater --daemon", "app-updater-88200.scope", 30, null, "/home/sam/.local/share/updater/updater (deleted)"),
+    p(2404, "kwin_wayland", "/usr/bin/kwin_wayland --wayland-fd 7", "plasma-kwin_wayland.service", 600, "Your desktop session needs it."),
+    p(4221, "bigmand", "/home/sam/.local/bin/bigmand", "app-bigman-4210.scope", 600, "Part of Bigman. Stop Bigman from Setup."),
+  ];
+}
+
+/** The report a Stop and watch of `program` leaves: the one that keeps coming back is restarted by its helper. */
+export function stopWatchReport(program: Program, id: string, created: number): { report: Report; restarted: boolean } {
+  const base = { id, created, kind: "Stop and watch", subject: `${program.name} (process ${String(program.pid)})`, sha256: null, errors: [], details: "" };
+  const coverage = {
+    checked: ["The process list, ten times a second for 60 seconds"],
+    notes: [
+      "Bigman sent the stop request (SIGTERM) because you asked it to; it never stops a program on its own and never forces one.",
+      "A program that is started and stops again within a tenth of a second can be missed. Programs that start it later, at the next login or on a timer, are not seen in this minute.",
+    ],
+    skipped: [],
+  };
+  const origin = `Stopped: ${program.name} (process ${String(program.pid)})\nProgram: ${program.exe ?? program.command}\nCommand line: ${program.command}\nStarted by: ${program.parent} (process ${String(program.parent_pid)})${program.unit ? `\nRan in: ${program.unit}` : ""}`;
+  if (program.name === "kworker-update") {
+    return {
+      restarted: true,
+      report: {
+        ...base,
+        findings: [
+          {
+            rule: "respawn.program-restart",
+            severity: "review",
+            summary: "kworker-update was started again by update-helper, 1.4 seconds later",
+            evidence: `${origin}\n\nStarted again 1.4 seconds after the stop request: process 31190\nCommand line: ${program.command}\nRuns in: ${program.unit ?? ""}\nStarted by update-helper (process 31002: /home/sam/.config/autostart-scripts/update-helper, in ${program.unit ?? ""})\n  started by systemd (process 1820, the service manager, in init.scope)\nStill running when the watch ended.`,
+            action:
+              "A program that starts another again as soon as it stops is how some unwanted software stays running, often as two copies that watch each other. Launchers, updaters and development tools do it too. If you recognise update-helper, nothing needs doing. If not, check its program file from Inspect and look at Protect › Startup files for what starts it.",
+          },
+        ],
+        coverage,
+      },
+    };
+  }
+  return {
+    restarted: false,
+    report: {
+      ...base,
+      findings: [
+        {
+          rule: "respawn.not-restarted",
+          severity: "info",
+          summary: `Nothing started ${program.name} again within 60 seconds`,
+          evidence: origin,
+          action: "Something that starts it later is not seen here: at the next login, from a timer or a scheduled job. Protect › Startup files lists those.",
+        },
+      ],
+      coverage,
+    },
+  };
 }

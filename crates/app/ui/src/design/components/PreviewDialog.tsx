@@ -101,7 +101,8 @@ export function PreviewDialog({
             </Dialog.Close>
           </div>
           <Dialog.Description className="sr-only">{description}</Dialog.Description>
-          <div className="relative flex flex-col gap-4 overflow-y-auto px-5 py-4 text-body">
+          {/* Children keep their height and the body scrolls: a long plan never squashes the exact command out of view. */}
+          <div className="relative flex min-h-0 flex-col gap-4 overflow-y-auto px-5 py-4 text-body [&>*]:shrink-0">
             {phase.step === "result" ? (
               <>
                 <h3 className="font-semibold text-ink">Done</h3>

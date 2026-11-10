@@ -1,0 +1,8 @@
+{
+  "driver": "respawn",
+  "fires": [
+    "respawn.orphan-restart"
+  ],
+  "about": "Started again with the service manager as its parent, inside an app scope rather than a service.",
+  "input": "input.json"
+}

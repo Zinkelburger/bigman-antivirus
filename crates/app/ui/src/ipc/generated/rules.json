@@ -1957,6 +1957,53 @@
     ]
   },
   {
+    "id": "respawn.program-restart",
+    "severity": "review",
+    "title": "A program you stopped was started again by another program",
+    "explanation": "You asked Bigman to stop one of your programs and watch. Within the minute, a new process running the same program appeared, and its parent is an ordinary program rather than the service manager. Software that wants to keep running is often two processes that restart each other; launchers, updaters and development tools restart programs too.",
+    "remediation": "If you recognise the program that started it, nothing needs doing. If not, check its file from Inspect and look at Protect › Startup files for what starts it at login.",
+    "threats": [
+      "MW-02",
+      "MW-01",
+      "MW-06"
+    ]
+  },
+  {
+    "id": "respawn.orphan-restart",
+    "severity": "review",
+    "title": "A program you stopped was started again by something that let go of it",
+    "explanation": "You asked Bigman to stop one of your programs and watch. A new process running the same program appeared, and its parent is the service manager although it is not a service: the program that started it exited at once, so the kernel handed it on. Starting a program this way hides who started it.",
+    "remediation": "If you know what restarts it, nothing needs doing. If not, look at what else runs in the same unit and at Protect › Startup files.",
+    "threats": [
+      "MW-02",
+      "MW-01"
+    ]
+  },
+  {
+    "id": "respawn.service-restart",
+    "severity": "info",
+    "title": "The service manager started a program you stopped again",
+    "explanation": "You asked Bigman to stop one of your programs and watch. The service manager started it again because its unit says to restart it when it stops. This is ordinary for services; the unit file says what it runs.",
+    "remediation": "To stop it until the next login, run the command shown; to keep it from starting at all, use disable --now instead.",
+    "threats": []
+  },
+  {
+    "id": "respawn.not-restarted",
+    "severity": "info",
+    "title": "Nothing started a program you stopped again",
+    "explanation": "You asked Bigman to stop one of your programs and watch. No new process running the same program appeared within the minute. Something that starts it at the next login, from a timer or from a scheduled job is not seen in that minute.",
+    "remediation": "Start it again from the result if you need it. Protect › Startup files lists what starts programs at login.",
+    "threats": []
+  },
+  {
+    "id": "respawn.did-not-stop",
+    "severity": "info",
+    "title": "A program you asked to stop kept running",
+    "explanation": "Bigman asked the program to stop with SIGTERM, the request a task manager sends, and it was still running when the watch ended. A program may take time to save its work, or ignore the request.",
+    "remediation": "Close it from its own window, or end it without waiting with kill -KILL after checking the process ID is still the same program.",
+    "threats": []
+  },
+  {
     "id": "bus.name-owner",
     "severity": "review",
     "title": "An unexpected program answers for your password store or portal",

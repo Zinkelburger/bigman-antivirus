@@ -1,0 +1,9 @@
+{
+  "pid": 4242,
+  "name": "fixture-worker",
+  "exe": "/home/u/.local/bin/fixture-worker",
+  "command": "fixture-worker --quiet",
+  "parent": "plasmashell (process 1800)",
+  "stopped_ms": 300,
+  "watched_ms": 60000
+}

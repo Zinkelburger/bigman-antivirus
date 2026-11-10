@@ -68,23 +68,31 @@ function restoreFocus(): void {
   (opener?.isConnected ? opener : (near ?? document.querySelector<HTMLElement>("main h1")))?.focus();
 }
 
+/** Opens the previewed change in the shared dialog, for a trigger that is not a button of its own (a table row). */
+export function openActionDialog(action: Action, label: string, onDone?: (message: string) => void): void {
+  useOpenAction.getState().set({ action, label, onDone });
+}
+
 /** Closes the open action dialog, if any. */
 export function closeActionDialog(): void {
   useOpenAction.getState().set(null);
 }
+
+/** Plan facts whose values are paths, commands or identifiers, set as machine text. */
+const MACHINE_FACTS = new Set(["Copied in", "Program", "Process ID", "Command line", "Runs in"]);
 
 function Plan({ plan }: { plan: ActionPlan }) {
   return (
     <>
       {/* The daemon separates paragraphs with a blank line: what it costs, then who runs it. */}
       {plan.summary.split("\n\n").map((paragraph) => (
-        <p key={paragraph} className="m-0 max-w-[56ch] text-ink">
+        <p key={paragraph} className="m-0 max-w-[56ch] text-pretty text-ink">
           {paragraph}
         </p>
       ))}
-      {plan.note && <p className="m-0 max-w-[56ch] text-ink">{plan.note}</p>}
+      {plan.note && <p className="m-0 max-w-[56ch] text-pretty text-ink">{plan.note}</p>}
       {plan.facts.length > 0 && (
-        <KeyValue items={plan.facts.map((f) => ({ label: f.label, value: f.value, mono: f.label === "Copied in" }))} />
+        <KeyValue items={plan.facts.map((f) => ({ label: f.label, value: f.value, mono: MACHINE_FACTS.has(f.label) }))} />
       )}
       {plan.details && <EvidenceBlock text={plan.details} label={plan.details_label ?? "Exactly what changes"} />}
       {plan.undo && (

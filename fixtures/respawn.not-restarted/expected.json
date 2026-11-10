@@ -1,0 +1,8 @@
+{
+  "driver": "respawn",
+  "fires": [
+    "respawn.not-restarted"
+  ],
+  "about": "Stopped after 0.3 s; nothing ran the same program again within the minute.",
+  "input": "input.json"
+}

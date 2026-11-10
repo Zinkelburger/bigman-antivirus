@@ -182,6 +182,84 @@ describe("Protect Running system", () => {
     expect(screen.queryByText(/^No findings from these checks/)).not.toBeInTheDocument();
   });
 
+  it("offers no mark on a row where two views disagree, and offers to check again instead", async () => {
+    useShell.setState({ protectView: "running" });
+    const { user } = renderWithDaemon(<ProtectPage />);
+    await user.click(await screen.findByRole("button", { name: "Check the running system" }));
+    const grid = await screen.findByRole("grid", { name: "Running system" });
+    await user.click(within(grid).getByRole("row", { name: /0\.0\.0\.0:4444/ }));
+    const panel = await screen.findByRole("dialog", { name: /0\.0\.0\.0:4444/ });
+    expect(within(panel).queryByRole("button", { name: "Mark as known…" })).not.toBeInTheDocument();
+    expect(within(panel).getByText("Cannot be marked as known")).toBeInTheDocument();
+    expect(within(panel).queryByText("A mark holds while these stay the same")).not.toBeInTheDocument();
+    const again = within(panel).getByRole("button", { name: "Check again" });
+    await user.click(again);
+    expect(await within(panel).findByText(/^Checked .*\. Still listed\.$/)).toBeInTheDocument();
+    expect(again).toHaveFocus();
+  });
+
+  it("stops a program you choose after a preview, watches in the background, and says which program started it again", async () => {
+    useShell.setState({ protectView: "running" });
+    const { user } = renderWithDaemon(<ProtectPage />);
+    await user.click(await screen.findByRole("button", { name: "Choose a program…" }));
+    const panel = await screen.findByRole("dialog", { name: "Your programs" });
+    const grid = await within(panel).findByRole("grid", { name: "Your programs" });
+    // A program Bigman will not stop says why in place of its command, and its row explains instead of opening a stop.
+    expect(within(grid).getByRole("row", { name: /kwin_wayland/ })).toHaveTextContent("Not offered: Your desktop session needs it.");
+    expect(within(panel).getByText("5 of 7 can be stopped")).toBeInTheDocument();
+    await user.click(within(grid).getByRole("row", { name: /kwin_wayland/ }));
+    expect(await screen.findByText(/Bigman does not offer to stop this program\. Your desktop session needs it\./)).toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Stop and watch" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Your programs" }));
+
+    const list = await screen.findByRole("grid", { name: "Your programs" });
+    expect(within(list).getByRole("row", { name: /kworker-update/ })).toHaveTextContent("process 31044 · /home/sam/.cache/.kworker-update --quiet");
+    await user.click(within(list).getByRole("row", { name: /kworker-update/ }));
+    const dialog = await screen.findByRole("dialog", { name: "Stop and watch" });
+    expect(await within(dialog).findByText(/Ask kworker-update to stop, then watch for 60 seconds/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/^kill -TERM 31044 +# kworker-update, started at clock tick 3104407$/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/Unsaved work in it may be lost/)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Stop and watch" }));
+    // The dialog does not hold you for the minute.
+    expect(await within(dialog).findByText(/kworker-update was asked to stop\. Bigman watches for 60 seconds/)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Close dialog" }));
+    const recent = await screen.findByRole("region", { name: "Stopped recently" }, { timeout: 20_000 });
+    expect(await within(recent).findByText(/kworker-update was started again by update-helper/)).toBeInTheDocument();
+    // Something else started it again, so there is nothing to start.
+    expect(within(recent).queryByRole("button", { name: "Start it again…" })).not.toBeInTheDocument();
+  });
+
+  it("starts a stopped program again after a preview, once nothing else did", async () => {
+    useShell.setState({ protectView: "running" });
+    const { user } = renderWithDaemon(<ProtectPage />);
+    await user.click(await screen.findByRole("button", { name: "Choose a program…" }));
+    const grid = await screen.findByRole("grid", { name: "Your programs" });
+    await user.click(within(grid).getByRole("row", { name: /syncthing/ }));
+    const dialog = await screen.findByRole("dialog", { name: "Stop and watch" });
+    await user.click(await within(dialog).findByRole("button", { name: "Stop and watch" }));
+    await within(dialog).findByText(/syncthing was asked to stop/);
+    await user.click(within(dialog).getByRole("button", { name: "Close dialog" }));
+    const recent = await screen.findByRole("region", { name: "Stopped recently" }, { timeout: 20_000 });
+    expect(await within(recent).findByText(/Nothing started syncthing again within 60 seconds/)).toBeInTheDocument();
+    await user.click(await within(recent).findByRole("button", { name: "Start it again…" }, { timeout: 20_000 }));
+    const again = await screen.findByRole("dialog", { name: "Start it again" });
+    expect(await within(again).findByText(/systemd-run --user --collect --quiet/)).toBeInTheDocument();
+    await user.click(within(again).getByRole("button", { name: "Start it again" }));
+    expect(await within(again).findByText("syncthing is starting again.")).toBeInTheDocument();
+  });
+
+  it("offers Stop and watch on a program row, and says when it cannot be started again", async () => {
+    useShell.setState({ protectView: "running" });
+    const { user } = renderWithDaemon(<ProtectPage />);
+    await user.click(await screen.findByRole("button", { name: "Check the running system" }));
+    const grid = await screen.findByRole("grid", { name: "Running system" });
+    await user.click(within(grid).getByRole("row", { name: /updater is running/ }));
+    const panel = await screen.findByRole("dialog", { name: "updater is running and its file was deleted" });
+    await user.click(await within(panel).findByRole("button", { name: "Stop and watch…" }));
+    const dialog = await screen.findByRole("dialog", { name: "Stop and watch" });
+    expect(await within(dialog).findByText(/Its program file was deleted, so Bigman cannot start it again afterwards/)).toBeInTheDocument();
+  });
+
   it("says so plainly when nothing is listed", async () => {
     useShell.setState({ protectView: "running" });
     const { user } = renderWithDaemon(<ProtectPage />, "empty");

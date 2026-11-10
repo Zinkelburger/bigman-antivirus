@@ -11,8 +11,10 @@
 //! TCP and UDP, the BPF programs loaded in the kernel, and who watches your
 //! credential folders.
 //!
-//! Every row can be marked as known (`checks::known`), pinned to what it was, so
-//! it stops counting until it changes.
+//! A row can be marked as known (`checks::known`), pinned to what it was, so it
+//! stops counting until it changes. Rows where two views disagree cannot: no
+//! ordinary program makes the kernel's own answers differ, so such a row means
+//! something is hiding or Bigman misreads something, and it keeps counting.
 //!
 //! `gather` reads the facts without root; `assess` turns them into rows and is
 //! pure, so fixtures drive it directly. A kernel module that filters every view
@@ -57,7 +59,15 @@ impl Section {
             Section::Watches => "Watched files",
         }
     }
+
+    /// Whether a row in this section can be marked as known.
+    pub fn markable(self) -> bool {
+        self != Section::Disagreements
+    }
 }
+
+/// Why a row where two views disagree cannot be marked as known.
+pub const NOT_MARKABLE: &str = "Rows where two views disagree cannot be marked as known. No ordinary program makes the kernel's own answers disagree, so a row that stays here means something is hiding or Bigman reads something wrongly, and it keeps counting either way. Check again: a difference that was a coincidence of timing goes away.";
 
 /// One observed thing, with its standing against what you marked as known.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
@@ -1470,10 +1480,15 @@ pub fn assess(s: &Snapshot) -> Vec<RunningItem> {
 }
 
 /// Sets each row's standing from what you marked. A changed row counts again, at
-/// Review or above.
+/// Review or above. A mark on a row where two views disagree, made before such
+/// rows stopped being markable, is ignored.
 pub fn apply_known(items: &mut [RunningItem], map: &KnownMap) {
     for i in items.iter_mut() {
-        let (standing, at, changed) = known::standing(map, &i.key, &i.facts);
+        let (standing, at, changed) = if i.section.markable() {
+            known::standing(map, &i.key, &i.facts)
+        } else {
+            (Standing::New, None, vec![])
+        };
         i.standing = standing;
         i.known_at = at;
         i.changed = changed;
@@ -1638,6 +1653,9 @@ fn current(store: &Store, report: &str, key: &str, stop: &Cancel) -> Result<Runn
         .into_iter()
         .find(|i| i.key == key)
         .context("That row is not in this report")?;
+    if !shown.section.markable() {
+        bail!("{NOT_MARKABLE}");
+    }
     let now = assess(&gather::gather(stop))
         .into_iter()
         .find(|i| i.key == key)
@@ -1662,6 +1680,9 @@ pub fn mark_plan(
         .into_iter()
         .find(|i| i.key == key)
         .context("That row is not in this report")?;
+    if !shown.section.markable() {
+        bail!("{NOT_MARKABLE}");
+    }
     let summary = format!(
         "Record \"{}\" as something you recognise, as it is now. It stays in the list and stops counting as something to review. If one of the details below changes, it counts again and says what changed.",
         shown.title
@@ -1821,5 +1842,32 @@ mod tests {
         assert!(r.findings[0]
             .summary
             .ends_with("(changed since you marked it as known)"));
+    }
+
+    #[test]
+    fn a_row_where_two_views_disagree_cannot_be_marked_and_an_old_mark_is_ignored() {
+        let d = tempfile::tempdir().unwrap();
+        let store = Store::open(Some(d.path().join("state"))).unwrap();
+        let hidden = snapshot(serde_json::json!({
+            "uid": 1000,
+            "pids": {"listed": 10, "probed": 11, "unlisted": [{"pid": 4242, "name": "worker", "uid": 1000}]}
+        }));
+        let mut items = assess(&hidden);
+        assert_eq!(items[0].section, Section::Disagreements);
+        // A mark written before the rule, straight into the store.
+        known::mark(&store, &items[0].key, &items[0].title, &items[0].facts).unwrap();
+        apply_known(&mut items, &known::load(&store).unwrap());
+        assert_eq!(items[0].standing, Standing::New);
+        assert_eq!(items[0].known_at, None);
+        let r = save(&store, &items, &hidden).unwrap();
+        assert_eq!(r.status(), "Findings to review");
+        let refused = mark_plan(&store, &r.id, &items[0].key).unwrap_err();
+        assert!(refused
+            .to_string()
+            .starts_with("Rows where two views disagree"));
+        let refused = mark(&store, &r.id, &items[0].key, &crate::runner::cancel()).unwrap_err();
+        assert!(refused
+            .to_string()
+            .starts_with("Rows where two views disagree"));
     }
 }

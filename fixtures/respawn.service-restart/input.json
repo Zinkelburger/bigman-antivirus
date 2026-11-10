@@ -1,0 +1,28 @@
+{
+  "pid": 4242,
+  "name": "fixture-worker",
+  "exe": "/home/u/.local/bin/fixture-worker",
+  "command": "fixture-worker --quiet",
+  "parent": "plasmashell (process 1800)",
+  "stopped_ms": 300,
+  "watched_ms": 60000,
+  "unit": "fixture-worker.service",
+  "restarts": [
+    {
+      "pid": 5000,
+      "after_ms": 1200,
+      "command": "fixture-worker --quiet",
+      "unit": "fixture-worker.service",
+      "user_unit": true,
+      "chain": [
+        {
+          "pid": 1700,
+          "name": "systemd",
+          "manager": true,
+          "command": "/usr/lib/systemd/systemd --user"
+        }
+      ],
+      "running": true
+    }
+  ]
+}

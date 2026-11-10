@@ -53,7 +53,7 @@ export {
   verifiesDetection,
   type ReportResult,
 } from "./report";
-export { ActionDialog, ActionDialogHost, closeActionDialog } from "./action";
+export { ActionDialog, ActionDialogHost, closeActionDialog, openActionDialog } from "./action";
 export { AutomaticChecks } from "./automatic";
 export { CheckStatus } from "./check";
 export { DaemonGate } from "./daemon-gate";

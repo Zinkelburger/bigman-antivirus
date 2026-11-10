@@ -126,6 +126,8 @@ impl Daemon {
                     Response::SkillItems(bigman_core::checks::skills::items(store, &report)?)
                 }
                 Request::Running => report(bigman_core::checks::running::run(store, stop)),
+                Request::Stops => Response::Stops(bigman_core::checks::respawn::stops(store)),
+                Request::Programs => Response::Programs(bigman_core::checks::respawn::programs()),
                 Request::RunningItems { report } => {
                     Response::RunningItems(bigman_core::checks::running::items(store, &report)?)
                 }

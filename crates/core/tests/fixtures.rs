@@ -291,6 +291,10 @@ fn run(dir: &Path, expected: &Expected) -> BTreeSet<String> {
                 .map(|i| i.rule)
                 .collect();
         }
+        "respawn" => {
+            let watch: checks::respawn::Watch = serde_json::from_value(json()).unwrap();
+            return rules_fired(&checks::respawn::assess(&watch));
+        }
         "skills-inventory" => {
             let items: Vec<checks::skills::SkillItem> =
                 serde_json::from_value(json()["items"].clone()).unwrap();

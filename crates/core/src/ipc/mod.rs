@@ -12,6 +12,7 @@ use crate::{
         doctor::{SignatureState, ToolState},
         hardening::HardeningReview,
         receipt::Receipt,
+        respawn::{Program, Stops},
         running::RunningItem,
         scan::{Quarantined, ScanItem},
         setup::ToolGroup,
@@ -102,6 +103,11 @@ pub enum Request {
     RunningItems {
         report: String,
     },
+    /// Your programs, each with whether Bigman will stop it for Stop and watch.
+    Programs,
+    /// Stop and watch: the watches running now, and stopped programs that can be
+    /// started again.
+    Stops,
     /// Where packages come from: signatures, transport, key scope, priority
     /// overrides and personal or third-party repositories.
     PackageSources,
@@ -207,6 +213,8 @@ pub enum Response {
     ScanItems(Vec<ScanItem>),
     SkillItems(Vec<SkillItem>),
     RunningItems(Vec<RunningItem>),
+    Programs(Vec<Program>),
+    Stops(Stops),
     Quarantined(Vec<Quarantined>),
     Canaries(Box<CanaryState>),
     ToolGroups(Vec<ToolGroup>),

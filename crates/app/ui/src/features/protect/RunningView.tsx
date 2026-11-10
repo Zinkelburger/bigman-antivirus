@@ -2,7 +2,7 @@
 // ways, with where the answers differ, and what ordinary tools do not list
 // (programs running from memory, packet access, BPF programs, watchers of
 // credential folders). A row you mark as known stops counting until one of its
-// pinned details changes.
+// pinned details changes. Rows where two views disagree cannot be marked.
 import type { ColumnDef } from "@tanstack/react-table";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -26,7 +26,8 @@ import {
   StatusLine,
   useDrilldown,
 } from "@/design";
-import { useCheck, useHistory, useReport, useRunningItems, type Report, type RunningItem } from "@/ipc";
+import { useCheck, useHistory, usePrograms, useReport, useRunningItems, type Report, type RunningItem } from "@/ipc";
+import { StopWatch, useStopProgram } from "./StopWatch";
 
 export const RUNNING = "Running system";
 
@@ -134,6 +135,24 @@ function Facts({ id, heading, facts }: { id: string; heading: string; facts: Run
   );
 }
 
+/** The one process a row is about, when the row names exactly one. */
+function processOf(item: RunningItem): number | null {
+  const fact = item.facts.find((f) => f.label === "Process ID" || f.label === "Process IDs");
+  return fact && /^\d+$/.test(fact.value) ? Number(fact.value) : null;
+}
+
+/** "Stop and watch…" for a program row whose process is still one of yours. */
+function StopThis({ pid }: { pid: number }) {
+  const program = usePrograms().data?.find((p) => p.pid === pid);
+  const stopProgram = useStopProgram();
+  if (!program) return null;
+  return (
+    <ActionButton variant="secondary" onClick={() => stopProgram(program)}>
+      Stop and watch…
+    </ActionButton>
+  );
+}
+
 /**
  * One row, read from the newest report each render so the panel follows a
  * mark, a re-check or a change Bigman noticed in the background.
@@ -161,11 +180,13 @@ function RunningDetail({ itemKey }: { itemKey: string }) {
   }
   if (!item) return <p className="m-0 text-ink-muted">It was not there at the last check.</p>;
   const after = () => recheck.mutate({ type: "running" });
+  const markable = item.section !== "disagreements";
+  const pid = item.section === "programs" ? processOf(item) : null;
   return (
     <div className="flex min-h-full flex-col gap-5">
       <section aria-label="Known to you" className="flex flex-col gap-2">
         <p className="m-0 text-ink">
-          <span className="font-semibold">{item.standing === "new" ? "Not marked as known" : standing(item, nowSeconds())}</span>
+          <span className="font-semibold">{!markable ? "Cannot be marked as known" : item.standing === "new" ? "Not marked as known" : standing(item, nowSeconds())}</span>
           <span className="text-ink-muted">
             {" · "}
             {SECTION[item.section]}
@@ -178,12 +199,30 @@ function RunningDetail({ itemKey }: { itemKey: string }) {
         finding={{ rule: item.rule, severity: item.severity, summary: item.title, evidence: item.evidence, action: item.action, ...(item.command ? { command: item.command } : {}) }}
       />
 
-      <Facts id="running-pinned" heading="A mark holds while these stay the same" facts={item.facts.filter((f) => f.pinned)} />
-      <Facts id="running-moving" heading="Not part of a mark" facts={item.facts.filter((f) => !f.pinned)} />
+      {markable ? (
+        <>
+          <Facts id="running-pinned" heading="A mark holds while these stay the same" facts={item.facts.filter((f) => f.pinned)} />
+          <Facts id="running-moving" heading="Not part of a mark" facts={item.facts.filter((f) => !f.pinned)} />
+        </>
+      ) : (
+        <Facts id="running-details" heading="Details" facts={item.facts} />
+      )}
 
       {/* Always in view: the panel is longer than the window at its smallest. */}
       <div ref={actions} className="sticky -bottom-4 -mx-4 -mb-4 mt-auto flex flex-wrap items-center gap-2 border-t border-rule bg-surface px-4 py-3">
-        {item.standing !== "known" && (
+        {!markable && (
+          <>
+            {/* Never disabled, so focus stays here while it runs; a second press waits for the first. */}
+            <ActionButton variant="secondary" aria-describedby="running-unmarkable" onClick={() => !recheck.isPending && after()}>
+              Check again
+            </ActionButton>
+            <p id="running-unmarkable" className="m-0 max-w-[56ch] basis-full text-pretty text-small text-ink-muted">
+              Ordinary programs do not make two of the kernel's answers differ, so this row stays listed until it goes away. Checking again rules out a
+              coincidence of timing.
+            </p>
+          </>
+        )}
+        {markable && item.standing !== "known" && (
           <ActionDialog
             action={{ kind: "mark_known", report: report.id, key: item.key }}
             label={item.standing === "changed" ? "Mark this version as known…" : "Mark as known…"}
@@ -193,8 +232,9 @@ function RunningDetail({ itemKey }: { itemKey: string }) {
           />
         )}
         {item.known_at !== null && <ActionDialog action={{ kind: "forget_known", key: item.key }} label="Take back the mark…" variant="quiet" onDone={after} />}
+        {pid !== null && <StopThis pid={pid} />}
         <span role="status" className="text-small text-ink-muted">
-          {recheck.isPending ? "Checking again…" : ""}
+          {recheck.isPending ? "Checking again…" : recheck.isSuccess ? `Checked ${ago(recheck.data.created, nowSeconds())}. Still listed.` : ""}
         </span>
       </div>
     </div>
@@ -219,7 +259,7 @@ function Coverage({ id }: { id: string }) {
 const HOW = [
   "Bigman asks your system three questions in two different ways: which programs are running, which kernel modules are loaded, and which network connections are open. Anything that is in one answer and not the other is listed.",
   "It also lists what ordinary tools leave out: programs running with no file on disk, programs reading network traffic directly, small programs loaded into the kernel (BPF), and programs watching the folders that hold your keys.",
-  "When you recognise a row, mark it as known. It stays listed and stops counting until its details change.",
+  "When you recognise a row, mark it as known. It stays listed and stops counting until its details change. Rows where two views disagree cannot be marked: nothing ordinary causes them.",
   "A short list is not proof that nothing is hidden. Something that hides from every view at once hides from this check too.",
 ];
 
@@ -335,6 +375,8 @@ export function RunningView() {
           )}
         </section>
       )}
+
+      <StopWatch />
     </div>
   );
 }
