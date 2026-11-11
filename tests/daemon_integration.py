@@ -197,7 +197,13 @@ sys.exit(1 if detected else 0)
 
         unread = value({'type': 'unread'}, 'unread')
         assert unread['first_seen'] > 0
-        assert value({'type': 'mark_seen', 'through': unread['through']}, 'unread')['first_seen'] == 0
+        # The live sources keep noticing things on a busy machine, so an entry can
+        # arrive between asking what is unread and marking it seen. Marking through
+        # the newest entry leaves nothing unread once no entry lands in between.
+        deadline = time.monotonic() + 20
+        while value({'type': 'mark_seen', 'through': unread['through']}, 'unread')['first_seen'] != 0:
+            assert time.monotonic() < deadline, 'marking everything seen never left nothing unread'
+            unread = value({'type': 'unread'}, 'unread')
         names = {s['name'] for s in value({'type': 'sources'}, 'sources')}
         assert names >= {'throughput', 'traffic', 'connections', 'listeners', 'denials', 'reports'}, names
 

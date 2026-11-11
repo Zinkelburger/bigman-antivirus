@@ -77,13 +77,25 @@ try {
 
   const tabButton = (tab) => find(`//nav//button[.//span[normalize-space()='${tab}']]`);
   try {
-    await until("the app to render", () => tabButton("Overview"));
+    // A debug build drawing without a GPU on a shared CI runner takes a while to start.
+    await until("the app to render", () => tabButton("Overview"), 90_000);
   } catch (error) {
     const page = await wd("POST", `${s}/execute/sync`, {
       script: "return location.href + '\\n' + document.documentElement.outerHTML.slice(0, 2000)",
       args: [],
     }).catch((e) => String(e));
     console.error(`Page at timeout:\n${page}`);
+    // Importing the page's script again gives the error it stopped on, if it did:
+    // a module that failed to load fails the same way every time it is asked for.
+    const script = await wd("POST", `${s}/execute/async`, {
+      script:
+        "const done = arguments[arguments.length - 1];" +
+        "const src = document.querySelector('script[type=module]')?.src;" +
+        "if (!src) done('no module script in the page');" +
+        "else import(src).then(() => done('the script loaded without an error'), (e) => done(String((e && e.stack) || e)));",
+      args: [],
+    }).catch((e) => String(e));
+    console.error(`The page's script: ${script}`);
     throw error;
   }
   for (const tab of TABS) {
