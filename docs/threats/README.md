@@ -10,7 +10,7 @@ The prioritised plan built from these files is in [research/roadmap.md](../resea
 
 | File | Prefix | Entries | Covered | Partial | Gap |
 |---|---|---|---|---|---|
-| [01 Phishing and social engineering](./01-phishing-social-engineering.md) | PH- | 21 | 1 | 11 | 9 |
+| [01 Phishing and social engineering](./01-phishing-social-engineering.md) | PH- | 21 | 1 | 12 | 8 |
 | [02 Package registry supply chain](./02-supply-chain-packages.md) | SC- | 25 | 1 | 17 | 7 |
 | [03 Distro packaging and install channels](./03-distro-packaging-and-install-channels.md) | DP- | 23 | 3 | 11 | 9 |
 | [04 Host integrity and hardening audit](./04-host-integrity-and-hardening-audit.md) | HI- | 25 | 0 | 21 | 4 |
@@ -18,7 +18,7 @@ The prioritised plan built from these files is in [research/roadmap.md](../resea
 | [06 Credential and secret protection](./06-credential-and-secret-protection.md) | CR- | 22 | 0 | 7 | 15 |
 | [07 Network exposure and remote access](./07-network-exposure-and-remote-access.md) | NE- | 22 | 0 | 15 | 7 |
 | [08 Desktop and sandboxing](./08-desktop-and-sandboxing.md) | DS- | 22 | 0 | 9 | 13 |
-| **Total** | | **184** | **5** | **110** | **69** |
+| **Total** | | **184** | **5** | **111** | **68** |
 
 "Partial" usually means an existing workflow (ClamAV scans, `bigman inspect`, the startup baseline, the canary or the browser extension) catches some indicators but not the threat as a whole.
 

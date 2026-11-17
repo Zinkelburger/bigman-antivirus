@@ -6,7 +6,8 @@ el('scan').onclick = async () => {
         const response = await chrome.tabs.sendMessage(tab.id, { action: 'rescan' }, { frameId: 0 });
         if (!response?.success) throw new Error('Page check unavailable');
         const r = response.results;
-        el('status').textContent = `${r.total} links in the main document checked; ${r.suspicious} findings. ${r.incomplete ? 'Coverage incomplete.' : 'No finding is not a safety guarantee.'}`;
+        const ads = r.ads && r.ads.mode !== 'off' ? ` ${r.ads.mode === 'hide' ? 'Hid' : 'Marked'} ${r.ads.count} sponsored ${r.ads.count === 1 ? 'result' : 'results'}.` : '';
+        el('status').textContent = `${r.total} links in the main document checked; ${r.suspicious} findings.${ads} ${r.incomplete ? 'Coverage incomplete.' : 'No finding is not a safety guarantee.'}`;
         el('details').textContent = r.error || r.details.map(d => `${d.reason}\n${d.url}\n${JSON.stringify(d.details)}`).join('\n\n') || 'No findings from local checks.';
     } catch (error) { el('status').textContent = `Unavailable: ${error.message}. Reload ordinary web pages after installing the extension; restricted browser pages cannot be scanned.`; }
 };

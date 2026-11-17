@@ -218,8 +218,10 @@ enum Commands {
         remove: bool,
     },
     NativeHost,
+    /// Let the browser extension use Bigman: always in Firefox, and in Chrome and
+    /// Chromium too when given the extension's ID from chrome://extensions.
     NativeInstall {
-        extension_id: String,
+        extension_id: Option<String>,
     },
     /// Called by the opt-in package-manager hooks (as root): preview a transaction's
     /// receipt in Bigman before it runs. Every failure lets the transaction continue.
@@ -412,10 +414,8 @@ fn programs_text(list: &[bigman_core::checks::respawn::Program]) -> String {
 }
 
 fn run() -> Result<()> {
-    // Chromium supplies its validated origin as argv[1], not a CLI subcommand.
-    let native = std::env::args()
-        .nth(1)
-        .is_some_and(|a| a.starts_with("chrome-extension://"));
+    // A browser starting the native host passes its own arguments, not a CLI subcommand.
+    let native = setup::started_as_native_host(&std::env::args().skip(1).collect::<Vec<_>>());
     let cli = if native {
         Cli {
             state: None,
@@ -886,8 +886,7 @@ fn run() -> Result<()> {
             None
         }
         Some(Commands::NativeInstall { extension_id }) => {
-            for p in setup::native_manifest_paths() {
-                setup::write_native_manifest(&p, &extension_id)?;
+            for p in setup::register_native_hosts(extension_id.as_deref())? {
                 println!("Registered {}", p.display());
             }
             None

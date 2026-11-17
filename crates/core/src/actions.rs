@@ -130,9 +130,10 @@ pub enum Action {
     DisarmCanary {
         id: String,
     },
-    /// Register the browser extension's native-messaging host.
+    /// Register the browser extension's native-messaging host: for Firefox, and
+    /// for Chrome and Chromium too when a Chrome extension ID is given.
     RegisterNativeHost {
-        extension_id: String,
+        extension_id: Option<String>,
     },
     /// Make a hardening suggestion's change. The daemon works out the change
     /// from the computer's current state; the id only says which suggestion.
@@ -801,8 +802,15 @@ pub fn preview(action: &Action, store: &Store) -> Result<ActionPlan> {
             ..plan(
                 "Connect the browser extension",
                 "Connect",
-                "Write native-messaging host manifests that let only this extension ID talk to Bigman.",
-                format!("Extension {extension_id}\n{}", paths(&setup::native_manifest_paths())),
+                "Write native-messaging host manifests that let only Bigman's extension talk to Bigman.",
+                format!(
+                    "{}\n{}",
+                    match extension_id {
+                        Some(id) => format!("Firefox, and Chrome extension {id}"),
+                        None => "Firefox".to_string(),
+                    },
+                    paths(&setup::native_manifest_paths(extension_id.as_deref()))
+                ),
             )
         },
     })
@@ -973,10 +981,7 @@ pub fn apply(action: &Action, store: &Store, stop: &Cancel) -> Result<ActionOutc
             message("Decoy removed from the list; its file was kept.")
         }
         Action::RegisterNativeHost { extension_id } => {
-            let manifests = setup::native_manifest_paths();
-            for p in &manifests {
-                setup::write_native_manifest(p, extension_id)?;
-            }
+            let manifests = setup::register_native_hosts(extension_id.as_deref())?;
             message(format!(
                 "Registered {}",
                 paths(&manifests).replace('\n', ", ")

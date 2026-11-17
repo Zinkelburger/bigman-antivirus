@@ -13,7 +13,7 @@ A release is a tag `vX.Y.Z` on `main`. Pushing it runs [`.github/workflows/relea
 | `bigman-X.Y.Z-1.x86_64.rpm` | Fedora, RHEL-family |
 | `bigman-X.Y.Z-x86_64-linux.tar.gz` | anything else: `./install.sh` under `~/.local`, or `sudo ./install.sh /usr/local` |
 | `PKGBUILD` | Arch: the AUR package `bigman-bin`, built from the tarball |
-| `bigman-extension-X.Y.Z.zip` | the Chromium extension, to load unpacked or upload to the Chrome Web Store |
+| `bigman-extension-X.Y.Z.zip` | the browser extension: load it unpacked or upload it to the Chrome Web Store, or have addons.mozilla.org sign it for Firefox |
 | `SHA256SUMS` | checksums of all of the above |
 
 Each package installs `/usr/bin/bigman`, `/usr/bin/bigmand`, `/usr/bin/bigman-app`, `/usr/bin/bigman-canary-helper` (the optional root service for canary reader identification; it runs only after you turn that on, which copies it to `/usr/local/libexec/bigman`), `bigman-app.desktop` (named after the window's application ID so Wayland desktops show its icon) and the icons. Nothing starts at install; the app's Setup tab installs the per-user services, which name the programs in `/usr/bin`.
@@ -35,6 +35,7 @@ There is no AppImage: Setup writes the daemon's path into systemd units and brow
 4. When the workflow finishes, open the draft under **Releases**, write the notes (what changed, anything users must do), and publish.
 5. Arch: copy the release's `PKGBUILD` into the `bigman-bin` AUR repository, run `makepkg --printsrcinfo > .SRCINFO`, commit and push. The first time, create an AUR account with an SSH key and push to `ssh://aur@aur.archlinux.org/bigman-bin.git`.
 6. Chrome Web Store (optional): upload `bigman-extension-X.Y.Z.zip` from the developer dashboard.
+7. Firefox (optional): upload the same zip to addons.mozilla.org as an unlisted (self-distributed) version, or run `npx web-ext sign --channel unlisted` with the account's API keys, and attach the signed `.xpi` to the release. The add-on ID is fixed in `manifest.json`; keep it, or installed copies stop updating and the native host stops answering.
 
 If a release is broken, delete the draft (or the release) and the tag, fix, and tag again with the next patch version once anything was published.
 

@@ -68,7 +68,7 @@ To stop it, click **Stop background checks…** in **Setup → Background checks
 | Your system | Startup and login files against your baseline, package sources, security updates, hardening suggestions, AI-tool skills and plugins | **Protect** |
 | What happens | Connections, listening programs, traffic by program, package changes with install receipts, denials, SSH access | **Activity**, **Network**, **Traffic** |
 | Decoys | Canary files that alert you when read | **Protect → Canaries**, [docs/canaries.md](docs/canaries.md) |
-| Browser | Lookalike links, ClickFix pages, your own blocklists | [docs/browser-extension.md](docs/browser-extension.md) |
+| Browser (Chrome, Chromium, Firefox) | Lookalike links, ClickFix pages, sponsored search results, your own blocklists | [docs/browser-extension.md](docs/browser-extension.md) |
 
 What each workflow does, and the limit it promises, is in [docs/features.md](docs/features.md). Every rule, with its explanation and fix, is in [docs/rules.md](docs/rules.md).
 

@@ -1,1 +1,4 @@
 a[data-bigman-warning]{outline:2px dashed #c55b18!important;outline-offset:2px!important}
+[data-bigman-ad="highlight"]{outline:3px solid #d97706!important;outline-offset:4px!important;border-radius:6px!important;background-color:rgba(217,119,6,.09)!important}
+[data-bigman-ad="highlight"]:not(a)::before{content:"Ad \00B7  not a search result. Check the web address before you download anything."!important;display:block!important;position:static!important;float:none!important;width:fit-content!important;max-width:100%!important;box-sizing:border-box!important;margin:0 0 8px!important;padding:3px 8px!important;border-radius:4px!important;background:#fbbf24!important;color:#1c1917!important;font:600 13px/1.4 system-ui,sans-serif!important;letter-spacing:normal!important;text-transform:none!important;white-space:normal!important}
+[data-bigman-ad="hide"]{display:none!important}

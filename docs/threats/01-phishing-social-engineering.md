@@ -69,7 +69,7 @@ These observations come from reading `browser-extension/link-detector.js`, `cont
 | PH-14 | Browser-in-the-browser fake login windows | Medium | Gap | Detect in-page elements that draw a fake browser chrome with an address bar containing a protected domain plus a password field. |
 | PH-15 | Fake update prompts (browser, conferencing, driver, "missing component") | High | Partial | Page rule for update wording plus a download or paste instruction; flag downloads that the page claims are browser updates. |
 | PH-16 | Chat-platform link spam and invite hijacking aimed at OSS communities | Medium | Partial | Extend rules to web chat clients; warn on "verify" bots that lead to off-platform pages; guidance for permanent invites. |
-| PH-17 | Search-ad and SEO poisoning of Linux software download pages | High | Gap | "Official download origin" list for popular Linux tools; flag install-command pages on non-official origins. |
+| PH-17 | Search-ad and SEO poisoning of Linux software download pages | High | Partial | "Official download origin" list for popular Linux tools; flag install-command pages on non-official origins. |
 | PH-18 | Fake IDE-extension, container-image and package pages | Medium | Gap | Brand entries for Marketplace, Open VSX, Docker Hub, Flathub and Snapcraft; publisher/namespace lookalike checks. |
 | PH-19 | URL shorteners and multi-hop redirect chains | Medium | Gap | Shortener list; warning page offers a bounded, non-rendering redirect walk through the native host (`inspect-url`). |
 | PH-20 | `data:`, `javascript:`, `blob:` and `file:` URLs and HTML attachments | Medium | Partial | Add `blob:` and `filesystem:`; flag local HTML files that contain credential forms. |
@@ -542,7 +542,7 @@ These observations come from reading `browser-extension/link-detector.js`, `cont
   - The page title or h1 names a known project, but the origin is non-canonical (the brand pack from PH-02).
   - Ad-click URL patterns (`/aclk?`, `gclid=`) in the navigation chain.
   - A `.deb`, `.rpm`, `.AppImage` or `.run` download from an origin that is not the project's documented download host.
-- **Bigman today:** **Gap** in the browser: `brewe.sh` returned `none`. **Partial** on the desktop:
+- **Bigman today:** **Partial** in the browser. The extension marks or hides sponsored results on Google, Bing and DuckDuckGo, and an ad click that lands on a site other than the one the ad named is replaced by a warning (the `brewe.sh` case: the ad named `brew.sh`). See [browser-extension.md](../browser-extension.md#sponsored-search-results). An organic result on a lookalike site is still unflagged: `brewe.sh` itself returns `none`. **Partial** on the desktop:
   - `bigman inspect URL` statically classifies an install script (`shell.download`, `shell.privilege`, `shell.persistence`);
   - download scanning can scan `.deb` files with ClamAV;
   - `bigman changes` detects `/etc/cron.d` additions.

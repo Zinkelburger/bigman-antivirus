@@ -7,6 +7,13 @@
     const u = new URL(record.url);
     if (!['http:', 'https:'].includes(u.protocol)) return;
     el('reason').textContent = record.reason; el('url').textContent = u.href;
+    // A warning that replaced a page goes back to the search it came from instead of closing the tab.
+    let back = null;
+    try { back = record.back && new URL(record.back); } catch { back = null; }
+    if (back && ['http:', 'https:'].includes(back.protocol)) {
+        el('back').textContent = 'Back to search results';
+        el('back').onclick = async () => { await chrome.storage.session.remove(id); location.replace(back.href); };
+    }
     el('continue').disabled = false;
     el('continue').onclick = async () => { await chrome.storage.session.remove(id); location.replace(u.href); };
     if (record.rule !== 'list.match') {

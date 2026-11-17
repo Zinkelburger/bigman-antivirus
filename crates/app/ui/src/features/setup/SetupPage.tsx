@@ -227,7 +227,7 @@ export function SetupPage() {
   const status = useStatus();
   const [extension, setExtension] = useState("");
   const [theme, setTheme] = useState<ThemeChoice>(storedTheme);
-  const validExtension = /^[a-p]{32}$/.test(extension);
+  const validExtension = extension === "" || /^[a-p]{32}$/.test(extension);
   const down = health.error instanceof DisconnectedError;
   const clamav = groups.data?.find((g) => g.id === "clamav")?.installed;
   const signatures = status.data?.signatures;
@@ -345,13 +345,13 @@ export function SetupPage() {
 
           <Item title="Browser extension" done={null}>
             <p className="m-0 max-w-[56ch] text-ink-muted">
-              Lets the Chromium extension send downloads and installer links to Bigman. Load the extension unpacked,
-              then paste its ID from the Extensions page.
+              Lets the browser extension send downloads and installer links to Bigman. Firefox needs nothing more. For
+              Chrome or Chromium, load the extension unpacked, then paste its ID from the Extensions page.
             </p>
             <div className="flex max-w-md flex-col gap-2">
-              <TextField label="Extension ID" value={extension} onChange={(v) => setExtension(v.trim())} mono hint="32 letters from a to p." />
+              <TextField label="Chrome extension ID (optional)" value={extension} onChange={(v) => setExtension(v.trim())} mono hint="32 letters from a to p. Leave empty for Firefox only." />
               <div>
-                <ActionDialog action={{ kind: "register_native_host", extension_id: extension }} label="Connect…" disabled={down || !validExtension} />
+                <ActionDialog action={{ kind: "register_native_host", extension_id: extension || null }} label="Connect…" disabled={down || !validExtension} />
               </div>
             </div>
           </Item>

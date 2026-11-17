@@ -279,7 +279,7 @@ class MockDaemon {
       case "stop_monitor": return plan("Stop canary monitoring", "Stop", "Stop the monitor and remove its login service. Decoy files and history stay. Reads while stopped are not noticed.", "", "Start monitoring again from Protect > Canaries.");
       case "create_hosted_canary": return plan("Save a hosted canary shortcut", "Save shortcut", "Write a shortcut file that points at your provider's token URL. Bigman does not visit the URL.", `${action.path}\n${action.url}`);
       case "disarm_canary": return plan("Stop watching a decoy", "Stop watching", "Remove this decoy from Bigman's list. The file itself stays where it is.", this.canaries.find((c) => c.id === action.id)?.path ?? "");
-      case "register_native_host": return plan("Connect the browser extension", "Connect", "Write native-messaging host manifests that let only this extension ID talk to Bigman.", `Extension ${action.extension_id}\n~/.config/google-chrome/NativeMessagingHosts/com.bigman.pdf_scanner.json`, "Delete the manifest files listed above.");
+      case "register_native_host": return plan("Connect the browser extension", "Connect", "Write native-messaging host manifests that let only Bigman's extension talk to Bigman.", `${action.extension_id ? `Firefox, and Chrome extension ${action.extension_id}\n~/.config/google-chrome/NativeMessagingHosts/com.bigman.pdf_scanner.json\n` : "Firefox\n"}~/.mozilla/native-messaging-hosts/com.bigman.pdf_scanner.json`, "Delete the manifest files listed above.");
     }
   }
 

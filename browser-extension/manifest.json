@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "BigMan AntiVirus - Link Detector",
   "version": "0.2.0",
-  "description": "Deterministic local link checks and optional desktop download scans",
+  "description": "Deterministic local link checks, sponsored-result marking and optional desktop download scans",
   "permissions": [
     "activeTab",
     "downloads",
@@ -12,7 +12,10 @@
     "alarms"
   ],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "scripts": [
+      "background.js"
+    ]
   },
   "content_scripts": [
     {
@@ -22,6 +25,7 @@
       ],
       "js": [
         "dist/link-detector.js",
+        "search-ads.js",
         "content.js"
       ],
       "css": [
@@ -45,5 +49,16 @@
       "128": "icons/128.png"
     }
   },
-  "options_page": "options.html"
+  "options_page": "options.html",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "link-detector@bigman-antivirus",
+      "strict_min_version": "140.0",
+      "data_collection_permissions": {
+        "required": [
+          "none"
+        ]
+      }
+    }
+  }
 }

@@ -474,31 +474,102 @@ pub fn open_tool(tool: &str) -> Result<()> {
     };
     Ok(())
 }
-/// Chrome and Chromium per-user native-messaging host manifests.
-pub fn native_manifest_paths() -> Vec<PathBuf> {
-    let config = std::env::var_os("XDG_CONFIG_HOME")
+/// The Firefox build's add-on ID, set in browser-extension/manifest.json. Firefox
+/// starts the host with the manifest's path and this ID as its two arguments.
+pub const FIREFOX_EXTENSION_ID: &str = "link-detector@bigman-antivirus";
+const HOST_MANIFEST: &str = "com.bigman.pdf_scanner.json";
+fn config_dir() -> PathBuf {
+    std::env::var_os("XDG_CONFIG_HOME")
         .map(PathBuf::from)
-        .unwrap_or_else(|| home().join(".config"));
+        .unwrap_or_else(|| home().join(".config"))
+}
+/// Chrome and Chromium per-user native-messaging host manifests.
+pub fn chrome_manifest_paths() -> Vec<PathBuf> {
     ["google-chrome", "chromium"]
         .iter()
         .map(|browser| {
-            config
+            config_dir()
                 .join(browser)
-                .join("NativeMessagingHosts/com.bigman.pdf_scanner.json")
+                .join("NativeMessagingHosts")
+                .join(HOST_MANIFEST)
         })
         .collect()
 }
-pub fn write_native_manifest(path: &Path, extension: &str) -> Result<()> {
+/// Firefox per-user host manifests. Firefox 159 reads only ~/.mozilla, even when
+/// its profiles live under ~/.config/mozilla; the XDG copy is for when it reads
+/// that location too (Mozilla bug 2005167).
+pub fn firefox_manifest_paths() -> Vec<PathBuf> {
+    vec![
+        home()
+            .join(".mozilla/native-messaging-hosts")
+            .join(HOST_MANIFEST),
+        config_dir()
+            .join("mozilla/native-messaging-hosts")
+            .join(HOST_MANIFEST),
+    ]
+}
+/// The manifests `register_native_hosts` writes: Firefox's always, Chrome's when
+/// a Chrome extension ID is given.
+pub fn native_manifest_paths(chrome_extension: Option<&str>) -> Vec<PathBuf> {
+    let mut paths = if chrome_extension.is_some() {
+        chrome_manifest_paths()
+    } else {
+        Vec::new()
+    };
+    paths.extend(firefox_manifest_paths());
+    paths
+}
+fn valid_chrome_id(extension: &str) -> Result<()> {
     if extension.len() != 32 || !extension.bytes().all(|c| (b'a'..=b'p').contains(&c)) {
         bail!("Chrome extension ID must contain exactly 32 letters a–p");
     }
-    let manifest = serde_json::json!({"name":"com.bigman.pdf_scanner","description":"Bigman deterministic local security checks","path":runner::bigman_executable()?,"type":"stdio","allowed_origins":[format!("chrome-extension://{extension}/")]});
+    Ok(())
+}
+fn write_host_manifest(path: &Path, allowed: (&str, String)) -> Result<()> {
+    let mut manifest = serde_json::json!({"name":"com.bigman.pdf_scanner","description":"Bigman deterministic local security checks","path":runner::bigman_executable()?,"type":"stdio"});
+    manifest[allowed.0] = serde_json::json!([allowed.1]);
     fs::create_dir_all(
         path.parent()
             .ok_or_else(|| anyhow::anyhow!("Missing parent"))?,
     )?;
     fs::write(path, serde_json::to_vec_pretty(&manifest)?)?;
     Ok(())
+}
+/// Lets the browser extension start this binary as its native host: in Firefox,
+/// and in Chrome and Chromium too when given the extension's Chrome ID. Each
+/// manifest allows only that one extension. Returns the files written.
+pub fn register_native_hosts(chrome_extension: Option<&str>) -> Result<Vec<PathBuf>> {
+    if let Some(id) = chrome_extension {
+        valid_chrome_id(id)?;
+    }
+    let mut written = Vec::new();
+    if let Some(id) = chrome_extension {
+        for path in chrome_manifest_paths() {
+            write_host_manifest(
+                &path,
+                ("allowed_origins", format!("chrome-extension://{id}/")),
+            )?;
+            written.push(path);
+        }
+    }
+    for path in firefox_manifest_paths() {
+        write_host_manifest(
+            &path,
+            ("allowed_extensions", FIREFOX_EXTENSION_ID.to_string()),
+        )?;
+        written.push(path);
+    }
+    Ok(written)
+}
+/// True when the process arguments are a browser starting the native host:
+/// Chromium passes the extension's origin, Firefox the host manifest's path and
+/// the add-on ID.
+pub fn started_as_native_host(args: &[String]) -> bool {
+    match args {
+        [first, ..] if first.starts_with("chrome-extension://") => true,
+        [manifest, id, ..] => manifest.ends_with(HOST_MANIFEST) && id == FIREFOX_EXTENSION_ID,
+        _ => false,
+    }
 }
 #[cfg(test)]
 mod tests {
@@ -521,6 +592,38 @@ mod tests {
     }
 
     use super::*;
+    #[test]
+    fn browsers_starting_the_native_host_are_recognised() {
+        let args = |list: &[&str]| list.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        assert!(started_as_native_host(&args(&[
+            "chrome-extension://abcdefghijklmnopabcdefghijklmnop/"
+        ])));
+        assert!(started_as_native_host(&args(&[
+            "/home/sam/.mozilla/native-messaging-hosts/com.bigman.pdf_scanner.json",
+            FIREFOX_EXTENSION_ID
+        ])));
+        assert!(!started_as_native_host(&args(&[
+            "scan",
+            FIREFOX_EXTENSION_ID
+        ])));
+        assert!(!started_as_native_host(&args(&[
+            "/home/sam/.mozilla/native-messaging-hosts/com.bigman.pdf_scanner.json",
+            "other@example.org"
+        ])));
+        assert!(!started_as_native_host(&args(&[])));
+        assert!(!started_as_native_host(&args(&[
+            "inspect",
+            "https://example.org"
+        ])));
+    }
+    #[test]
+    fn firefox_is_always_registered_and_chrome_only_with_an_id() {
+        assert!(native_manifest_paths(None)
+            .iter()
+            .all(|p| p.to_string_lossy().contains("mozilla")));
+        assert_eq!(native_manifest_paths(Some("x")).len(), 4);
+        assert!(register_native_hosts(Some("not-an-id")).is_err());
+    }
     #[test]
     fn service_argument_escaping() {
         assert_eq!(quote("/home/a%/my tool").unwrap(), "\"/home/a%%/my tool\"");

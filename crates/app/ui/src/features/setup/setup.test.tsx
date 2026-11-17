@@ -14,12 +14,19 @@ describe("Setup", () => {
     expect(await within(dialog).findByText(/pkexec dnf install -y lynis/)).toBeInTheDocument();
   });
 
-  it("accepts only a valid extension ID", async () => {
+  it("connects Firefox without an ID, and Chrome only with a valid one", async () => {
     const { user } = renderWithDaemon(<SetupPage />);
     const connect = await screen.findByRole("button", { name: "Connect…" });
-    expect(connect).toBeDisabled();
-    await user.type(screen.getByLabelText("Extension ID"), "abcdefghijklmnopabcdefghijklmnop");
     expect(connect).toBeEnabled();
+    const field = screen.getByLabelText("Chrome extension ID (optional)");
+    await user.type(field, "abc");
+    expect(connect).toBeDisabled();
+    await user.clear(field);
+    await user.type(field, "abcdefghijklmnopabcdefghijklmnop");
+    expect(connect).toBeEnabled();
+    await user.click(connect);
+    const dialog = await screen.findByRole("dialog", { name: "Connect the browser extension" });
+    expect(await within(dialog).findByText(/Firefox, and Chrome extension abcdefghijklmnopabcdefghijklmnop/)).toBeInTheDocument();
   });
 });
 

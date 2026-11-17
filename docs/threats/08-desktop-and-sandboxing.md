@@ -153,7 +153,7 @@
   - **Chromium family:** `~/.config/google-chrome/<Profile>/Extensions/<id>/<version>/manifest.json`, `~/.config/chromium/...`, `~/.config/BraveSoftware/Brave-Browser/...`, `~/.config/microsoft-edge/...`, plus Flatpak/Snap variants under `~/.var/app/<id>/config/...` and `~/snap/<name>/common/...`. Each profile's `Preferences` and `Secure Preferences` JSON (`extensions.settings.<id>`) records the install location, the granted permissions, `from_webstore`, and the install time.
   - **Firefox:** `<profile>/extensions.json` (per add-on `id`, `version`, `location`, `userPermissions`, `optionalPermissions`, `signedState`, `sourceURI`, `installDate`, `updateDate`) and `<profile>/extensions/*.xpi`. Field names are from current Firefox builds; verify per version.
   - **Red flags:** a version or permission set that changed recently; host permissions `<all_urls>`, `*://*/*`, `cookies`, `webRequest`, `declarativeNetRequest` with header modification, `scripting`, `debugger`, `nativeMessaging`, `management` or `proxy`; and CSP or header stripping.
-- **Bigman today:** Gap. Bigman's own Chromium extension warns on deceptive links and scans downloads, but it does not inventory other extensions.
+- **Bigman today:** Gap. Bigman's own browser extension warns on deceptive links and scans downloads, but it does not inventory other extensions.
 - **Proposed mitigation / detection:**
   - `bigman browser extensions` (CLI and GUI): a rootless filesystem inventory across Chromium-family and Firefox profiles.
     - Records ID, name (resolving `__MSG_` locale keys), version, permissions and host permissions, `update_url`, install source and dates.
@@ -604,7 +604,7 @@
 1. **Browser inventory scope.** Should `bigman browser extensions` read `Secure Preferences` (the HMAC-protected file) at all, or only manifests? Reading is harmless, but the file also contains other settings, and Bigman's privacy stance may prefer manifest-only plus `Preferences`.
 2. **Known-bad extension ID lists.** Ship a curated, cited list in-repo, or keep it strictly user-imported like the URL blocklists? Shipping one improves usefulness but makes Bigman a list maintainer.
 3. **USBGuard setup.** Is generating an "allow all currently attached devices" policy acceptable as a `bigman setup usbguard --apply` action, given the lock-out risk on desktops with Bluetooth or USB keyboards? Or should Bigman only report status and link to docs?
-4. **Firefox support.** The Chromium extension covers link and download checks. Is a Firefox port planned? DS-06/07/08 inventory works for Firefox from the CLI regardless.
+4. **Firefox support.** Answered: the extension runs in Firefox 140+ as well (see [browser-extension.md](../browser-extension.md)); signing for release Firefox is still open. DS-06/07/08 inventory works for Firefox from the CLI regardless.
 5. **Safe-open viewer choice.** Prefer the Flatpak viewer (portal-based) or Bigman's own Bubblewrap wrapper around host viewers? The latter needs per-viewer bind lists and is harder to keep working across distros.
 6. **Advisory table maintenance.** Who curates the version table for flatpak, bwrap, snapd, xdg-desktop-portal, libcue, ghostscript, LibreOffice, Atril/Evince and firejail? Should it be generated from distro OVAL/OSV feeds (see the [feeds research](../research/vulnerability-intelligence-and-feeds.md)) rather than hand-written?
 7. **Clipboard secret counting.** Should the opt-in "count likely secrets in clipboard history" feature exist at all, given Bigman's rule of not reading credential contents?

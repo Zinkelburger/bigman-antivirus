@@ -1,5 +1,7 @@
 const el = id => document.getElementById(id);
-chrome.storage.local.get(['scanDownloads', 'blockedDomains', 'blockedUrls', 'feedUpdated', 'nativeHealth']).then(s => {
+chrome.storage.local.get(['scanDownloads', 'blockedDomains', 'blockedUrls', 'feedUpdated', 'nativeHealth', 'searchAds']).then(s => {
+    const ads = document.querySelector(`input[name=ads][value="${s.searchAds || 'highlight'}"]`);
+    if (ads) ads.checked = true;
     el('downloads').checked = !!s.scanDownloads;
     el('list').value = [...(s.blockedDomains || []), ...(s.blockedUrls || [])].join('\n');
     el('status').textContent = s.feedUpdated ? `Last list import: ${new Date(s.feedUpdated).toLocaleString()}. Lists do not update automatically.` : 'No reputation list has been imported.';
@@ -27,3 +29,10 @@ el('save').onclick = async () => {
     } catch (error) { el('status').textContent = `Not saved: ${error.message}`; }
 };
 el('clear').onclick = async () => { await chrome.storage.local.set({ exceptions: {} }); el('status').textContent = 'Temporary exceptions cleared.'; };
+// Saved as soon as it changes, apart from the blocklist's Save button.
+el('ads').onchange = async event => {
+    const value = event.target.value;
+    if (!['highlight', 'hide', 'off'].includes(value)) return;
+    await chrome.storage.local.set({ searchAds: value });
+    el('ads-status').textContent = { highlight: 'Saved. Sponsored results get an amber outline and label.', hide: 'Saved. Sponsored results are hidden; a note at the bottom of the page can show them.', off: 'Saved. Sponsored results are left as they are.' }[value];
+};

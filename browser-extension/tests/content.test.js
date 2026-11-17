@@ -11,6 +11,7 @@ test('rescans href mutations, checks image links and clears stale markers', asyn
         },
     };
     global.BigmanLinkDetector = LinkDetector;
+    global.BigmanSearchAds = require('../search-ads');
     document.body.innerHTML = '<a id="image" href="https://microsft.com"><img alt="Open"></a><a id="changing" href="https://example.org">Open</a>';
     eval(fs.readFileSync(require.resolve('../content.js'), 'utf8'));
     await wait();

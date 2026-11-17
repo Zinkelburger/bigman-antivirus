@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
-if [[ $# != 1 || ! $1 =~ ^[a-p]{32}$ ]]; then
-  echo 'Usage: install-native-messaging.sh CHROME_EXTENSION_ID (32 letters a-p)' >&2
+# Firefox is always registered (its add-on ID is fixed); Chrome and Chromium need
+# the ID chrome://extensions shows for the unpacked extension.
+if [[ $# -gt 1 || ( $# == 1 && ! $1 =~ ^[a-p]{32}$ ) ]]; then
+  echo 'Usage: install-native-messaging.sh [CHROME_EXTENSION_ID (32 letters a-p)]' >&2
   exit 2
 fi
 project_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -13,4 +15,4 @@ if [[ ! -x "$bigman_bin" ]]; then
   echo 'Build/install Bigman first with ./install.sh, then retry.' >&2
   exit 2
 fi
-exec "$bigman_bin" native-install "$1"
+exec "$bigman_bin" native-install "$@"
