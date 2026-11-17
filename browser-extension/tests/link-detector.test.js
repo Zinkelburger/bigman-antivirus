@@ -10,6 +10,8 @@ describe('deterministic destination rules', () => {
         ['Open', 'https://paypal.com.attacker.example', 'domain.brand'],
         ['Open', 'https://paypal.com@evil.example/', 'url.userinfo'],
         ['Open', 'javascript:alert(1)', 'url.active'],
+        ['Open', 'javascript:void(fetch("//x.example"))', 'url.active'],
+        ['https://paypal.com › signin › account', 'https://evil.example', 'domain.mismatch'],
         ['support@example.org', 'mailto:wrong@example.org', 'email.mismatch'],
         ['555-123-4567', 'tel:555-999-9999', 'phone.mismatch'],
     ])('flags %s → %s', (text, url, rule) => {
@@ -26,6 +28,11 @@ describe('deterministic destination rules', () => {
         ['Open', 'https://shop.example'],
         ['Open', 'https://alice.github.io'],
         ['Open', 'https://alice.gitlab.io'],
+        // Results pages print the address with breadcrumbs after it.
+        ['https://www.pcmag.com › picks › the-best-vpn-services', 'https://www.pcmag.com/picks/the-best-vpn-services'],
+        ['More', 'javascript:void(0)'],
+        ['More', 'javascript:void(0);'],
+        ['More', 'javascript:;'],
     ])('does not call benign/unproven properties phishing: %s → %s', (text, url) => {
         expect(d.analyzeLink(text, url).isSuspicious).toBe(false);
     });

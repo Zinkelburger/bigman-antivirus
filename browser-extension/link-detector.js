@@ -12,7 +12,8 @@ class LinkDetector {
     }
     extractDomain(value) {
         if (!value || typeof value !== 'string') return null;
-        try { const u = new URL(value); if (u.hostname) return u.hostname.toLowerCase().replace(/\.$/, ''); } catch {}
+        // Only the first word: Chrome accepts spaces inside a host ("https://a.example › path"), Firefox does not.
+        try { const u = new URL(value.trim().split(/\s+/)[0]); if (u.hostname) return u.hostname.toLowerCase().replace(/\.$/, ''); } catch {}
         const m = value.match(/(?:^|[\s(])(?:https?:\/\/)?((?:[a-z0-9-]+\.)+[a-z]{2,63})(?=[/:?\s)]|$)/i);
         return m ? m[1].toLowerCase() : null;
     }
@@ -32,6 +33,8 @@ class LinkDetector {
         if (typeof href !== 'string' || href.length > 8192) return this.result('unavailable', 'URL exceeds inspection limits', 'url.limit', {});
         let u;
         try { u = new URL(href, base); } catch { return this.result('unavailable', 'Invalid or unresolved URL', 'url.invalid', {}); }
+        // A no-op `javascript:void(0)` is a page's own button; its handler, not the link, does the work.
+        if (u.protocol === 'javascript:' && /^javascript:\s*(?:void\s*\(?\s*0\s*\)?)?\s*;?\s*$/i.test(u.href)) return this.result('none', 'No-op script link', 'url.noop', {});
         if (['javascript:', 'data:', 'file:'].includes(u.protocol)) return this.result('review', 'Link invokes code or opens a local resource', 'url.active', { actualUrl: u.href });
         if (u.protocol === 'mailto:') {
             const visible = text.match(/[\w.+-]+@[\w.-]+\.[a-z]{2,}/i)?.[0]?.toLowerCase();
